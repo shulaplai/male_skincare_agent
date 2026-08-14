@@ -1,0 +1,87 @@
+{
+  "scenarios": [
+    {
+      "id": "acne-oily-30d",
+      "name": "暗瘡油性肌 · 30 日紀錄",
+      "expectation": "建議要具體提到控油、水楊酸／煙酰胺等成分；進度評估應反映「暗瘡減少、出油改善」趨勢，目標狀態唔應該全部係 not-started。",
+      "db": {
+        "version": 1,
+        "profile": {
+          "id": "p1",
+          "name": "阿明",
+          "skinType": "油性",
+          "concerns": "額頭同下巴成日生暗瘡，T字位好快出油",
+          "goals": [
+            { "id": "g1", "title": "減少暗瘡", "status": "in-progress", "createdAt": 1700000000000 },
+            { "id": "g2", "title": "控油", "status": "in-progress", "createdAt": 1700000000000 }
+          ],
+          "createdAt": 1700000000000
+        },
+        "entries": [
+          { "id": "e1", "date": "2025-06-01", "skincare": [{ "id": "s1", "step": "潔面", "product": "胺基酸洗面奶" }], "diet": "外賣，多油", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e2", "date": "2025-06-02", "skincare": [{ "id": "s2", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s3", "step": "保濕", "product": "清爽凝露" }], "diet": "雞胸沙律", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e3", "date": "2025-06-05", "skincare": [{ "id": "s4", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s5", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s6", "step": "保濕", "product": "神經醯胺乳液" }], "diet": "清淡，多菜少油", "notes": "開始用水楊酸精華隔日", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e4", "date": "2025-06-08", "skincare": [{ "id": "s7", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s8", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s9", "step": "防曬", "product": "清爽防曬 SPF50" }], "diet": "雞胸沙律＋糙米", "notes": "T字位出油少咗", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e5", "date": "2025-06-12", "skincare": [{ "id": "s10", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s11", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s12", "step": "保濕", "product": "神經醯胺乳液" }], "diet": "自備午餐，戒奶茶", "notes": "額頭暗瘡明顯少咗", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e6", "date": "2025-06-15", "skincare": [{ "id": "s13", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s14", "step": "精華", "product": "水楊酸精華" }, { "id": "s15", "step": "保濕", "product": "神經醯胺乳液" }], "diet": "清淡", "notes": "下巴淨返印", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e7", "date": "2025-06-20", "skincare": [{ "id": "s16", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s17", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s18", "step": "防曬", "product": "清爽防曬 SPF50" }], "diet": "健康餐", "notes": "成個禮拜冇生新瘡", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e8", "date": "2025-06-25", "skincare": [{ "id": "s19", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s20", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s21", "step": "保濕", "product": "神經醯胺乳液" }], "diet": "雞胸沙律", "notes": "印淡咗好多", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e9", "date": "2025-06-28", "skincare": [{ "id": "s22", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s23", "step": "精華", "product": "煙酰胺精華 5%" }, { "id": "s24", "step": "防曬", "product": "清爽防曬 SPF50" }], "diet": "清淡", "notes": "好滿意而家狀態", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e10", "date": "2025-06-30", "skincare": [{ "id": "s25", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s26", "step": "精華", "product": "水楊酸精華" }, { "id": "s27", "step": "保濕", "product": "神經醯胺乳液" }], "diet": "健康餐", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 }
+        ],
+        "memory": { "facts": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "derived": [], "preferences": [] }
+      }
+    },
+    {
+      "id": "sensitive-dry",
+      "name": "敏感乾性肌 · 溫和取向",
+      "expectation": "建議要避免刺激性成分（酒精、高濃度酸類），強調溫和潔面、修復屏障、保濕；唔應該建議強力去角質。",
+      "db": {
+        "version": 1,
+        "profile": {
+          "id": "p2",
+          "name": "阿豪",
+          "skinType": "乾性敏感",
+          "concerns": "洗完面好緊，成日泛紅",
+          "goals": [
+            { "id": "g3", "title": "減少泛紅", "status": "in-progress", "createdAt": 1700000000000 },
+            { "id": "g4", "title": "保濕", "status": "in-progress", "createdAt": 1700000000000 }
+          ],
+          "createdAt": 1700000000000
+        },
+        "entries": [
+          { "id": "e11", "date": "2025-06-01", "skincare": [{ "id": "s28", "step": "潔面", "product": "皂基洗面奶" }], "diet": "", "notes": "洗完面好緊", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e12", "date": "2025-06-03", "skincare": [{ "id": "s29", "step": "潔面", "product": "皂基洗面奶" }, { "id": "s30", "step": "保濕", "product": "含酒精爽膚水" }], "diet": "", "notes": "泛紅明顯", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e13", "date": "2025-06-05", "skincare": [{ "id": "s31", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s32", "step": "保濕", "product": "神經醯胺修護霜" }], "diet": "", "notes": "換咗溫和產品", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e14", "date": "2025-06-08", "skincare": [{ "id": "s33", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s34", "step": "保濕", "product": "神經醯胺修護霜" }, { "id": "s35", "step": "防曬", "product": "物理防曬" }], "diet": "多水", "notes": "泛紅少咗", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e15", "date": "2025-06-12", "skincare": [{ "id": "s36", "step": "潔面", "product": "胺基酸洗面奶" }, { "id": "s37", "step": "保濕", "product": "神經醯胺修護霜" }], "diet": "", "notes": "皮膚穩定好多", "createdAt": 1700000000000, "updatedAt": 1700000000000 }
+        ],
+        "memory": { "facts": ["e11", "e12", "e13", "e14", "e15"], "derived": [], "preferences": [] }
+      }
+    },
+    {
+      "id": "sparse-logging",
+      "name": "間斷紀錄 · 資料不足",
+      "expectation": "AI 應該誠實指出紀錄唔夠連續，影響判斷，並鼓勵持續紀錄；唔應該作出過度確定嘅結論。",
+      "db": {
+        "version": 1,
+        "profile": {
+          "id": "p3",
+          "name": "阿強",
+          "skinType": "中性",
+          "concerns": "想知自己膚質適唔適合用維A",
+          "goals": [
+            { "id": "g5", "title": "建立護膚習慣", "status": "not-started", "createdAt": 1700000000000 }
+          ],
+          "createdAt": 1700000000000
+        },
+        "entries": [
+          { "id": "e16", "date": "2025-05-01", "skincare": [{ "id": "s38", "step": "潔面", "product": "普通洗面奶" }], "diet": "", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e17", "date": "2025-05-20", "skincare": [], "diet": "打邊爐", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 },
+          { "id": "e18", "date": "2025-06-10", "skincare": [{ "id": "s39", "step": "潔面", "product": "普通洗面奶" }, { "id": "s40", "step": "保濕", "product": "乳液" }], "diet": "", "notes": "", "createdAt": 1700000000000, "updatedAt": 1700000000000 }
+        ],
+        "memory": { "facts": ["e16", "e17", "e18"], "derived": [], "preferences": [] }
+      }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+/* ============================================================
+   SKINFILE — design tokens
+   概念：臨床護膚實驗室 × 編輯式男性雜誌
+   ============================================================ */
+
+:root {
+  /* 色彩 */
+  --ink: #14181c;          /* 深墨藍黑 — 側欄/底 */
+  --ink-2: #1c2227;
+  --ink-3: #252d33;
+  --ink-4: #2f3941;
+  --paper: #f4efe6;        /* 暖紙白 — 主面 */
+  --paper-2: #ece4d5;
+  --paper-3: #e2d9c6;
+  --line: rgba(20, 24, 28, 0.14);
+  --line-strong: rgba(20, 24, 28, 0.32);
+  --line-dark: rgba(244, 239, 230, 0.14);
+  --line-dark-strong: rgba(244, 239, 230, 0.32);
+
+  --accent: #2f7d6b;       /* 臨床青瓷綠 */
+  --accent-deep: #256457;
+  --accent-soft: rgba(47, 125, 107, 0.13);
+  --accent-text: #1e5c4d;
+  --amber: #c97b2d;        /* 琥珀警示 */
+  --amber-soft: rgba(201, 123, 45, 0.15);
+  --amber-text: #9c5c1c;
+  --danger: #b3452f;
+  --danger-soft: rgba(179, 69, 47, 0.12);
+  --muted: #7c8389;
+  --muted-on-ink: #9aa3aa;
+
+  --text-on-ink: #f4efe6;
+  --text-on-paper: #1d2328;
+
+  /* 字體 */
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-body: 'Archivo', 'Helvetica Neue', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+
+  /* 尺寸 */
+  --sidebar-w: 252px;
+  --radius: 2px;           /* 實驗室：銳利邊角為主 */
+  --radius-lg: 6px;
+  --pad: 22px;
+
+  /* 陰影（極輕，保持平面感） */
+  --shadow-1: 0 1px 2px rgba(20, 24, 28, 0.08), 0 4px 16px rgba(20, 24, 28, 0.06);
+  --shadow-2: 0 2px 4px rgba(20, 24, 28, 0.1), 0 12px 32px rgba(20, 24, 28, 0.12);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
