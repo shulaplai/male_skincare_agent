@@ -35,6 +35,20 @@ def expiry_for(now: datetime.datetime) -> datetime.datetime:
     return now + datetime.timedelta(days=DECAY_DAYS)
 
 
+def from_orm(insight) -> MemoryInsight:
+    """Adapt an ORM Insight (duck-typed) into a MemoryInsight for reconcile()."""
+    return MemoryInsight(
+        id=insight.id,
+        kind=insight.kind,
+        tag=insight.tag,
+        text=insight.text,
+        confidence=insight.confidence,
+        expires_at=insight.expires_at,
+        superseded_by=insight.superseded_by,
+        version=insight.version,
+    )
+
+
 def make_derived(
     id: str,
     tag: str,
