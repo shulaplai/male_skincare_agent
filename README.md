@@ -64,6 +64,27 @@ npm run dev                 # http://localhost:5173（proxy /api → 8001）
 cd .. && docker compose up --build
 ```
 
+## 部署（production 形態）
+
+```bash
+docker compose up --build
+# frontend -> http://localhost:5173 ，backend -> http://localhost:8001
+```
+
+要 deploy 去 VPS / Railway / Fly：`docker-compose.yml` 已齊 backend（FastAPI）＋ frontend（nginx 託 static build）；改 `ports` 同加 `SKINCOACH_ANTHROPIC_API_KEY`（或 DeepSeek）入 `.env` 就得。相／SQLite 用 volume 綁喺 `./data`，滿足 local-first。
+
+## 面試交付物清單
+
+| 交付物 | 位置 |
+|---|---|
+| 技術決策 + 面試談資 | `docs/architecture.md` |
+| 三個月 roadmap | `docs/roadmap.md` |
+| Demo video 劇本（2.5 分鐘） | `docs/demo-script.md` |
+| 技術 blog 大綱 | `docs/blog-outline.md` |
+| Eval report（sample） | `docs/eval-report-sample.md` |
+| 舊 SKINFILE 嘅選型討論（重讀有用） | `archive/skinfile/DECISIONS.md` |
+| CI（pytest + typecheck + build） | `.github/workflows/ci.yml` |
+
 ## 決策同路線
 
 - 點解咁揀 + 面試談資：`docs/architecture.md`
