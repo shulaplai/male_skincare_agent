@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkinCoach — 揀設計方向</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#12100c;--panel:#1c1813;--line:#2e2820;--text:#efe8da;--muted:#a29785;--accent:#d99a4e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Work Sans',sans-serif;min-height:100vh}
+  .wrap{max-width:1180px;margin:0 auto;padding:48px 26px 80px}
+  header{text-align:center;margin-bottom:42px}
+  header .tag{font-family:monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  header h1{font-family:'Fraunces',serif;font-weight:600;font-size:40px;letter-spacing:-.5px}
+  header p{color:var(--muted);margin-top:12px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.6}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+  .card .frame{height:340px;overflow:hidden;position:relative;border-bottom:1px solid var(--line)}
+  .card iframe{width:1280px;height:800px;border:0;transform:scale(.28);transform-origin:top left;pointer-events:none;position:absolute}
+  .card .body{padding:20px}
+  .card .body .n{font-family:monospace;font-size:10px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}
+  .card .body h2{font-family:'Fraunces',serif;font-weight:600;font-size:21px;margin:8px 0}
+  .card .body p{color:var(--muted);font-size:13.5px;line-height:1.6}
+  .card .body a{display:inline-block;margin-top:16px;color:#1a1206;background:var(--accent);padding:10px 18px;border-radius:9px;text-decoration:none;font-weight:600;font-size:13.5px}
+  @media(max-width:860px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">SkinCoach · 前端方向選擇</div>
+    <h1>揀一個你鍾意嘅方向</h1>
+    <p>三個都係 SkinCoach，只係「第一眼」唔同。揀完我先用 React 真正實現佢。下面係縮細預覽，撳「全屏睇」開獨立頁。</p>
+  </header>
+  <div class="cards">
+    <div class="card">
+      <div class="frame"><iframe src="mockup-1-chat-first.html"></iframe></div>
+      <div class="body">
+        <div class="n">方向 01 ✓ 已選</div>
+        <h2>教練對話優先</h2>
+        <p>AI 教練對話係主角，右邊有皮膚指數＋「AI 記得你」記憶面板。支援多部位對話（面部／身體／手腳…）。最似「agent」嘅感覺。</p>
+        <a href="mockup-1-chat-first.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="frame"><iframe src="mockup-2-dashboard-first.html"></iframe></div>
+      <div class="body">
+        <div class="n">方向 02</div>
+        <h2>數據儀表板優先</h2>
+        <p>皮膚指數、before/after 對比、因果時間線做主角。最啱「長期縱向追蹤」呢個賣點，一望就知係追蹤產品。</p>
+        <a href="mockup-2-dashboard-first.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="frame"><iframe src="mockup-3-checkin-first.html"></iframe></div>
+      <div class="body">
+        <div class="n">方向 03</div>
+        <h2>每日 Check-in 引導</h2>
+        <p>每日打卡做主角，一步步引導影相→狀態→飲食→產品→分析。最容易上手、留存最好，但「agent」感最弱。</p>
+        <a href="mockup-3-checkin-first.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

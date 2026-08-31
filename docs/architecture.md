@@ -89,3 +89,10 @@ node6 寫入日記 + 更新記憶（重複證據升 confidence、矛盾就 super
 ## 9. 香港直連 provider（沿用 SKINFILE 實測）
 
 OpenAI 官方 API 香港 403；production 後端係 server-to-server（冇 CORS 問題，比純前端闊鬆），但都預設用香港直連得嘅 provider：Anthropic / DeepSeek / Gemini / OpenRouter 等。詳細見舊 `archive/skinfile/DECISIONS.md` §9。
+
+## 10. 前端設計方向（已鎖定）
+
+- **主界面：教練對話優先（chat-first）** —— 對話係主角，右側 panel 放「皮膚指數 + AI 記憶 + 因果時間線」。
+- **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 得一個「面部皮膚」對話，用戶可開新對話；**每個部位有獨立嘅日記、記憶、時間線、皮膚指數**。
+- **數據面板保留**（方向 02 嗰啲）：皮膚指數、油光／泛紅／暗瘡指標、sparkline、before/after、因果時間線 —— 全部照做，只係收埋喺 chat 側邊，唔做主角。
+- 呢個設計對應到 **數據層**（Phase 1）嘅影響：所有 record（entries／photos／insights／timeline）都要加 `body_part` 維度；一個 user 多個 conversation/部位。

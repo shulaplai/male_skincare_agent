@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkinCoach — 方向二：數據儀表板優先</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Chivo+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4f1ea; --ink:#12110e; --panel:#fbfaf6; --line:#ded8cc; --faint:#9a9284;
+    --acid:#d8ff3e; --orange:#ff4d00; --green:#1f8a4c; --red:#d6452f;
+    --sans:'Archivo',sans-serif; --mono:'Chivo Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:40px 40px;}
+  .wrap{max-width:1280px;margin:0 auto;padding:22px 26px 60px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:6px 0 22px;border-bottom:2px solid var(--ink)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .mark{width:34px;height:34px;background:var(--ink);color:var(--acid);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:13px;border-radius:4px}
+  .brand h1{font-weight:800;font-size:22px;letter-spacing:-.5px;text-transform:uppercase}
+  .brand .sub{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.12em}
+  .head-actions{display:flex;gap:10px;align-items:center}
+  .range{font-family:var(--mono);font-size:12px;border:1px solid var(--ink);background:var(--panel);padding:9px 14px;border-radius:4px;display:flex;gap:8px;align-items:center}
+  .range b{font-weight:600}
+  .btn{border:1px solid var(--ink);background:var(--ink);color:var(--paper);padding:10px 16px;font-family:var(--sans);font-weight:700;font-size:13px;border-radius:4px;cursor:pointer;letter-spacing:.02em}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .btn.acid{background:var(--acid);color:var(--ink);border-color:var(--ink)}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:18px}
+  .panel{background:var(--panel);border:1px solid var(--ink);border-radius:6px;padding:18px;box-shadow:4px 4px 0 rgba(18,17,14,.06)}
+  .panel .head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .panel .head h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+  .panel .head .kicker{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .col-4{grid-column:span 4}.col-5{grid-column:span 5}.col-6{grid-column:span 6}.col-7{grid-column:span 7}.col-8{grid-column:span 8}.col-12{grid-column:span 12}
+
+  /* score */
+  .score{display:flex;align-items:center;gap:22px}
+  .big{font-family:var(--mono);font-size:64px;font-weight:600;line-height:.9;letter-spacing:-3px}
+  .big small{font-size:22px;letter-spacing:0;color:var(--faint)}
+  .delta{font-family:var(--mono);font-size:12px;color:var(--green);margin-top:6px}
+  .spark{flex:1}
+  svg .gridline{stroke:var(--line);stroke-width:1}
+  svg .area{fill:rgba(216,255,62,.25)}
+  svg .line{stroke:var(--ink);stroke-width:2;fill:none}
+  svg .dot{fill:var(--orange)}
+
+  .bars{display:flex;flex-direction:column;gap:12px;margin-top:8px}
+  .bar .lbl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;margin-bottom:5px}
+  .bar .track{height:9px;background:var(--paper);border:1px solid var(--ink);border-radius:2px}
+  .bar .fill{height:100%;background:var(--ink)}
+  .bar .fill.orange{background:var(--orange)}.bar .fill.green{background:var(--green)}
+
+  /* before/after slider */
+  .compare{position:relative;overflow:hidden;border:1px solid var(--ink);border-radius:4px;aspect-ratio:16/10;user-select:none}
+  .compare img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
+  .compare .after{clip-path:inset(0 0 0 var(--pos,50%))}
+  .compare .handle{position:absolute;top:0;bottom:0;left:var(--pos,50%);width:2px;background:var(--acid);transform:translateX(-50%);pointer-events:none}
+  .compare .grip{position:absolute;top:50%;left:var(--pos,50%);transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;background:var(--acid);border:2px solid var(--ink);display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:11px;pointer-events:none}
+  .compare .tag{position:absolute;top:10px;font-family:var(--mono);font-size:10px;background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:3px;pointer-events:none}
+  .compare .tag.before{left:10px}.compare .tag.after{right:10px}
+
+  /* timeline */
+  .tl{position:relative;padding-left:22px}
+  .tl::before{content:'';position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--ink)}
+  .tl .ev{position:relative;padding:9px 0;display:flex;flex-direction:column;gap:3px}
+  .tl .ev::before{content:'';position:absolute;left:-19px;top:15px;width:10px;height:10px;border-radius:50%;background:var(--ink);border:2px solid var(--paper)}
+  .tl .ev.warn::before{background:var(--orange)}.tl .ev.good::before{background:var(--green)}
+  .tl .ev .d{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .tl .ev .x{font-size:14px;font-weight:600}
+  .tl .ev .s{font-size:12px;color:var(--faint)}
+
+  .ai-callout{border-left:6px solid var(--acid);background:var(--paper);padding:14px 16px;border-radius:4px;font-size:14px;line-height:1.6}
+  .ai-callout b{font-weight:800}
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .stat{text-align:center;padding:14px 8px;border:1px solid var(--line);border-radius:4px;background:var(--paper)}
+  .stat .v{font-family:var(--mono);font-size:24px;font-weight:600}
+  .stat .k{font-size:11px;color:var(--faint);margin-top:4px}
+
+  @media(max-width:900px){.col-4,.col-5,.col-6,.col-7,.col-8{grid-column:span 12}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">SK</div>
+      <div><h1>SkinCoach</h1><div class="sub">LONGITUDINAL SKIN OS — 92 日追蹤</div></div>
+    </div>
+    <div class="head-actions">
+      <div class="range">📅 <b>過去 90 日</b> ▾</div>
+      <button class="btn ghost">匯出數據</button>
+      <button class="btn acid">＋ 今日打卡</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel col-4">
+      <div class="head"><h2>皮膚指數</h2><span class="kicker">SKIN SCORE</span></div>
+      <div class="score">
+        <div><div class="big">78<small>/100</small></div><div class="delta">▲ +6 vs 上月</div></div>
+      </div>
+      <svg viewBox="0 0 300 90" style="width:100%;margin-top:14px">
+        <line class="gridline" x1="0" y1="22" x2="300" y2="22"/><line class="gridline" x1="0" y1="66" x2="300" y2="66"/>
+        <path class="area" d="M0,70 L50,62 L100,66 L150,50 L200,44 L250,30 L300,22 L300,90 L0,90 Z"/>
+        <path class="line" d="M0,70 L50,62 L100,66 L150,50 L200,44 L250,30 L300,22"/>
+        <circle class="dot" cx="250" cy="30" r="4"/><circle class="dot" cx="300" cy="22" r="4"/>
+      </svg>
+    </section>
+
+    <section class="panel col-4">
+      <div class="head"><h2>目標進度</h2><span class="kicker">GOALS</span></div>
+      <div class="bars">
+        <div class="bar"><div class="lbl"><span>去暗瘡</span><span>72%</span></div><div class="track"><div class="fill green" style="width:72%"></div></div></div>
+        <div class="bar"><div class="lbl"><span>淡印（下巴）</span><span>48%</span></div><div class="track"><div class="fill" style="width:48%"></div></div></div>
+        <div class="bar"><div class="lbl"><span>控油（T 字位）</span><span>64%</span></div><div class="track"><div class="fill" style="width:64%"></div></div></div>
+      </div>
+    </section>
+
+    <section class="panel col-4">
+      <div class="head"><h2>今日關鍵數據</h2><span class="kicker">TODAY</span></div>
+      <div class="stat-row">
+        <div class="stat"><div class="v">-18%</div><div class="k">油光</div></div>
+        <div class="stat"><div class="v" style="color:var(--red)">+6%</div><div class="k">泛紅</div></div>
+        <div class="stat"><div class="v" style="color:var(--red)">+2</div><div class="k">新暗瘡</div></div>
+      </div>
+    </section>
+
+    <section class="panel col-6">
+      <div class="head"><h2>Before / After 對比</h2><span class="kicker">拖曳滑桿</span></div>
+      <div class="compare" id="cmp">
+        <img class="base" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='350'><defs><linearGradient id='b' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23c9a17a'/><stop offset='1' stop-color='%238a5f3c'/></linearGradient></defs><rect width='560' height='350' fill='url(%23b)'/><circle cx='250' cy='165' r='70' fill='%23c05a45'/><circle cx='300' cy='200' r='60' fill='%23c05a45'/><circle cx='220' cy='120' r='18' fill='%23b05a45'/></svg>"/>
+        <img class="after" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='350'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23d4b48c'/><stop offset='1' stop-color='%239a6f4a'/></linearGradient></defs><rect width='560' height='350' fill='url(%23a)'/><circle cx='255' cy='170' r='55' fill='%23b07a55'/><circle cx='305' cy='205' r='40' fill='%23a06a48'/></svg>"/>
+        <div class="handle"></div><div class="grip">⇔</div>
+        <div class="tag before">12-01 起點</div><div class="tag after">12-14 今天</div>
+      </div>
+    </section>
+
+    <section class="panel col-6">
+      <div class="head"><h2>因果時間線</h2><span class="kicker">CAUSAL LOG</span></div>
+      <div class="tl">
+        <div class="ev good"><div class="d">12-01</div><div class="x">建立 baseline 相</div><div class="s">起點紀錄</div></div>
+        <div class="ev"><div class="d">12-08</div><div class="x">換咗新 cleanser</div><div class="s">無異常反應</div></div>
+        <div class="ev warn"><div class="d">12-12</div><div class="x">開始用新 toner（水楊酸）</div><div class="s">單一變數</div></div>
+        <div class="ev warn"><div class="d">12-13</div><div class="x">打邊爐 · 辣底</div><div class="s">飲食變數</div></div>
+        <div class="ev warn"><div class="d">12-14</div><div class="x">下巴爆瘡 +2 · 泛紅 +6%</div><div class="s">結果</div></div>
+      </div>
+      <div class="ai-callout" style="margin-top:16px"><b>AI 洞察：</b>過去 90 日你一共 3 次爆瘡，每次都喺「食辣／高糖」之後 1–2 日出現。同時 12-12 引入新 toner，兩個變數疊埋。建議停 toner＋避辣 7 日做單一變數測試。</div>
+    </section>
+  </div>
+</div>
+<script>
+  const cmp=document.getElementById('cmp');
+  cmp.addEventListener('pointerdown',e=>{e.preventDefault();move(e);const up=()=>cmp.removeEventListener('pointermove',move),mv=e=>move(e);cmp.addEventListener('pointermove',mv);cmp.addEventListener('pointerup',up,{once:true})});
+  function move(e){const r=cmp.getBoundingClientRect();let p=((e.clientX-r.left)/r.width)*100;p=Math.max(4,Math.min(96,p));cmp.style.setProperty('--pos',p+'%');}
+</script>
+</body>
+</html>

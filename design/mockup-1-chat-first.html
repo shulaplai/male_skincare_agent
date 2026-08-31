@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkinCoach — 教練對話優先（粉紅 · 日/夜模式）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf3f0; --panel:#fdf7f5; --card:#ffffff; --line:#f1dcd9;
+    --text:#382c31; --muted:#a1878f; --faint:#c0a8ae;
+    --accent:#e6809c; --accent-soft:#f5b9c9; --accent-deep:#c95f80;
+    --good:#5fa184; --warn:#d98a66; --glow:rgba(230,128,156,.18);
+    --shadow:0 8px 28px -16px rgba(160,90,110,.28);
+    --serif:'Fraunces',serif; --sans:'Nunito Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  [data-theme="dark"]{
+    --bg:#1c1419; --panel:#241a20; --card:#2c2127; --line:#3d2f35;
+    --text:#f4e7ec; --muted:#b399a1; --faint:#7a636b;
+    --accent:#ef8fae; --accent-soft:#f5b9c9; --accent-deep:#d96f92;
+    --good:#7fbf9c; --warn:#df916e; --glow:rgba(239,143,174,.16);
+    --shadow:0 8px 28px -16px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;transition:background .35s,color .35s;
+    background-image:radial-gradient(1100px 520px at 82% -12%, var(--glow), transparent 60%),
+      radial-gradient(700px 400px at -10% 108%, var(--glow), transparent 55%);}
+  .app{display:grid;grid-template-columns:240px 1fr 330px;height:100vh;max-width:1540px;margin:0 auto;width:100%;}
+
+  /* ---- sidebar ---- */
+  .side{border-right:1px solid var(--line);background:var(--panel);padding:24px 16px;display:flex;flex-direction:column;gap:22px;transition:background .35s}
+  .brand{display:flex;align-items:center;gap:11px;padding:0 6px}
+  .brand .dot{width:32px;height:32px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-deep));box-shadow:0 4px 14px -4px var(--accent);flex:none}
+  .brand b{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:.2px}
+  .brand span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+
+  .convo-head{display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px}
+  .convo-head label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .convo-head .add{width:24px;height:24px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--accent-deep);display:grid;place-items:center;cursor:pointer;font-size:15px;line-height:1;transition:.15s}
+  .convo-head .add:hover{background:var(--accent-soft)}
+  .convo{display:flex;align-items:center;gap:12px;padding:12px 13px;border-radius:14px;text-decoration:none;cursor:pointer}
+  .convo.active{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .convo .part{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;font-size:17px;background:var(--panel);border:1px solid var(--line)}
+  .convo.active .part{background:linear-gradient(135deg,var(--glow),transparent);border-color:var(--accent-soft)}
+  .convo .t{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .convo .t .name{font-size:14px;font-weight:700;color:var(--text)}
+  .convo.active .t .name{color:var(--accent-deep)}
+  .convo .t .meta{font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+  .new-convo{margin-top:6px;border:1.5px dashed var(--line);border-radius:13px;padding:11px;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--sans);font-weight:600;display:flex;align-items:center;gap:8px;justify-content:center;transition:.15s}
+  .new-convo:hover{border-color:var(--accent);color:var(--accent-deep);background:var(--card)}
+
+  .nav{display:flex;flex-direction:column;gap:3px;border-top:1px solid var(--line);padding-top:14px}
+  .nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:11px;color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:600}
+  .nav a svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .nav a:hover{color:var(--accent-deep);background:var(--card)}
+  .profile{margin-top:auto;border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:11px}
+  .profile .who{display:flex;align-items:center;gap:11px}
+  .avatar{width:38px;height:38px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e9b8c4,#c98a9c);box-shadow:inset 0 0 0 1px var(--accent-soft)}
+  .who .name{font-size:13.5px;font-weight:700}.who .sub{font-size:11px;color:var(--faint);font-family:var(--mono)}
+  .skin-tag{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600}
+  .skin-tag i{width:8px;height:8px;border-radius:50%;background:var(--good)}
+
+  /* ---- chat ---- */
+  .chat{display:flex;flex-direction:column;min-width:0}
+  .chathead{display:flex;align-items:center;justify-content:space-between;padding:16px 26px;border-bottom:1px solid var(--line)}
+  .chathead .cur{display:flex;align-items:center;gap:11px}
+  .chathead .cur .part{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:17px;background:var(--card);border:1px solid var(--line)}
+  .chathead h1{font-family:var(--serif);font-weight:600;font-size:20px;letter-spacing:.2px}
+  .chathead .cur .switch{font-family:var(--mono);font-size:10px;color:var(--faint);cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:4px 8px;display:flex;align-items:center;gap:4px;background:var(--card)}
+  .chathead .right{display:flex;align-items:center;gap:14px}
+  .status{font-family:var(--mono);font-size:10px;color:var(--good);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+  .status .pulse{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .theme{width:40px;height:40px;border-radius:13px;border:1px solid var(--line);background:var(--card);cursor:pointer;display:grid;place-items:center;position:relative;transition:.2s}
+  .theme:hover{border-color:var(--accent)}
+  .theme .sun,.theme .moon{position:absolute;font-size:18px;transition:.3s}
+  .theme .sun{opacity:1;transform:none}
+  .theme .moon{opacity:0;transform:rotate(-90deg) scale(.5)}
+  [data-theme="dark"] .theme .sun{opacity:0;transform:rotate(90deg) scale(.5)}
+  [data-theme="dark"] .theme .moon{opacity:1;transform:none}
+
+  .thread{flex:1;overflow-y:auto;padding:26px;display:flex;flex-direction:column;gap:20px}
+  .day{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;text-align:center;margin:4px 0}
+  .hello{background:linear-gradient(135deg,var(--glow),transparent);border:1px solid var(--line);border-radius:16px;padding:16px 18px;font-size:15px;line-height:1.55;max-width:620px;animation:rise .5s both}
+  .hello b{color:var(--accent-deep);font-weight:700}
+  .msg{display:flex;gap:13px;max-width:620px;animation:rise .5s both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .msg .a{width:32px;height:32px;border-radius:50%;flex:none;margin-top:2px}
+  .msg .a.coach{background:linear-gradient(135deg,var(--accent),var(--accent-deep))}
+  .msg .a.me{background:var(--line)}
+  .bubble{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 16px;font-size:14.5px;line-height:1.62;box-shadow:var(--shadow)}
+  .msg.me .bubble{background:transparent;border-color:var(--line);box-shadow:none}
+  .msg.me{flex-direction:row-reverse;margin-left:auto}
+  .bubble .meta{font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.08em;margin-bottom:6px;text-transform:uppercase}
+  .photo{display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-top:8px}
+  .photo img{width:100%;display:block;filter:saturate(.9)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:6px;box-shadow:var(--shadow)}
+  .card h4{font-family:var(--serif);font-weight:600;font-size:15.5px;margin-bottom:12px;color:var(--accent-deep)}
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .metric{border:1px solid var(--line);border-radius:13px;padding:10px 12px;background:var(--panel)}
+  .metric .k{font-size:11px;color:var(--muted);font-weight:600}
+  .metric .v{font-family:var(--mono);font-size:18px;margin-top:4px}
+  .metric .v.good{color:var(--good)}.metric .v.bad{color:var(--warn)}
+  .metric .d{font-family:var(--mono);font-size:9.5px;color:var(--faint);margin-top:3px}
+  .advice{list-style:none;display:flex;flex-direction:column;gap:10px}
+  .advice li{display:flex;gap:11px;font-size:13.5px;line-height:1.55;color:var(--text)}
+  .advice li b{color:var(--accent-deep);font-weight:700}
+  .advice li .n{font-family:var(--mono);color:var(--accent);font-size:11px;flex:none;margin-top:2px;background:var(--glow);border-radius:7px;width:22px;height:22px;display:grid;place-items:center;font-weight:500}
+  .compose{border-top:1px solid var(--line);padding:16px 26px;display:flex;gap:12px;align-items:center}
+  .compose .tools{display:flex;gap:6px}
+  .iconbtn{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:var(--card);color:var(--muted);display:grid;place-items:center;cursor:pointer;transition:.15s}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent-deep)}
+  .iconbtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8}
+  .compose input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 16px;color:var(--text);font-size:14px;font-family:var(--sans);outline:none;transition:.15s}
+  .compose input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
+  .send{background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;border:none;border-radius:14px;padding:13px 24px;font-weight:700;font-size:14px;cursor:pointer;font-family:var(--sans);box-shadow:0 6px 18px -6px var(--accent)}
+  .mode{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.06em}
+  .mode .sw{width:34px;height:19px;border-radius:20px;background:var(--card);border:1px solid var(--line);position:relative;cursor:pointer}
+  .mode .sw::after{content:'';position:absolute;width:13px;height:13px;border-radius:50%;background:var(--good);top:2px;left:2px;transition:.2s}
+
+  /* ---- right panel ---- */
+  .right{border-left:1px solid var(--line);background:var(--panel);padding:20px 18px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;transition:background .35s}
+  .score{border:1px solid var(--line);border-radius:16px;padding:16px;background:linear-gradient(160deg,var(--card),var(--panel));box-shadow:var(--shadow)}
+  .score .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .score .sh h3{font-family:var(--serif);font-weight:600;font-size:14.5px;color:var(--accent-deep)}
+  .score .sh span{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--faint);text-transform:uppercase}
+  .score .row{display:flex;align-items:baseline;gap:10px}
+  .score .big{font-family:var(--mono);font-size:46px;font-weight:500;letter-spacing:-2px}
+  .score .big small{font-size:20px;color:var(--faint);letter-spacing:0}
+  .score .delta{font-family:var(--mono);font-size:12px;color:var(--good)}
+  .score svg{width:100%;margin:10px 0}
+  svg .gridline{stroke:var(--line);stroke-width:1}
+  svg .area{fill:var(--glow)}
+  svg .line{stroke:var(--accent);stroke-width:2.5;fill:none}
+  .score .sc-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .score .sc-metrics .m{border:1px solid var(--line);border-radius:11px;padding:8px 9px;background:var(--card)}
+  .score .sc-metrics .m .k{font-size:10px;color:var(--muted);font-weight:600}
+  .score .sc-metrics .m .v{font-family:var(--mono);font-size:14px;margin-top:3px}
+  .score .sc-metrics .m .v.good{color:var(--good)}.score .sc-metrics .m .v.bad{color:var(--warn)}
+
+  .right h3{font-family:var(--serif);font-weight:600;font-size:13.5px;color:var(--accent-deep);letter-spacing:.3px;margin-bottom:5px}
+  .mem-group{display:flex;flex-direction:column;gap:8px}
+  .mem{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 13px;box-shadow:var(--shadow)}
+  .mem .t{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+  .mem .t.fact{color:var(--good)}.mem .t.derived{color:var(--accent-deep)}.mem .t.pref{color:var(--muted)}
+  .mem .txt{font-size:12.5px;line-height:1.5;font-weight:600}
+  .mem .conf{margin-top:7px;height:4px;border-radius:4px;background:var(--line);overflow:hidden}
+  .mem .conf i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-deep));width:0}
+  .mem .pct{font-family:var(--mono);font-size:8.5px;color:var(--faint);margin-top:4px;text-align:right}
+  .tl{display:flex;flex-direction:column;position:relative;padding-left:14px}
+  .tl::before{content:'';position:absolute;left:4px;top:6px;bottom:6px;width:2px;background:var(--line);border-radius:2px}
+  .tl .ev{position:relative;padding:6px 0}
+  .tl .ev::before{content:'';position:absolute;left:-14.5px;top:12px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .tl .ev .d{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+  .tl .ev .x{font-size:12px;color:var(--muted);margin-top:1px;font-weight:600}
+
+  @media(max-width:1140px){.right{display:none}.app{grid-template-columns:240px 1fr}}
+  @media(max-width:760px){.side{display:none}.app{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="dot"></span>
+      <div><b>SkinCoach</b><br><span>MALE SKIN OS</span></div>
+    </div>
+
+    <div>
+      <div class="convo-head"><label>部位對話</label><span class="add" title="新增對話">＋</span></div>
+      <a class="convo active">
+        <span class="part">🧔</span>
+        <span class="t"><span class="name">面部皮膚</span><span class="meta">主對話 · 47 日</span></span>
+      </a>
+      <button class="new-convo">＋ 新增部位對話</button>
+      <div style="padding:8px 6px 0;font-size:11px;color:var(--faint);line-height:1.5;font-weight:600">例如：頭皮、背部、手腳…<br>每個部位有獨立日記、記憶、時間線。</div>
+    </div>
+
+    <nav class="nav">
+      <a><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 4v16"/></svg>皮膚記錄</a>
+      <a><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 7h7v7"/></svg>進度追蹤</a>
+      <a><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.5-2.4 1A7 7 0 0 0 14 5.4L13.5 3h-3L10 5.4A7 7 0 0 0 7.6 6.6l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .14 1.4l-2 1.5 2 3.5 2.4-1A7 7 0 0 0 10 18.6l.5 2.4h3l.5-2.4a7 7 0 0 0 2.4-1.2l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z"/></svg>設定</a>
+    </nav>
+
+    <div class="profile">
+      <div class="who">
+        <div class="avatar"></div>
+        <div><div class="name">阿軒 · 28</div><div class="sub">DAY 47 / 92</div></div>
+      </div>
+      <div class="skin-tag"><i></i> 混合性肌膚 · 目標：去暗瘡＋淡印</div>
+    </div>
+  </aside>
+
+  <main class="chat">
+    <header class="chathead">
+      <div class="cur">
+        <span class="part">🧔</span>
+        <h1>面部皮膚</h1>
+        <span class="switch">切換部位 ▾</span>
+      </div>
+      <div class="right">
+        <div class="status"><span class="pulse"></span> Agent 在線</div>
+        <button class="theme" id="themeBtn" title="切換日/夜模式"><span class="sun">☀️</span><span class="moon">🌙</span></button>
+      </div>
+    </header>
+
+    <div class="thread">
+      <div class="day">今天 · 12 月 14 日</div>
+      <div class="hello">早晨呀阿軒 ☀️ 今日塊面感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會<b>一路記住</b>幫你追蹤。</div>
+
+      <div class="msg">
+        <div class="a me"></div>
+        <div class="bubble">
+          <div class="meta">你 · 09:12</div>
+          噚晚打邊爐食咗辣底，今朝下巴就爆咗兩粒，仲有少少泛紅。
+          <span class="photo"><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='300'><defs><linearGradient id='s' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23e9b8a0'/><stop offset='1' stop-color='%23c98a6a'/></linearGradient></defs><rect width='560' height='300' fill='url(%23s)'/><circle cx='280' cy='150' r='95' fill='%23d9a582'/><circle cx='235' cy='130' r='30' fill='%23e0b090'/><circle cx='330' cy='170' r='20' fill='%23c96a55'/></svg>"/></span>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="a coach"></div>
+        <div class="bubble">
+          <div class="meta">教練 · Agent · 09:12</div>
+          收到，辛苦晒 💛 我對比咗你 5 日前嗰張 baseline，下巴多咗兩粒新暗瘡（下顎線位置），泛紅 +6%。而呢排唯一變數係上星期開始用嗰支新 toner。我哋一步步嚟：
+          <div class="card">
+            <h4>今日皮膚分析</h4>
+            <div class="metrics">
+              <div class="metric"><div class="k">油光</div><div class="v good">-18%</div><div class="d">改善</div></div>
+              <div class="metric"><div class="k">泛紅</div><div class="v bad">+6%</div><div class="d">輕微</div></div>
+              <div class="metric"><div class="k">新暗瘡</div><div class="v bad">+2</div><div class="d">下顎線</div></div>
+            </div>
+            <ul class="advice">
+              <li><span class="n">01</span><span><b>暫停新 toner 3 日</b> —— 等皮膚返到 baseline，再單獨重試確認。</span></li>
+              <li><span class="n">02</span><span><b>今晚補水</b> —— 辣食令表皮失水，B5 精華修復屏障。</span></li>
+              <li><span class="n">03</span><span><b>未來 7 日避辣 + 高糖</b> —— 你每次爆瘡前，飲食紀錄都有呢兩樣。</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg me">
+        <div class="a me"></div>
+        <div class="bubble"><div class="meta">你 · 09:15</div>咁即係支 toner 唔啱我？定係辣嘢先係主因？</div>
+      </div>
+
+      <div class="msg">
+        <div class="a coach"></div>
+        <div class="bubble">
+          <div class="meta">教練 · Agent · 09:15</div>
+          而家證據未夠，我當「疑似」處理（confidence 0.61）。做法好簡單：<b>停 toner、避辣</b>一星期睇下巴有冇清返；清咗再單獨加返 toner 兩日。呢個係「單一變數」測試，唔好一次改幾樣呀～
+        </div>
+      </div>
+    </div>
+
+    <div class="compose">
+      <div class="tools">
+        <span class="iconbtn" title="加相"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg></span>
+        <span class="iconbtn" title="影相"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg></span>
+      </div>
+      <input placeholder="問面部皮膚教練任何嘢…（食咗咩／用咗咩／反應）" />
+      <span class="mode">本地 <span class="sw"></span> 雲</span>
+      <button class="send">發送</button>
+    </div>
+  </main>
+
+  <aside class="right">
+    <div class="score">
+      <div class="sh"><h3>面部皮膚指數</h3><span>SKIN SCORE</span></div>
+      <div class="row"><span class="big">78<small>/100</small></span><span class="delta">▲ +6 月比</span></div>
+      <svg viewBox="0 0 260 60">
+        <line class="gridline" x1="0" y1="15" x2="260" y2="15"/><line class="gridline" x1="0" y1="42" x2="260" y2="42"/>
+        <path class="area" d="M0,48 L45,42 L90,45 L135,34 L180,30 L225,20 L260,15 L260,60 L0,60 Z"/>
+        <path class="line" d="M0,48 L45,42 L90,45 L135,34 L180,30 L225,20 L260,15"/>
+      </svg>
+      <div class="sc-metrics">
+        <div class="m"><div class="k">油光</div><div class="v good">-18%</div></div>
+        <div class="m"><div class="k">泛紅</div><div class="v bad">+6%</div></div>
+        <div class="m"><div class="k">暗瘡</div><div class="v bad">+2</div></div>
+      </div>
+    </div>
+
+    <div>
+      <h3>AI 記得你</h3>
+      <div class="mem-group">
+        <div class="mem">
+          <div class="t derived">推導記憶</div>
+          <div class="txt">T 字位偏油，兩頰中性</div>
+          <div class="conf"><i style="width:82%"></i></div>
+          <div class="pct">confidence 0.82</div>
+        </div>
+        <div class="mem">
+          <div class="t derived">推導記憶</div>
+          <div class="txt">新 toner（疑似致痘）</div>
+          <div class="conf"><i style="width:61%"></i></div>
+          <div class="pct">confidence 0.61</div>
+        </div>
+        <div class="mem">
+          <div class="t pref">偏好</div>
+          <div class="txt">鍾意清爽、唔油膩質地</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>因果時間線</h3>
+      <div class="tl">
+        <div class="ev"><div class="d">12-12</div><div class="x">開始用新 toner（水楊酸）</div></div>
+        <div class="ev"><div class="d">12-13</div><div class="x">打邊爐 · 辣底</div></div>
+        <div class="ev"><div class="d">12-14</div><div class="x">下巴爆瘡 +2 · 泛紅</div></div>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+  const btn=document.getElementById('themeBtn');
+  const root=document.documentElement;
+  const saved=localStorage.getItem('skc-theme')||'light';
+  root.setAttribute('data-theme',saved);
+  btn.addEventListener('click',()=>{
+    const next=root.getAttribute('data-theme')==='light'?'dark':'light';
+    root.setAttribute('data-theme',next);
+    localStorage.setItem('skc-theme',next);
+  });
+</script>
+</body>
+</html>
