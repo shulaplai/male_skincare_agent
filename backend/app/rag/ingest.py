@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .chunking import chunk_text
 from .embeddings import Embedder
-from .vectorstore import add_chunks
+from .vectorstore import ChunkItem, add_chunks
 
 
 def extract_text_from_pdf(data: bytes) -> str:
@@ -31,10 +31,23 @@ def extract_text_from_jats_xml(data: bytes) -> str:
     return "\n".join(parts)
 
 
-def ingest_text(session: Session, source: str, text: str, embedder: Embedder) -> int:
-    chunks = chunk_text(text)
-    items = [(c, embedder.embed(c)) for c in chunks]
-    return add_chunks(session, source, items)
+def ingest_text(
+    session: Session,
+    source: str,
+    text: str,
+    embedder: Embedder,
+    url: str = "",
+    title: str = "",
+    section: str = "",
+    chunk_size: int = 500,
+    overlap: int = 80,
+) -> int:
+    chunks = chunk_text(text, chunk_size=chunk_size, overlap=overlap)
+    items = [
+        ChunkItem(text=c, embedding=embedder.embed(c), source=source, url=url, title=title, section=section)
+        for c in chunks
+    ]
+    return add_chunks(session, items)
 
 
 def ingest_pdf(session: Session, source: str, data: bytes, embedder: Embedder) -> int:

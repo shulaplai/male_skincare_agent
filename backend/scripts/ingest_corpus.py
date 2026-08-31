@@ -27,6 +27,8 @@ def main() -> None:
     total = 0
     for d in dirs:
         for p in sorted(Path(d).glob("*")):
+            if p.name == "sources.txt":  # URL seed list, not content
+                continue
             if p.suffix.lower() in (".pdf", ".xml", ".txt", ".md"):
                 n = ingest_file(session, p, embedder)
                 print(f"ingested {p}: {n} chunks")

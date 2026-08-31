@@ -1,14 +1,25 @@
 """Vector store: SQLite `chunks` table + cosine similarity in Python.
 
-Zero extra infra, fully local-first. For a corpus of a few thousand chunks this
-is instant. The upgrade path (sqlite-vec / pgvector) is isolated behind
-`add_chunks` / `search`, so callers don't change.
+Zero extra infra, fully local-first. For a corpus of tens of thousands of chunks
+this is still fast enough; the upgrade path (sqlite-vec / pgvector) is isolated
+behind `add_chunks` / `search`, so callers don't change.
 """
 import math
+from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
 from ..models import Chunk
+
+
+@dataclass
+class ChunkItem:
+    text: str
+    embedding: list[float]
+    source: str = ""
+    url: str = ""
+    title: str = ""
+    section: str = ""
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -20,9 +31,18 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
-def add_chunks(session: Session, source: str, items: list[tuple[str, list[float]]]) -> int:
-    for text, embedding in items:
-        session.add(Chunk(source=source, text=text, embedding=embedding))
+def add_chunks(session: Session, items: list[ChunkItem]) -> int:
+    for it in items:
+        session.add(
+            Chunk(
+                source=it.source,
+                url=it.url,
+                title=it.title,
+                section=it.section,
+                text=it.text,
+                embedding=it.embedding,
+            )
+        )
     session.commit()
     return len(items)
 

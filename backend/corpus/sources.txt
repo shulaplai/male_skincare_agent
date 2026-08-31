@@ -1,0 +1,50 @@
+# SkinCoach 美容語料 seed（每行一個 URL，# 係註解）
+# Tier A：皮膚科組織 + 官方 + 成分資料庫
+
+# DermNet NZ（皮膚科權威、靜態、好 craw）
+https://dermnetnz.org/topics/acne
+https://dermnetnz.org/topics/acne-vulgaris
+https://dermnetnz.org/topics/rosacea
+https://dermnetnz.org/topics/seborrhoeic-dermatitis
+https://dermnetnz.org/topics/atopic-dermatitis
+https://dermnetnz.org/topics/eczema
+https://dermnetnz.org/topics/dry-skin
+https://dermnetnz.org/topics/sunscreen
+https://dermnetnz.org/topics/melasma
+https://dermnetnz.org/topics/acne-scarring
+https://dermnetnz.org/topics/moisturisers
+https://dermnetnz.org/topics/postinflammatory-hyperpigmentation
+https://dermnetnz.org/topics/sebum
+https://dermnetnz.org/topics/skin-barrier-function
+https://dermnetnz.org/topics/contact-dermatitis
+
+# NIH / NIAMS（美國政府、穩定）
+https://www.niams.nih.gov/health-topics/acne
+https://www.niams.nih.gov/health-topics/rosacea
+https://www.niams.nih.gov/health-topics/atopic-dermatitis
+https://www.niams.nih.gov/health-topics/skin-diseases
+
+# NHS（英國政府、穩定）
+https://www.nhs.uk/conditions/acne/
+https://www.nhs.uk/conditions/rosacea/
+https://www.nhs.uk/conditions/atopic-eczema/
+https://www.nhs.uk/conditions/contact-dermatitis/
+https://www.nhs.uk/conditions/dry-skin/
+https://www.nhs.uk/conditions/seborrhoeic-dermatitis/
+
+# INCIDecoder（成分資料庫、靜態）
+https://incidecoder.com/ingredients/salicylic-acid
+https://incidecoder.com/ingredients/niacinamide
+https://incidecoder.com/ingredients/retinol
+https://incidecoder.com/ingredients/panthenol
+https://incidecoder.com/ingredients/hyaluronic-acid
+https://incidecoder.com/ingredients/alpha-arbutin
+https://incidecoder.com/ingredients/azelaic-acid
+https://incidecoder.com/ingredients/glycerin
+
+# Healthline（護膚專題，盡力 craw）
+https://www.healthline.com/health/skin/acne
+https://www.healthline.com/health/beauty-skin-care/moisturizer
+https://www.healthline.com/health/skin/how-to-get-rid-of-acne-scars
+https://www.healthline.com/health/beauty-skin-care/niacinamide
+https://www.healthline.com/health/beauty-skin-care/salicylic-acid-for-acne

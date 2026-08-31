@@ -35,9 +35,11 @@ def main() -> None:
     agent_results = run_agent_eval(scenarios, SessionLocal, embedder, llm, cid)
 
     lines = ["# SkinCoach Eval Report", ""]
-    lines.append(f"## RAG recall@3: {recall['recall'] * 100:.0f}%")
+    lines.append(
+        f"## RAG recall@3: {recall['recall'] * 100:.0f}% · MRR: {recall['mrr']:.2f}"
+    )
     for r in recall["results"]:
-        lines.append(f"- {r['id']}: {'PASS' if r['hit'] else 'FAIL'}")
+        lines.append(f"- {r['id']}: {'PASS' if r['hit'] else 'FAIL'} (rank={r['rank']})")
     lines.append("")
     lines.append("## Agent scenarios")
     for r in agent_results:

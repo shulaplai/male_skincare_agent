@@ -1,17 +1,21 @@
 """Text chunking for the RAG corpus.
 
-v1: sentence-aware packing into ~chunk_size chunks. Overlap / sliding-window
-chunking is a follow-up once we measure retrieval quality on the real corpus.
+v2: sentence-aware packing with overlap so context at chunk boundaries is not
+lost. Section-aware chunking (heading metadata from HTML) is layered in by
+callers via the `section` argument.
 """
 import re
 
 _SENT_BOUNDARY = re.compile(r"(?<=[。！？!?；;])")
 
 
-def chunk_text(text: str, chunk_size: int = 500) -> list[str]:
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 80) -> list[str]:
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return []
+    if overlap >= chunk_size:
+        overlap = max(chunk_size // 4, 0)
+
     sentences = [s.strip() for s in _SENT_BOUNDARY.split(text) if s.strip()]
     chunks: list[str] = []
     current = ""
@@ -22,7 +26,8 @@ def chunk_text(text: str, chunk_size: int = 500) -> list[str]:
             current += " " + s
         else:
             chunks.append(current)
-            current = s
+            tail = current[-overlap:] if overlap else ""
+            current = (tail + " " + s).strip() if tail else s
     if current:
         chunks.append(current)
     return chunks

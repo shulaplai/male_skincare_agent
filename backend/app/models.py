@@ -131,6 +131,9 @@ class Chunk(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     source: Mapped[str] = mapped_column(String(300), index=True)
+    url: Mapped[str] = mapped_column(String(500), default="")
+    title: Mapped[str] = mapped_column(String(300), default="")
+    section: Mapped[str] = mapped_column(String(300), default="")
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list] = mapped_column(JSON)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
