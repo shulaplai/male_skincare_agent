@@ -1,13 +1,23 @@
 """FastAPI entrypoint.
 
-Phase 0: skeleton only. The agent, RAG and storage routers will be mounted
-here as they land in later phases.
+Phase 1: database + memory + photo storage land here. The agent graph and RAG
+routers will be mounted as they arrive in later phases.
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.config import settings
+from app.db import init_db
 
-app = FastAPI(title=settings.app_name, version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")
