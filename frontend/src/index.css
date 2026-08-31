@@ -883,3 +883,24 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* agent response extras */
+.escalate-banner {
+  background: rgba(217, 138, 102, 0.14);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.disclaimer {
+  font-size: 11px;
+  color: var(--faint);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.offline {
+  color: var(--warn);
+}

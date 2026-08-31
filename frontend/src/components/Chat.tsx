@@ -6,6 +6,7 @@ interface Props {
   conversation: Conversation
   messages: Message[]
   onSend: (text: string) => void
+  online: boolean
 }
 
 function splitAdvice(a: string): { lead: string; rest: string } {
@@ -23,6 +24,7 @@ function Bubble({ m }: { m: Message }) {
         <div className="meta">
           {label} · {m.time}
         </div>
+        {m.escalate && <div className="escalate-banner">⚠️ 呢個情況建議轉介皮膚科醫生</div>}
         {m.text}
         {m.photo && (
           <span className="photo">
@@ -57,12 +59,13 @@ function Bubble({ m }: { m: Message }) {
             </ul>
           </div>
         )}
+        {m.disclaimer && <div className="disclaimer">{m.disclaimer}</div>}
       </div>
     </div>
   )
 }
 
-export function Chat({ conversation, messages, onSend }: Props) {
+export function Chat({ conversation, messages, onSend, online }: Props) {
   const { toggle } = useTheme()
   const [draft, setDraft] = useState('')
 
@@ -82,8 +85,8 @@ export function Chat({ conversation, messages, onSend }: Props) {
           <span className="switch">切換部位 ▾</span>
         </div>
         <div className="head-actions">
-          <div className="status">
-            <span className="pulse" /> Agent 在線
+          <div className={`status${online ? '' : ' offline'}`}>
+            <span className="pulse" /> {online ? 'Agent 在線' : '離線模式'}
           </div>
           <button className="theme" onClick={toggle} title="切換日/夜模式">
             <span className="sun">☀️</span>

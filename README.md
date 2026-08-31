@@ -44,17 +44,24 @@ docker-compose.yml
 ```bash
 # 後端（local dev）
 cd backend
-cp .env.example .env        # 填 API key
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-uvicorn app.main:app --reload   # http://localhost:8000
+cp .env.example .env        # 填 API key（冇 key 都會用 FakeLLM 跑）
+HF_HOME=./.hf-cache uvicorn app.main:app --reload --port 8001   # http://localhost:8001
+
+# 建知識庫（RAG，第一次要先跑）
+python scripts/ingest_corpus.py
+
+# 跑 eval harness
+python -m eval.run_eval    # 報告 -> eval/out/report.md
 
 # 前端
-cd frontend
+cd ../frontend
 npm install
-npm run dev                 # http://localhost:5173（proxy /api → 8000）
+npm run dev                 # http://localhost:5173（proxy /api → 8001）
 
 # 一炮起晒（production 形態）
-docker compose up --build
+cd .. && docker compose up --build
 ```
 
 ## 決策同路線

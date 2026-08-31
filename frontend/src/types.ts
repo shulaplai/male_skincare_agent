@@ -26,6 +26,8 @@ export interface Message {
     metrics: Metric[]
     advice: string[]
   }
+  disclaimer?: string
+  escalate?: boolean
 }
 
 export interface MemoryItem {
