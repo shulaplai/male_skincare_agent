@@ -17,3 +17,4 @@ data/
 
 # model cache
 .hf-cache/
+:memory:.ses
