@@ -3,9 +3,12 @@ import { ThemeProvider } from './theme'
 import { Sidebar } from './components/Sidebar'
 import { Chat } from './components/Chat'
 import { RightPanel } from './components/RightPanel'
+import { RecordsView } from './components/RecordsView'
+import { ProgressView } from './components/ProgressView'
+import { SettingsView } from './components/SettingsView'
 import * as api from './api'
 import { initialConversations, initialMessages, memoryItems, score, timeline } from './data'
-import type { Conversation, Message } from './types'
+import type { Conversation, Message, View } from './types'
 
 let counter = 1000
 
@@ -14,6 +17,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(initialConversations[0].id)
   const [messages, setMessages] = useState<Record<string, Message[]>>(initialMessages)
   const [online, setOnline] = useState(false)
+  const [view, setView] = useState<View>('chat')
 
   useEffect(() => {
     api
@@ -62,14 +66,20 @@ export default function App() {
     setActiveId(id)
   }
 
-  const sendMessage = (text: string) => {
+  const sendMessage = (text: string, photos: { id: string; path: string }[]) => {
     const cid = active.id
-    const userMsg: Message = { id: 'm' + counter++, role: 'user', text, time: '現在' }
+    const userMsg: Message = {
+      id: 'm' + counter++,
+      role: 'user',
+      text,
+      time: '現在',
+      photo: photos.length ? `/api/photos/${photos[0].id}` : undefined,
+    }
     setMessages((prev) => ({ ...prev, [cid]: [...(prev[cid] ?? []), userMsg] }))
 
     if (online) {
       api
-        .consult(cid, text)
+        .consult(cid, text, photos.map((p) => p.id))
         .then((res) => {
           const reply: Message = {
             id: 'm' + counter++,
@@ -106,11 +116,27 @@ export default function App() {
         <Sidebar
           conversations={conversations}
           activeId={active.id}
+          view={view}
           onSelect={setActiveId}
           onAdd={addConversation}
+          onNavigate={setView}
         />
-        <Chat conversation={active} messages={messages[active.id] ?? []} onSend={sendMessage} online={online} />
-        <RightPanel score={score} memories={memoryItems} timeline={timeline} bodyPart={active.bodyPart} />
+        {view === 'chat' && (
+          <>
+            <Chat
+              conversation={active}
+              conversations={conversations}
+              messages={messages[active.id] ?? []}
+              onSend={sendMessage}
+              online={online}
+              onSelectConversation={setActiveId}
+            />
+            <RightPanel score={score} memories={memoryItems} timeline={timeline} bodyPart={active.bodyPart} />
+          </>
+        )}
+        {view === 'records' && <RecordsView conversation={active} />}
+        {view === 'progress' && <ProgressView conversation={active} />}
+        {view === 'settings' && <SettingsView />}
       </div>
     </ThemeProvider>
   )

@@ -11,7 +11,7 @@ import datetime
 
 from langgraph.graph import END, START, StateGraph
 
-from ..models import Entry, Insight, new_id, utcnow
+from ..models import Entry, Insight, Photo, new_id, utcnow
 from .guardrails import apply_guardrails
 from .llm import FakeLLM
 from .prompts import ADVISE_SYSTEM, ANALYZE_SYSTEM, build_advise_prompt, build_analyze_prompt
@@ -62,6 +62,8 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder):
                 session.add(entry)
             entry.note = state["user_text"]
             entry.metrics = [m.model_dump() for m in analysis.metrics]
+            for pid in state.get("photo_paths", []):
+                session.add(Photo(entry_id=entry.id, path=f"photos/{pid}.jpg"))
             session.flush()
 
             now = utcnow()

@@ -49,7 +49,8 @@ def contains_any(text: str, terms: list[str]) -> bool:
 
 
 def apply_guardrails(advice: Advice, user_text: str) -> tuple[Advice, bool]:
-    escalate = advice.escalate or contains_any(user_text, RED_FLAGS)
+    # Escalation is decided deterministically, not by the model's own flag.
+    escalate = contains_any(user_text, RED_FLAGS)
 
     items = list(advice.items)
     if contains_any(" ".join(items), MEDICAL_TERMS):

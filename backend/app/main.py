@@ -1,8 +1,11 @@
 """FastAPI entrypoint."""
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, UploadFile
-from fastapi.responses import Response
+from pathlib import Path
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,6 +14,8 @@ from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
+from app.models import Entry, Insight, TimelineEvent
+from app.photo import save_photo
 
 
 class ConsultRequest(BaseModel):
@@ -70,3 +75,63 @@ def create_conversation(req: ConversationRequest, db: Session = Depends(get_sess
 def consult(req: ConsultRequest) -> dict:
     """Run the LangGraph agent: analyze -> tools -> advise -> guardrail -> persist."""
     return run_consult(req.conversation_id, req.text, req.photo_paths)
+
+
+@app.post("/api/photos")
+async def upload_photo(file: UploadFile = File(...)) -> dict:
+    """Store a photo locally (compressed) and return its id/path."""
+    photo_id = uuid.uuid4().hex
+    path = save_photo(photo_id, await file.read())
+    return {"id": photo_id, "path": path}
+
+
+@app.get("/api/conversations/{cid}/summary")
+def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
+    """All data for the records / progress views of one body-part conversation."""
+    entries = db.query(Entry).filter_by(conversation_id=cid).order_by(Entry.date.desc()).all()
+    insights = (
+        db.query(Insight)
+        .filter_by(conversation_id=cid)
+        .filter(Insight.superseded_by.is_(None))
+        .all()
+    )
+    events = (
+        db.query(TimelineEvent)
+        .filter_by(conversation_id=cid)
+        .order_by(TimelineEvent.date.asc())
+        .all()
+    )
+    return {
+        "entries": [
+            {
+                "id": e.id,
+                "date": str(e.date),
+                "note": e.note,
+                "metrics": e.metrics,
+                "photos": [p.path for p in e.photos],
+            }
+            for e in entries
+        ],
+        "insights": [{"kind": i.kind, "text": i.text, "confidence": i.confidence} for i in insights],
+        "timeline": [{"date": str(e.date), "text": e.text} for e in events],
+    }
+
+
+@app.get("/api/photos/{photo_id}")
+def get_photo(photo_id: str) -> FileResponse:
+    """Serve a stored photo by id."""
+    path = Path(settings.data_dir) / "photos" / f"{photo_id}.jpg"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="photo not found")
+    return FileResponse(path)
+
+
+@app.get("/api/settings")
+def get_settings() -> dict:
+    return {
+        "llm_provider": settings.llm_provider,
+        "model": "deepseek-chat" if settings.llm_provider == "deepseek" else settings.strong_model,
+        "has_api_key": bool(
+            settings.anthropic_api_key or settings.deepseek_api_key or settings.openai_api_key
+        ),
+    }

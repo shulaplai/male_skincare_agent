@@ -68,13 +68,22 @@ class OpenAICompatLLM:
         return ChatOpenAI(**kwargs)
 
     def structured(self, system: str, user: str, schema: type[T]) -> T:
-        runnable = self._client().with_structured_output(schema)
+        # DeepSeek / OpenAI-compat providers support function calling, not
+        # `response_format: json_schema`, so force tool-based extraction.
+        runnable = self._client().with_structured_output(schema, method="function_calling")
         return runnable.invoke([("system", system), ("human", user)])
 
 
 def get_llm():
+    provider = settings.llm_provider
+    if provider == "deepseek" and settings.deepseek_api_key:
+        return OpenAICompatLLM(model="deepseek-chat", base_url="https://api.deepseek.com/v1")
+    if provider == "openai" and settings.openai_api_key:
+        return OpenAICompatLLM(model=settings.strong_model)
     if settings.anthropic_api_key:
         return AnthropicLLM()
-    if settings.deepseek_api_key or settings.openai_api_key:
-        return OpenAICompatLLM()
+    if settings.deepseek_api_key:
+        return OpenAICompatLLM(model="deepseek-chat", base_url="https://api.deepseek.com/v1")
+    if settings.openai_api_key:
+        return OpenAICompatLLM(model=settings.strong_model)
     return FakeLLM()
