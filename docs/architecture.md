@@ -62,12 +62,13 @@ node6 寫入日記 + 更新記憶（重複證據升 confidence、矛盾就 super
 - 矛盾：新結論 tag 唔同 → 舊標 `supersededBy`，新 `version+1`，歷史保留。
 - 一致：confidence 向新高靠攏（cap 0.97）、expiry 延長。
 
-## 6. 向量庫：點解 sqlite-vec，唔係 Qdrant/pgvector？
+## 6. 向量庫：點解 SQLite + cosine，唔係 Qdrant/pgvector？
 
-- local-first 優先 → **單檔、嵌入式、唔使多一個 infra**。
-- 語料規模（幾十～幾百份 PDF）遠未到需要獨立向量庫。
-- 抽象層隔開 storage interface，之後換 Qdrant 或 Postgres+pgvector 唔使改上層。
-- 面試講法：「我唔係為用而用向量庫；sqlite-vec 慳 infra、夠用；接口抽象咗，升級路徑清楚。」
+- local-first 優先 → **SQLite `chunks` 表 + Python cosine，零額外 infra、零 native 依賴**。
+- 語料規模（幾十～幾百份文件、幾千 chunks）用 Python cosine 係 instant；未到需要獨立向量庫。
+- 抽象層隔開 `add_chunks` / `search`，之後換 **sqlite-vec / pgvector** 唔使改上層。
+- Embedding 用 **fastembed**（ONNX、無 torch、多語言 MiniLM），模型 cache 指去 workspace；測試用 dependency-free 嘅 hashing embedder。
+- 面試講法：「我唔係為用而用向量庫；SQLite + cosine 夠用、可測試；接口抽象咗，升級路徑清楚。」
 
 ## 7. Model Tiering（沿用 + 擴充）
 
@@ -76,7 +77,7 @@ node6 寫入日記 + 更新記憶（重複證據升 confidence、矛盾就 super
 | 視覺分析 | strong vision（雲）／本地 Qwen-VL | 深度、一次性 |
 | 建議生成 | strong text | 深度 |
 | 記憶更新 / insight 擷取 | fast text | 高頻、機械化 |
-| Embedding | 本地 sentence-transformers | 離線、免費、夠用 |
+| Embedding | 本地 fastembed（ONNX、多語言 MiniLM） | 離線、免費、無 torch |
 
 ## 8. 安全 guardrail（health-adjacent 必答題）
 

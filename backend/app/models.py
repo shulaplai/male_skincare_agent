@@ -121,3 +121,15 @@ class TimelineEvent(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     conversation: Mapped[Conversation] = relationship(back_populates="events")
+
+
+class Chunk(Base):
+    """A RAG corpus chunk (global beauty knowledge, not per-user)."""
+
+    __tablename__ = "chunks"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    source: Mapped[str] = mapped_column(String(300), index=True)
+    text: Mapped[str] = mapped_column(Text)
+    embedding: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)

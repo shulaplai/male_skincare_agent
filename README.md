@@ -22,8 +22,8 @@
 | Agent orchestration | **LangGraph**（state graph，你擁有每一條 edge） |
 | 後端 | **FastAPI**（Python 3.11+） |
 | 儲存 | **SQLite**（SQLAlchemy）＋ 相落 file system |
-| 向量庫 | **sqlite-vec**（嵌入式、單檔；抽象層留 Qdrant/pgvector 升級路） |
-| Embedding | sentence-transformers（中英多語言 model） |
+| 向量庫 | **SQLite（chunks 表 + cosine）**；抽象層留 sqlite-vec/pgvector 升級路 |
+| Embedding | fastembed（ONNX、無 torch、多語言 MiniLM） |
 | LLM | 雲 API（Anthropic/DeepSeek，opt-in）＋ Ollama 本地模式 |
 | 前端 | React + Vite + TypeScript |
 | 部署 | Docker Compose |

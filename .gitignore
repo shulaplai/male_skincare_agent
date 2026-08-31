@@ -14,3 +14,6 @@ venv/
 
 # local-first user data（唔好 commit 用戶資料）
 data/
+
+# model cache
+.hf-cache/
