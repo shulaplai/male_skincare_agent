@@ -4,3 +4,13 @@ node_modules/.tmp/
 .DS_Store
 *.local
 eval/out/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# local-first user data（唔好 commit 用戶資料）
+data/
