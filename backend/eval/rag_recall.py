@@ -1,13 +1,18 @@
-"""RAG retrieval evaluation: recall@k and MRR over golden queries."""
-from app.rag.retrieve import retrieve
+"""RAG retrieval evaluation: recall@k and MRR over golden queries.
+
+`retriever` is injectable so we can compare semantic vs hybrid retrieval on the
+same golden set.
+"""
+from app.rag.retrieve import retrieve as default_retrieve
 
 
-def evaluate_recall(session, scenarios: list[dict], embedder, top_k: int = 3) -> dict:
+def evaluate_recall(session, scenarios: list[dict], embedder, top_k: int = 3, retriever=None) -> dict:
+    retriever = retriever or default_retrieve
     hits = 0
     mrr = 0.0
     results = []
     for sc in scenarios:
-        chunks = retrieve(session, sc["query"], embedder, top_k=top_k)
+        chunks = retriever(session, sc["query"], embedder, top_k=top_k)
         sources = [c.source for c, _ in chunks]
         rank = None
         for i, s in enumerate(sources, start=1):
