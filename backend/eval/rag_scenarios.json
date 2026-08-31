@@ -1,4 +1,7 @@
 [
   {"id": "oily", "query": "我塊面好油，點控油？", "expected_source": "zh_skincare_basics.txt"},
-  {"id": "dry", "query": "皮膚乾燥點保濕？", "expected_source": "zh_skincare_basics.txt"}
+  {"id": "dry", "query": "皮膚乾燥點保濕？", "expected_source": "dermnetnz.org"},
+  {"id": "salicylic", "query": "水楊酸對暗瘡有咩用？", "expected_source": "incidecoder.com"},
+  {"id": "rosacea", "query": "玫瑰痤瘡係咩嚟？", "expected_source": "dermnetnz.org"},
+  {"id": "sunscreen", "query": "點解要每日搽防曬？", "expected_source": "zh_skincare_basics.txt"}
 ]
