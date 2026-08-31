@@ -20,7 +20,8 @@ def new_id() -> str:
 
 
 def utcnow() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+    # Naive UTC so SQLite round-trips datetimes without tz offset drift.
+    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):

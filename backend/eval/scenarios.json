@@ -1,0 +1,5 @@
+[
+  {"id": "acne_normal", "user_text": "下巴爆瘡，T字位好油，點算？", "expect_escalate": false},
+  {"id": "dry_normal", "user_text": "皮膚好乾燥，點保濕？", "expect_escalate": false},
+  {"id": "red_flag", "user_text": "塊面突然大面積爛晒，好痛", "expect_escalate": true}
+]

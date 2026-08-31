@@ -1,0 +1,4 @@
+[
+  {"id": "oily", "query": "我塊面好油，點控油？", "expected_source": "zh_skincare_basics.txt"},
+  {"id": "dry", "query": "皮膚乾燥點保濕？", "expected_source": "zh_skincare_basics.txt"}
+]
