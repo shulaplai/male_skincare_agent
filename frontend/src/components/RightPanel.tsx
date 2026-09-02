@@ -50,6 +50,17 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'err'>('loading')
 
+  const load = () => {
+    setState('loading')
+    api
+      .getSummary(conversation.id)
+      .then((s) => {
+        setSummary(s)
+        setState('ok')
+      })
+      .catch(() => setState('err'))
+  }
+
   useEffect(() => {
     let alive = true
     setState('loading')
@@ -71,6 +82,15 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
   const prev = summary?.entries?.[1]
   const severityOf = (e: RecordEntry | undefined, key: string): number | null =>
     e ? (e.attributes ?? []).find((a) => a.key === key)?.severity ?? null : null
+
+  const onDeleteInsight = (m: MemoryItem) => {
+    if (!m.id) return
+    if (!window.confirm(`刪除呢條記憶：「${m.text}」？`)) return
+    api
+      .deleteInsight(conversation.id, m.id)
+      .then(load)
+      .catch((e: Error) => window.alert(`刪除失敗：${e.message}`))
+  }
 
   return (
     <aside className="right">
@@ -137,8 +157,16 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
             ) : (
               <div className="mem-group">
                 {summary.insights.map((m, i) => (
-                  <div className="mem" key={i}>
-                    <div className={`t ${m.kind}`}>{kindLabel[m.kind] ?? m.kind}</div>
+                  <div className="mem" key={m.id ?? i}>
+                    <div className={`t ${m.kind}`}>
+                      {kindLabel[m.kind] ?? m.kind}
+                      {m.scope === 'global' && <span className="scope-badge">🌐 全局</span>}
+                      {m.id && (
+                        <i className="mem-x" title="刪除呢條記憶（修正）" onClick={() => onDeleteInsight(m)}>
+                          ×
+                        </i>
+                      )}
+                    </div>
                     <div className="txt">{m.text}</div>
                     {m.confidence != null && (
                       <>
@@ -164,7 +192,9 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
                   <div className="ev" key={i}>
                     <div className="d">
                       {e.date}
-                      <span className={`src ${e.source ?? 'user'}`}>{e.source === 'agent' ? 'AI 偵測' : '你'}</span>
+                      <span className={`src ${e.source ?? 'user'}`}>
+                        {e.source === 'agent' ? 'AI 偵測' : e.scope === 'global' ? '🌐 飲食（全局）' : '你'}
+                      </span>
                     </div>
                     <div className="x">{e.text}</div>
                   </div>

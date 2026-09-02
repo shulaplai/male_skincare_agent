@@ -58,10 +58,25 @@ def test_apply_events_writes_entry_timeline_and_product():
     assert prod.name == "水楊酸 Toner"
     assert prod.id in entry.products
 
+    # Product events stay conversation-scoped on the timeline…
     events = session.query(TimelineEvent).filter_by(conversation_id=cid, source="user").all()
     texts = {e.text for e in events}
-    assert "食咗辣底" in texts
+    assert "食咗辣底" not in texts  # diet is NOT conv-scoped (Q31)
     assert any("水楊酸" in t for t in texts)
+    # …and diet events are written GLOBALLY (conversation_id NULL, Q31).
+    global_events = (
+        session.query(TimelineEvent)
+        .filter(TimelineEvent.conversation_id.is_(None), TimelineEvent.source == "user")
+        .all()
+    )
+    gtexts = {e.text for e in global_events}
+    assert "食咗辣底" in gtexts
+
+    # Check-in auto fact (Q25): product_start wrote a fact insight.
+    from app.models import Insight
+
+    facts = session.query(Insight).filter_by(conversation_id=cid, kind="fact").all()
+    assert any("水楊酸 Toner" in f.text and "開始用" in f.text for f in facts)
     session.close()
 
 

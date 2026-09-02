@@ -55,17 +55,20 @@ export interface Message {
 }
 
 export interface MemoryItem {
+  id?: string
   kind: 'derived' | 'preference' | 'fact'
   text: string
   confidence?: number
   direction?: string
   tag?: string
+  scope?: 'global' | 'body_part'
 }
 
 export interface TimelineEvent {
   date: string
   text: string
   source?: 'user' | 'agent'
+  scope?: 'global' | 'body_part'
 }
 
 export interface RecordEntry {
@@ -75,6 +78,45 @@ export interface RecordEntry {
   metrics: Metric[]
   attributes: SkinAttribute[]
   photos: string[]
+  products?: string[]
+}
+
+export interface AnchorInfo {
+  date: string
+  old: number
+  delta: number
+}
+
+export interface AttributeAnchor {
+  key: AttributeKey
+  label: string
+  severity: number
+  prev: AnchorInfo | null
+  month: AnchorInfo | null
+  quarter: AnchorInfo | null
+}
+
+export interface CorrelationCandidate {
+  cause_type: 'diet' | 'product'
+  cause_key: string
+  cause_label: string
+  attribute: string
+  attribute_label: string
+  direction: 'up' | 'down'
+  occurrences: number
+  avg_delta: number
+  first_date: string
+  last_date: string
+  strong: boolean
+  note: string
+}
+
+export interface CorrelationResult {
+  candidates: CorrelationCandidate[]
+  lines: string[]
+  entry_days: number
+  cause_episodes: number
+  note: string
 }
 
 export interface Summary {
@@ -87,6 +129,7 @@ export interface Summary {
   entries: RecordEntry[]
   insights: MemoryItem[]
   timeline: TimelineEvent[]
+  anchors: AttributeAnchor[]
 }
 
 export interface ServerMessage {

@@ -1,4 +1,4 @@
-import type { DetectedEvent, ServerMessage, Summary } from './types'
+import type { CorrelationResult, DetectedEvent, ServerMessage, Summary } from './types'
 
 export interface ApiConversation {
   id: string
@@ -126,6 +126,36 @@ export async function applyEvents(conversationId: string, events: DetectedEvent[
 
 export async function getSettings(): Promise<Settings> {
   return parse(await fetch('/api/settings'))
+}
+
+export async function getCorrelations(conversationId: string): Promise<CorrelationResult> {
+  return parse(await fetch(`/api/conversations/${conversationId}/correlations`))
+}
+
+export async function editEntryNote(
+  cid: string,
+  entryId: string,
+  note: string,
+): Promise<{ id: string; note: string }> {
+  return parse(
+    await fetch(`/api/conversations/${cid}/entries/${entryId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    }),
+  )
+}
+
+export async function deleteEntry(cid: string, entryId: string): Promise<{ status: string }> {
+  return parse(await fetch(`/api/conversations/${cid}/entries/${entryId}`, { method: 'DELETE' }))
+}
+
+export async function deleteEntryPhoto(entryId: string, photoId: string): Promise<{ status: string }> {
+  return parse(await fetch(`/api/entries/${entryId}/photos/${photoId}`, { method: 'DELETE' }))
+}
+
+export async function deleteInsight(cid: string, insightId: string): Promise<{ status: string }> {
+  return parse(await fetch(`/api/conversations/${cid}/insights/${insightId}`, { method: 'DELETE' }))
 }
 
 export async function health(): Promise<{ status: string; llm_provider: string }> {

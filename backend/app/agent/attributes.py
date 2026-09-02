@@ -171,3 +171,34 @@ def build_change_lines(
                 emitted.add((c["key"], c["delta"]))
 
     return lines
+
+
+def anchor_comparisons(current: dict[str, int], entries: list[Entry], today: datetime.date) -> list[dict]:
+    """Per-attribute severities vs the previous / ~1M / ~3M anchor entries.
+
+    Pure presentation data for the "rolling multi-anchor" UI (Q12): the UI
+    renders each attribute's latest value next to the closest available anchor
+    (within ANCHOR_TOLERANCE_DAYS) so users can see both the near-term trend
+    and the longer baseline without the backend repeating any LLM work.
+    """
+    out: list[dict] = []
+    prev = find_previous_entry(entries, today)
+    month = find_anchor_entry(entries, today, MONTH_WINDOW_DAYS)
+    quarter = find_anchor_entry(entries, today, QUARTER_WINDOW_DAYS)
+
+    for key in ATTRIBUTE_KEYS:
+        if key not in current:
+            continue
+        sev = current[key]
+        row: dict = {"key": key, "label": ATTRIBUTE_LABELS[key], "severity": sev}
+        for name, anchor in (("prev", prev), ("month", month), ("quarter", quarter)):
+            if anchor is None:
+                row[name] = None
+                continue
+            old = severity_map(anchor.attributes or []).get(key)
+            if old is None:
+                row[name] = None
+            else:
+                row[name] = {"date": str(anchor.date), "old": old, "delta": sev - old}
+        out.append(row)
+    return out
