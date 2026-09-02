@@ -29,6 +29,7 @@ class MemoryInsight:
     expires_at: datetime.datetime | None = None
     superseded_by: str | None = None
     version: int = 1
+    direction: str = ""  # better | worse | same (derived attribute trends)
 
 
 def expiry_for(now: datetime.datetime) -> datetime.datetime:
@@ -46,6 +47,7 @@ def from_orm(insight) -> MemoryInsight:
         expires_at=insight.expires_at,
         superseded_by=insight.superseded_by,
         version=insight.version,
+        direction=getattr(insight, "direction", ""),
     )
 
 
@@ -55,6 +57,7 @@ def make_derived(
     text: str,
     confidence: float,
     now: datetime.datetime,
+    direction: str = "",
 ) -> MemoryInsight:
     return MemoryInsight(
         id=id,
@@ -63,6 +66,7 @@ def make_derived(
         text=text,
         confidence=round(min(max(confidence, 0.0), MAX_CONFIDENCE), 2),
         expires_at=expiry_for(now),
+        direction=direction,
     )
 
 

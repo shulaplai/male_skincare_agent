@@ -43,6 +43,10 @@ class Conversation(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     body_part: Mapped[str] = mapped_column(String(120))
     icon: Mapped[str] = mapped_column(String(16), default="🧴")
+    # Privacy consent: when False, photos are stored locally but never sent to
+    # a cloud vision model (text-only analysis). Defaults to the env setting
+    # SKINCOACH_CLOUD_ANALYSIS_DEFAULT at creation time.
+    cloud_analysis: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="conversations")
@@ -66,9 +70,10 @@ class Entry(Base):
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
     date: Mapped[datetime.date] = mapped_column(Date, index=True)
     note: Mapped[str] = mapped_column(Text, default="")
-    metrics: Mapped[list] = mapped_column(JSON, default=list)  # [{"key","value","dir"}]
+    metrics: Mapped[list] = mapped_column(JSON, default=list)  # [{"key","value","dir"}] display list
+    attributes: Mapped[list] = mapped_column(JSON, default=list)  # fixed schema: [{"key","severity","note"}]
     diet: Mapped[list] = mapped_column(JSON, default=list)  # ["打邊爐·辣底", ...]
-    products: Mapped[list] = mapped_column(JSON, default=list)  # ["水楊酸 toner", ...]
+    products: Mapped[list] = mapped_column(JSON, default=list)  # product ids (see products table)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
     conversation: Mapped[Conversation] = relationship(back_populates="entries")
@@ -97,9 +102,10 @@ class Insight(Base):
     __tablename__ = "insights"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id"), nullable=True, index=True)
     kind: Mapped[str] = mapped_column(String(20))  # fact | derived | preference
     tag: Mapped[str] = mapped_column(String(120), default="")  # e.g. "skin_type", "product_reaction"
+    direction: Mapped[str] = mapped_column(String(20), default="")  # better|worse|same — derived attribute trends
     text: Mapped[str] = mapped_column(Text)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     expires_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
@@ -107,21 +113,28 @@ class Insight(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
-    conversation: Mapped[Conversation] = relationship(back_populates="insights")
+    # NULL conversation_id = global scope (Q31: body-spanning facts/events,
+    # e.g. diet, sleep, medication). Derived attribute insights are always
+    # body-part scoped.
+    conversation: Mapped[Conversation | None] = relationship(back_populates="insights")
 
 
 class TimelineEvent(Base):
-    """A causal event on the conversation timeline (product change, diet, outcome)."""
+    """A causal event on the timeline (self-reported cause or AI-detected outcome).
+
+    NULL conversation_id = global scope (affects all body parts).
+    """
 
     __tablename__ = "timeline_events"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
-    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
+    conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id"), nullable=True, index=True)
     date: Mapped[datetime.date] = mapped_column(Date)
     text: Mapped[str] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(20), default="user")  # user | agent
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
-    conversation: Mapped[Conversation] = relationship(back_populates="events")
+    conversation: Mapped[Conversation | None] = relationship(back_populates="events")
 
 
 class Chunk(Base):

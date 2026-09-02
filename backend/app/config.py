@@ -19,19 +19,31 @@ class Settings(BaseSettings):
     data_dir: str = "./data"
     database_url: str = "sqlite:///./data/skincoach.db"
 
-    # LLM: cloud is opt-in; local mode uses Ollama.
-    llm_provider: str = "anthropic"  # anthropic | deepseek | openai | ollama
+    # LLM: cloud is opt-in (keys read from env). DeepSeek is the default
+    # provider: reachable directly from HK and vision-capable since 2026-08
+    # (`deepseek-v4-flash-vision-exp`). Anthropic/OpenAI remain configurable
+    # for non-HK deployments. Note: legacy model names like `deepseek-chat`
+    # were discontinued 2026-07-24 — always use explicit V4 model ids.
+    llm_provider: str = "deepseek"  # deepseek | anthropic | openai
     anthropic_api_key: str = ""
     deepseek_api_key: str = ""
     openai_api_key: str = ""
-    ollama_base_url: str = "http://localhost:11434"
 
-    # Strong model for deep one-off tasks (analysis, advice), fast for high-frequency.
-    strong_model: str = "claude-3-5-sonnet-latest"
-    fast_model: str = "claude-3-5-haiku-latest"
+    # DeepSeek V4 model tiering: photo analysis uses the vision model, other
+    # tasks (advice, memory) use the plain text model.
+    deepseek_text_model: str = "deepseek-v4-flash"
+    deepseek_vision_model: str = "deepseek-v4-flash-vision-exp"
 
-    # Embeddings (local by default; bilingual corpus).
-    embedding_model: str = "BAAI/bge-m3"
+    # Model names for the other providers (only used when a key is set).
+    anthropic_model: str = "claude-sonnet-5"
+    openai_model: str = "gpt-5"
+
+    # Privacy consent: per-conversation cloud-analysis default for NEW
+    # conversations. Product default is off (photos never leave the machine
+    # unless the user opts in); a self-hoster who has consented can set
+    # SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true so every new conversation starts
+    # with cloud analysis enabled. The per-conversation toggle overrides this.
+    cloud_analysis_default: bool = False
 
 
 settings = Settings()

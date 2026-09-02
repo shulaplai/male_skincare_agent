@@ -14,7 +14,7 @@ from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
-from app.models import Entry, Insight, TimelineEvent
+from app.models import Conversation, Entry, Insight, TimelineEvent
 from app.photo import save_photo
 
 
@@ -27,6 +27,10 @@ class ConsultRequest(BaseModel):
 class ConversationRequest(BaseModel):
     body_part: str
     icon: str = "🧴"
+
+
+class CloudAnalysisRequest(BaseModel):
+    enabled: bool
 
 
 @asynccontextmanager
@@ -62,13 +66,35 @@ async def import_data(file: UploadFile = File(...)) -> dict:
 
 @app.get("/api/conversations")
 def list_conversations(db: Session = Depends(get_session)) -> list[dict]:
-    return [{"id": c.id, "body_part": c.body_part, "icon": c.icon} for c in crud.list_conversations(db)]
+    return [
+        {"id": c.id, "body_part": c.body_part, "icon": c.icon, "cloud_analysis": bool(c.cloud_analysis)}
+        for c in crud.list_conversations(db)
+    ]
 
 
 @app.post("/api/conversations")
 def create_conversation(req: ConversationRequest, db: Session = Depends(get_session)) -> dict:
     c = crud.create_conversation(db, req.body_part, req.icon)
-    return {"id": c.id, "body_part": c.body_part, "icon": c.icon}
+    return {"id": c.id, "body_part": c.body_part, "icon": c.icon, "cloud_analysis": bool(c.cloud_analysis)}
+
+
+@app.get("/api/conversations/{cid}")
+def get_conversation(cid: str, db: Session = Depends(get_session)) -> dict:
+    c = db.query(Conversation).filter_by(id=cid).first()
+    if c is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    return {"id": c.id, "body_part": c.body_part, "icon": c.icon, "cloud_analysis": bool(c.cloud_analysis)}
+
+
+@app.put("/api/conversations/{cid}/cloud-analysis")
+def set_cloud_analysis(cid: str, req: CloudAnalysisRequest, db: Session = Depends(get_session)) -> dict:
+    """Toggle cloud-photo-analysis consent for a conversation (Q18)."""
+    c = db.query(Conversation).filter_by(id=cid).first()
+    if c is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    c.cloud_analysis = req.enabled
+    db.commit()
+    return {"id": c.id, "cloud_analysis": bool(c.cloud_analysis)}
 
 
 @app.post("/api/consult")
@@ -88,6 +114,9 @@ async def upload_photo(file: UploadFile = File(...)) -> dict:
 @app.get("/api/conversations/{cid}/summary")
 def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
     """All data for the records / progress views of one body-part conversation."""
+    conv = db.query(Conversation).filter_by(id=cid).first()
+    if conv is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
     entries = db.query(Entry).filter_by(conversation_id=cid).order_by(Entry.date.desc()).all()
     insights = (
         db.query(Insight)
@@ -102,18 +131,34 @@ def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
         .all()
     )
     return {
+        "conversation": {
+            "id": conv.id,
+            "body_part": conv.body_part,
+            "icon": conv.icon,
+            "cloud_analysis": bool(conv.cloud_analysis),
+        },
         "entries": [
             {
                 "id": e.id,
                 "date": str(e.date),
                 "note": e.note,
                 "metrics": e.metrics,
+                "attributes": e.attributes,
                 "photos": [p.path for p in e.photos],
             }
             for e in entries
         ],
-        "insights": [{"kind": i.kind, "text": i.text, "confidence": i.confidence} for i in insights],
-        "timeline": [{"date": str(e.date), "text": e.text} for e in events],
+        "insights": [
+            {
+                "kind": i.kind,
+                "text": i.text,
+                "confidence": i.confidence,
+                "direction": i.direction,
+                "tag": i.tag,
+            }
+            for i in insights
+        ],
+        "timeline": [{"date": str(e.date), "text": e.text, "source": e.source} for e in events],
     }
 
 
@@ -128,9 +173,19 @@ def get_photo(photo_id: str) -> FileResponse:
 
 @app.get("/api/settings")
 def get_settings() -> dict:
+    provider = settings.llm_provider
+    text_model = {
+        "deepseek": settings.deepseek_text_model,
+        "anthropic": settings.anthropic_model,
+        "openai": settings.openai_model,
+    }.get(provider, settings.deepseek_text_model)
+    vision_model = (
+        settings.deepseek_vision_model if provider == "deepseek" else text_model
+    )
     return {
-        "llm_provider": settings.llm_provider,
-        "model": "deepseek-chat" if settings.llm_provider == "deepseek" else settings.strong_model,
+        "llm_provider": provider,
+        "model": text_model,
+        "vision_model": vision_model,
         "has_api_key": bool(
             settings.anthropic_api_key or settings.deepseek_api_key or settings.openai_api_key
         ),
