@@ -8,7 +8,7 @@ import { ProgressView } from './components/ProgressView'
 import { SettingsView } from './components/SettingsView'
 import * as api from './api'
 import { fromServerMessage } from './format'
-import type { Conversation, Message, View } from './types'
+import type { Conversation, DetectedEvent, Message, View } from './types'
 
 let localId = 1
 const local = (): string => `m${localId++}`
@@ -153,6 +153,7 @@ export default function App() {
           disclaimer: res.advice.disclaimer,
           escalate: res.escalate,
           vision_used: res.vision_used,
+          events: res.advice.detected_events?.length ? res.advice.detected_events : undefined,
         }
         setMessages((prev) => ({
           ...prev,
@@ -175,6 +176,37 @@ export default function App() {
         }))
       })
       .finally(() => setSending(false))
+  }
+
+
+  const confirmEvents = (cid: string, msgId: string, events: DetectedEvent[]) => {
+    if (!online) return
+    api
+      .applyEvents(cid, events)
+      .then(() => {
+        // Hide the chips on that message once confirmed.
+        setMessages((prev) => ({
+          ...prev,
+          [cid]: (prev[cid] ?? []).map((m) => (m.id === msgId ? { ...m, events: undefined } : m)),
+        }))
+        setRefreshKey((k) => k + 1)
+      })
+      .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
+  }
+
+  const quickRecord = (cid: string, diet: string, product: string) => {
+    const events: DetectedEvent[] = []
+    if (diet.trim()) events.push({ type: 'diet', text: diet.trim(), tags: [] })
+    if (product.trim()) events.push({ type: 'product_start', text: `開始用：${product.trim()}`, product_name: product.trim() })
+    if (!events.length) return
+    if (!online) {
+      window.alert('後端未連線，記唔到。')
+      return
+    }
+    api
+      .applyEvents(cid, events)
+      .then(() => setRefreshKey((k) => k + 1))
+      .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
   }
 
   if (!active) {
@@ -213,6 +245,8 @@ export default function App() {
               loading={loadingThread}
               onSelectConversation={setActiveId}
               onToggleCloud={setCloud}
+              onConfirmEvents={confirmEvents}
+              onQuickRecord={quickRecord}
             />
             <RightPanel conversation={active} refreshKey={refreshKey} onToggleCloud={setCloud} />
           </>

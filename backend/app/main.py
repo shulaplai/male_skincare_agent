@@ -10,12 +10,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app import crud
+from app.agent.schemas import DetectedEvent
 from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
 from app.models import ChatMessage, Conversation, Entry, Insight, TimelineEvent
 from app.photo import save_photo
+from app.self_report import apply_events
 
 
 class ConsultRequest(BaseModel):
@@ -38,6 +40,11 @@ class FactRequest(BaseModel):
     text: str
     tag: str = "user_fact"
     global_scope: bool = False  # body-spanning fact (Q27/Q31) -> conversation_id NULL
+
+
+class EventsRequest(BaseModel):
+    """Confirmed self-reported events from the user (Q49/Q51)."""
+    events: list[DetectedEvent]
 
 
 @asynccontextmanager
@@ -127,6 +134,16 @@ def create_fact(cid: str, req: FactRequest, db: Session = Depends(get_session)) 
         "text": fact.text,
         "scope": "global" if req.global_scope else "body_part",
     }
+
+
+@app.post("/api/conversations/{cid}/events")
+def confirm_events(cid: str, req: EventsRequest, db: Session = Depends(get_session)) -> dict:
+    """User confirmed detected_events -> write Entry / timeline / products (Q51)."""
+    conv = db.query(Conversation).filter_by(id=cid).first()
+    if conv is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    stats = apply_events(db, cid, req.events)
+    return {"written": stats["diet"] + stats["product"], **stats}
 
 
 @app.post("/api/consult")

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as api from '../api'
-import type { Conversation, Message } from '../types'
+import type { Conversation, DetectedEvent, Message } from '../types'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   online: boolean
   onSelectConversation: (id: string) => void
   onToggleCloud: (id: string, enabled: boolean) => void
+  onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
+  onQuickRecord: (conversationId: string, diet: string, product: string) => void
 }
 
 function splitAdvice(a: string): { lead: string; rest: string } {
@@ -31,7 +33,29 @@ function dayChip(date: string): string {
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function Bubble({ m }: { m: Message }) {
+function EventChips({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, evs: DetectedEvent[]) => void }) {
+  if (!m.events?.length) return null
+  return (
+    <div className="events-row">
+      <span className="ev-label">我留意到：</span>
+      {m.events.map((e, i) => (
+        <span key={i} className={`event-chip t-${e.type}`}>
+          {e.type === 'diet' ? '🍜' : e.type === 'product_start' ? '🧴' : '✋'}{' '}
+          {e.text || e.product_name}
+        </span>
+      ))}
+      {onConfirm && (
+        <span className="ev-actions">
+          <button className="ev-yes" onClick={() => onConfirm(m.id, m.events!)}>
+            ✅ 記低
+          </button>
+        </span>
+      )}
+    </div>
+  )
+}
+
+function Bubble({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, evs: DetectedEvent[]) => void }) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
   return (
     <div className={`msg ${m.role}${m.error ? ' err' : ''}`}>
@@ -82,6 +106,7 @@ function Bubble({ m }: { m: Message }) {
           </>
         )}
         {m.disclaimer && <div className="disclaimer">{m.disclaimer}</div>}
+        {m.role === 'coach' && <EventChips m={m} onConfirm={onConfirm} />}
       </div>
     </div>
   )
@@ -97,6 +122,8 @@ export function Chat({
   online,
   onSelectConversation,
   onToggleCloud,
+  onConfirmEvents,
+  onQuickRecord,
 }: Props) {
   const { toggle } = useTheme()
   const [draft, setDraft] = useState('')
@@ -104,6 +131,9 @@ export function Chat({
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [quickOpen, setQuickOpen] = useState(false)
+  const [quickDiet, setQuickDiet] = useState('')
+  const [quickProduct, setQuickProduct] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Reset per-conversation composer state when switching body part (fix D1:
@@ -114,6 +144,9 @@ export function Chat({
     setUploading(false)
     setUploadErr(null)
     setMenuOpen(false)
+    setQuickOpen(false)
+    setQuickDiet('')
+    setQuickProduct('')
   }, [conversation.id])
 
   const submit = () => {
@@ -194,7 +227,7 @@ export function Chat({
           return (
             <div key={m.id}>
               {m.date !== prevDate && <div className="day">{dayChip(m.date)}</div>}
-              <Bubble m={m} />
+              <Bubble m={m} onConfirm={(mid, evs) => onConfirmEvents(conversation.id, mid, evs)} />
             </div>
           )
         })}
@@ -207,6 +240,32 @@ export function Chat({
           </div>
         )}
       </div>
+
+      {quickOpen && (
+        <div className="quickbar">
+          <input
+            value={quickDiet}
+            onChange={(e) => setQuickDiet(e.target.value)}
+            placeholder="飲食特別嘢（例：打邊爐·辣底）— 可空"
+          />
+          <input
+            value={quickProduct}
+            onChange={(e) => setQuickProduct(e.target.value)}
+            placeholder="開始用產品（例：水楊酸 toner）— 可空"
+          />
+          <button
+            className="btn ghost small"
+            onClick={() => {
+              onQuickRecord(conversation.id, quickDiet, quickProduct)
+              setQuickDiet('')
+              setQuickProduct('')
+              setQuickOpen(false)
+            }}
+          >
+            記低
+          </button>
+        </div>
+      )}
 
       <div className="compose">
         <div className="tools">
@@ -222,6 +281,12 @@ export function Chat({
             <svg viewBox="0 0 24 24">
               <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
               <circle cx="12" cy="13" r="4" />
+            </svg>
+          </span>
+          <span className={`iconbtn ${quickOpen ? 'on' : ''}`} title="今日記錄（飲食／產品）" onClick={() => setQuickOpen((v) => !v)}>
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <path d="M12 8v8M8 12h8" />
             </svg>
           </span>
         </div>

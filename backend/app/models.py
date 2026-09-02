@@ -157,6 +157,24 @@ class ChatMessage(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class Product(Base):
+    """Canonical user products (Q28): name + category + optional key ingredients.
+
+    Entries reference products by id; confirmed "product_start" events create a
+    row when the name is new, so causality ("toner started 3 days ago ->
+    breakout") can be traced deterministically.
+    """
+
+    __tablename__ = "products"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(60), default="其他")  # toner/潔面/精華/防曬…
+    ingredients: Mapped[list] = mapped_column(JSON, default=list)  # ["水楊酸", ...]
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Chunk(Base):
     """A RAG corpus chunk (global beauty knowledge, not per-user)."""
 

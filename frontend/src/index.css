@@ -1162,3 +1162,17 @@ body {
   display: flex; align-items: center; justify-content: center; line-height: 1; }
 .bubble.typing { color: var(--muted, #888); font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .send:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ---- confirmed self-report events (Q49/Q51) ---- */
+.events-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.ev-label { font-size: 11px; color: var(--muted, #888); }
+.event-chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: #eef6ff; color: #0b5cad; }
+.event-chip.t-product_stop { background: #fdeaea; color: #c0392b; }
+.ev-actions { margin-left: auto; }
+.ev-yes { font-size: 12px; border: none; border-radius: 999px; padding: 4px 12px; background: #2e9e5b; color: #fff; cursor: pointer; }
+.ev-yes:hover { filter: brightness(1.05); }
+.iconbtn.on { color: #0b5cad; }
+.quickbar { display: flex; gap: 8px; padding: 8px 16px; background: var(--bg2, #f4f4f5); border-top: 1px solid var(--line, #e5e5e5); }
+.quickbar input { flex: 1; min-width: 0; }
+.metric .v.neutral { color: var(--muted, #888); }
+.chip.neutral { background: var(--bg2, #eee); }

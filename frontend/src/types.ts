@@ -15,7 +15,7 @@ export interface Conversation {
 export interface Metric {
   key: string
   value: string
-  dir: 'good' | 'bad'
+  dir: 'good' | 'bad' | 'neutral'
   note?: string
 }
 
@@ -31,6 +31,13 @@ export interface Analysis {
   advice: string[]
 }
 
+export interface DetectedEvent {
+  type: 'diet' | 'product_start' | 'product_stop'
+  text: string
+  tags?: string[]
+  product_name?: string
+}
+
 export interface Message {
   id: string
   role: 'user' | 'coach'
@@ -42,6 +49,7 @@ export interface Message {
   disclaimer?: string
   escalate?: boolean
   vision_used?: boolean
+  events?: DetectedEvent[]
   pending?: boolean
   error?: boolean
 }

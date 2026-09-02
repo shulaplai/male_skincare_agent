@@ -1,4 +1,4 @@
-import type { ServerMessage, Summary } from './types'
+import type { DetectedEvent, ServerMessage, Summary } from './types'
 
 export interface ApiConversation {
   id: string
@@ -10,12 +10,12 @@ export interface ApiConversation {
 export interface ConsultResult {
   analysis: {
     summary: string
-    metrics: { key: string; value: string; dir: 'good' | 'bad' }[]
+    metrics: { key: string; value: string; dir: 'good' | 'bad' | 'neutral' }[]
     attributes: { key: string; severity: number; note?: string }[]
     tool_calls: string[]
   }
   tool_results: { tool: string; result: unknown }[]
-  advice: { reply?: string; items: string[]; disclaimer: string; escalate: boolean }
+  advice: { reply?: string; items: string[]; disclaimer: string; escalate: boolean; detected_events?: DetectedEvent[] }
   escalate: boolean
   vision_used: boolean
 }
@@ -96,6 +96,16 @@ export async function getSummary(conversationId: string): Promise<Summary> {
 
 export async function getMessages(conversationId: string): Promise<ServerMessage[]> {
   return parse(await fetch(`/api/conversations/${conversationId}/messages`))
+}
+
+export async function applyEvents(conversationId: string, events: DetectedEvent[]): Promise<{ written: number }> {
+  return parse(
+    await fetch(`/api/conversations/${conversationId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+    }),
+  )
 }
 
 export async function getSettings(): Promise<Settings> {
