@@ -37,6 +37,11 @@ class FakeLLM:
             )  # type: ignore[return-value]
         if schema is Advice:
             return Advice(
+                reply=(
+                    "睇咗你嘅情況：下巴有兩粒新暗瘡、T 字位偏油，兩頰就中性。"
+                    "新暗瘡多數同最近變數有關，我建議先暫停新產品三日，用單一變數測試搵出邊樣致敏；"
+                    "同時做好保濕同每日防曬，修復返皮膚屏障。我會一路記住你嘅進度。"
+                ),
                 items=[
                     "暫停新產品 3 日，用單一變數測試搵出致敏源",
                     "做好保濕同每日防曬，修復皮膚屏障",
@@ -100,6 +105,13 @@ class OpenAICompatLLM:
         }
         if self.base_url:
             kwargs["base_url"] = self.base_url
+        # DeepSeek V4 enables thinking mode by default, and thinking mode
+        # rejects a forced `tool_choice` (which `with_structured_output`
+        # sends) with HTTP 400. Structured extraction therefore runs with
+        # thinking disabled (`thinking.type: "disabled"`). Only DeepSeek
+        # understands this extra body field, so it is gated on its base URL.
+        if self.base_url and "deepseek.com" in self.base_url:
+            kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
         return ChatOpenAI(**kwargs)
 
     def _runnable(self, schema: type[T]):

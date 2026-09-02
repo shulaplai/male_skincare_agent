@@ -25,4 +25,9 @@ def evaluate_recall(session, scenarios: list[dict], embedder, top_k: int = 3, re
             mrr += 1.0 / rank
         results.append({"id": sc["id"], "hit": hit, "rank": rank, "sources": sources})
     n = len(scenarios) or 1
-    return {"recall": hits / n, "mrr": mrr / n, "results": results}
+    return {
+        "recall": hits / n,
+        "mrr": mrr / n,
+        "top_k": top_k,
+        "results": results,
+    }

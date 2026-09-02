@@ -12,6 +12,8 @@ class AgentState(TypedDict, total=False):
     vision_used: bool
     analysis: dict | None
     tool_results: list[dict]
+    recent_messages: list[str]
+    first_checkin: bool
     advice: dict | None
     escalate: bool
     error: str | None

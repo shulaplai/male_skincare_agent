@@ -14,7 +14,7 @@ from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
-from app.models import Conversation, Entry, Insight, TimelineEvent
+from app.models import ChatMessage, Conversation, Entry, Insight, TimelineEvent
 from app.photo import save_photo
 
 
@@ -109,6 +109,30 @@ async def upload_photo(file: UploadFile = File(...)) -> dict:
     photo_id = uuid.uuid4().hex
     path = save_photo(photo_id, await file.read())
     return {"id": photo_id, "path": path}
+
+
+@app.get("/api/conversations/{cid}/messages")
+def conversation_messages(cid: str, db: Session = Depends(get_session)) -> list[dict]:
+    """Full chat-thread history for a conversation (Q7: survives reloads)."""
+    conv = db.query(Conversation).filter_by(id=cid).first()
+    if conv is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    msgs = (
+        db.query(ChatMessage)
+        .filter_by(conversation_id=cid)
+        .order_by(ChatMessage.id.asc())
+        .all()
+    )
+    return [
+        {
+            "id": m.id,
+            "role": m.role,
+            "text": m.text,
+            "payload": m.payload,
+            "created_at": m.created_at.isoformat(timespec="seconds"),
+        }
+        for m in msgs
+    ]
 
 
 @app.get("/api/conversations/{cid}/summary")

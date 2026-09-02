@@ -137,6 +137,26 @@ class TimelineEvent(Base):
     conversation: Mapped[Conversation | None] = relationship(back_populates="events")
 
 
+class ChatMessage(Base):
+    """One chat turn (Q7/Q35): user messages and coach replies.
+
+    Entry is the structured daily summary (data truth for code); ChatMessage is
+    the conversation record (display truth for reloading the thread). Coach
+    replies carry their full payload (summary/metrics/attributes/advice/
+    disclaimer/escalate/vision_used) so history renders identically after a
+    reload.
+    """
+
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
+    role: Mapped[str] = mapped_column(String(10))  # user | coach
+    text: Mapped[str] = mapped_column(Text, default="")
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Chunk(Base):
     """A RAG corpus chunk (global beauty knowledge, not per-user)."""
 

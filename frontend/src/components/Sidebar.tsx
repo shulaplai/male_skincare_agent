@@ -4,6 +4,7 @@ interface Props {
   conversations: Conversation[]
   activeId: string
   view: View
+  online: boolean
   onSelect: (id: string) => void
   onAdd: () => void
   onNavigate: (view: View) => void
@@ -51,7 +52,7 @@ const NAV: { key: View; label: string; icon: JSX.Element }[] = [
   },
 ]
 
-export function Sidebar({ conversations, activeId, view, onSelect, onAdd, onNavigate }: Props) {
+export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate }: Props) {
   return (
     <aside className="side">
       <div className="brand">
@@ -83,7 +84,8 @@ export function Sidebar({ conversations, activeId, view, onSelect, onAdd, onNavi
             <span className="t">
               <span className="name">{c.bodyPart}</span>
               <span className="meta">
-                {c.isDefault ? '主對話' : '新對話'} · {c.days} 日
+                {c.isDefault ? '主對話' : '部位對話'}
+                {c.cloudAnalysis ? ' · ☁️' : ' · 🔒'}
               </span>
             </span>
           </div>
@@ -111,12 +113,12 @@ export function Sidebar({ conversations, activeId, view, onSelect, onAdd, onNavi
         <div className="who">
           <div className="avatar" />
           <div>
-            <div className="name">阿軒 · 28</div>
-            <div className="sub">DAY 47 / 92</div>
+            <div className="name">SkinCoach · 單機用戶</div>
+            <div className="sub">{online ? 'Agent 在線' : '離線（只記 session）'}</div>
           </div>
         </div>
         <div className="skin-tag">
-          <i /> 混合性肌膚 · 目標：去暗瘡＋淡印
+          <i className={online ? 'ok' : ''} /> 數據只存呢部機（local-first）
         </div>
       </div>
     </aside>

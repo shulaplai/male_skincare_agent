@@ -33,7 +33,12 @@ def run_consult(conversation_id: str, text: str, photo_paths: list[str] | None =
     finally:
         session.close()
 
-    graph = build_graph(llm=get_llm(), session_factory=SessionLocal, embedder=_get_embedder())
+    graph = build_graph(
+        llm=get_llm("text"),
+        vision_llm=get_llm("vision"),
+        session_factory=SessionLocal,
+        embedder=_get_embedder(),
+    )
     result = graph.invoke(
         {
             "conversation_id": conversation_id,

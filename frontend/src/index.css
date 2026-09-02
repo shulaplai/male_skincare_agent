@@ -1104,3 +1104,61 @@ body {
   gap: 12px;
   align-items: flex-start;
 }
+
+/* ---- live right panel (Q9B) ---- */
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-head h3 { margin: 0; }
+.cloud-toggle {
+  cursor: pointer; font-size: 11px; padding: 3px 8px; border-radius: 999px;
+  background: var(--bg2, #eee); color: var(--ink, #333); white-space: nowrap;
+}
+.cloud-toggle.on { background: #cfe8ff; color: #0b5cad; }
+.attr-list { display: flex; flex-direction: column; gap: 6px; }
+.attr { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.attr .k { width: 44px; }
+.attr .dots { display: inline-flex; gap: 3px; }
+.attr .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--bg2, #ddd); }
+.attr .dots i.on.lv1 { background: #f2b544; }
+.attr .dots i.on.lv2 { background: #e8862e; }
+.attr .dots i.on.lv3 { background: #d64545; }
+.attr .sev { width: 40px; color: var(--muted, #888); }
+.attr .delta { font-size: 11px; }
+.delta.good { color: #2e9e5b; }
+.delta.bad { color: #d64545; }
+.trends { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.trend { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.trend .k { width: 44px; }
+.trend .spark { flex: 1; height: 34px; }
+.trend .latest { width: 24px; text-align: right; color: var(--muted, #888); }
+.vision-badge { display: inline-block; font-size: 11px; border-radius: 999px; padding: 2px 8px; margin: 6px 0 2px; }
+.vision-badge.seen { background: #cfe8ff; color: #0b5cad; }
+.vision-badge.text { background: var(--bg2, #eee); color: var(--muted, #888); }
+.msg.coach.err .bubble { border-color: #e6b0a0; }
+.empty.small { font-size: 12px; color: var(--muted, #888); }
+.mode.local { color: #2e9e5b; }
+.mode.cloud { color: #0b5cad; }
+.btn.ghost.small { font-size: 11px; padding: 2px 8px; margin-left: 8px; }
+.good { color: #2e9e5b; }
+.bad { color: #d64545; }
+.tl .ev .src { margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: var(--bg2, #eee); }
+.warn-chip {
+  font-size: 11px; color: #b7791f; background: #fdf1d7;
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ---- upload / sending feedback ---- */
+.pending-dot { font-size: 10px; color: var(--muted, #999); margin-left: 6px; font-style: italic; }
+.chip { font-size: 11px; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.chip.uploading { background: var(--bg2, #eee); color: var(--muted, #888); }
+.chip.upload-err { background: #fdeaea; color: #c0392b; }
+.attach.ok { position: relative; }
+.attach .ok-mark {
+  position: absolute; top: -6px; right: -4px; width: 16px; height: 16px;
+  border-radius: 50%; background: #2e9e5b; color: #fff; font-size: 10px; font-style: normal;
+  display: flex; align-items: center; justify-content: center;
+}
+.attach .x { position: absolute; bottom: -6px; right: -4px; width: 16px; height: 16px; border-radius: 50%;
+  background: #c0392b; color: #fff; font-size: 11px; font-style: normal; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; line-height: 1; }
+.bubble.typing { color: var(--muted, #888); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.send:disabled { opacity: 0.55; cursor: not-allowed; }

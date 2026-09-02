@@ -37,7 +37,12 @@ class SkinAnalysis(BaseModel):
 
 
 class Advice(BaseModel):
-    items: list[str]
+    # `reply` is the coach's narrative answer shown as the message text:
+    # 2–5 sentences in Cantonese that explain the analysis, the reasoning
+    # behind the advice, and what the app will remember. `items` are the
+    # punchy bullet actions rendered in the card.
+    reply: str = ""
+    items: list[str] = Field(default_factory=list)
     disclaimer: str = ""
     escalate: bool = False
 

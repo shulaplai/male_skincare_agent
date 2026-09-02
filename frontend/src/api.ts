@@ -1,30 +1,43 @@
-import type { Summary } from './types'
+import type { ServerMessage, Summary } from './types'
 
 export interface ApiConversation {
   id: string
   body_part: string
   icon: string
+  cloud_analysis: boolean
 }
 
 export interface ConsultResult {
   analysis: {
     summary: string
     metrics: { key: string; value: string; dir: 'good' | 'bad' }[]
+    attributes: { key: string; severity: number; note?: string }[]
     tool_calls: string[]
   }
   tool_results: { tool: string; result: unknown }[]
-  advice: { items: string[]; disclaimer: string; escalate: boolean }
+  advice: { reply?: string; items: string[]; disclaimer: string; escalate: boolean }
   escalate: boolean
+  vision_used: boolean
 }
 
 export interface Settings {
   llm_provider: string
   model: string
+  vision_model?: string
   has_api_key: boolean
 }
 
 async function parse<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body?.detail === 'string') detail = body.detail
+    } catch {
+      /* non-json body */
+    }
+    throw new Error(detail)
+  }
   return res.json() as Promise<T>
 }
 
@@ -38,6 +51,16 @@ export async function createConversation(bodyPart: string, icon = '🧴'): Promi
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body_part: bodyPart, icon }),
+    }),
+  )
+}
+
+export async function setCloudAnalysis(cid: string, enabled: boolean): Promise<{ cloud_analysis: boolean }> {
+  return parse(
+    await fetch(`/api/conversations/${cid}/cloud-analysis`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
     }),
   )
 }
@@ -71,6 +94,14 @@ export async function getSummary(conversationId: string): Promise<Summary> {
   return parse(await fetch(`/api/conversations/${conversationId}/summary`))
 }
 
+export async function getMessages(conversationId: string): Promise<ServerMessage[]> {
+  return parse(await fetch(`/api/conversations/${conversationId}/messages`))
+}
+
 export async function getSettings(): Promise<Settings> {
   return parse(await fetch('/api/settings'))
+}
+
+export async function health(): Promise<{ status: string; llm_provider: string }> {
+  return parse(await fetch('/health'))
 }

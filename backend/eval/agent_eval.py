@@ -40,6 +40,8 @@ def run_agent_eval(
                 "escalate": res["escalate"],
                 "violations": violations,
                 "advice": advice.items,
+                "advice_items": advice.items,
+                "user_text": sc["user_text"],
             }
         )
     return results

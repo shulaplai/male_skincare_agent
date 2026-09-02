@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as api from '../api'
 import type { Conversation, Message } from '../types'
 import { useTheme } from '../theme'
@@ -7,9 +7,12 @@ interface Props {
   conversation: Conversation
   conversations: Conversation[]
   messages: Message[]
+  loading: boolean
+  sending: boolean
   onSend: (text: string, photos: { id: string; path: string }[]) => void
   online: boolean
   onSelectConversation: (id: string) => void
+  onToggleCloud: (id: string, enabled: boolean) => void
 }
 
 function splitAdvice(a: string): { lead: string; rest: string } {
@@ -18,14 +21,25 @@ function splitAdvice(a: string): { lead: string; rest: string } {
   return { lead: a.slice(0, idx), rest: a.slice(idx) }
 }
 
+function dayChip(date: string): string {
+  const d = new Date(`${date}T00:00:00`)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
+  if (diff <= 0) return '今天'
+  if (diff === 1) return '昨天'
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function Bubble({ m }: { m: Message }) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
   return (
-    <div className={`msg ${m.role}`}>
+    <div className={`msg ${m.role}${m.error ? ' err' : ''}`}>
       <div className={`a ${m.role}`} />
       <div className="bubble">
         <div className="meta">
           {label} · {m.time}
+          {m.pending && <span className="pending-dot">傳送緊…</span>}
         </div>
         {m.escalate && <div className="escalate-banner">⚠️ 呢個情況建議轉介皮膚科醫生</div>}
         {m.text}
@@ -34,33 +48,38 @@ function Bubble({ m }: { m: Message }) {
             <img src={m.photo} alt="皮膚相" />
           </span>
         )}
-        {m.analysis && (
-          <div className="card">
-            <h4>{m.analysis.title}</h4>
-            <div className="metrics">
-              {m.analysis.metrics.map((mm) => (
-                <div className="metric" key={mm.key}>
-                  <div className="k">{mm.key}</div>
-                  <div className={`v ${mm.dir}`}>{mm.value}</div>
-                  {mm.note && <div className="d">{mm.note}</div>}
-                </div>
-              ))}
+        {m.role === 'coach' && m.analysis && (
+          <>
+            <div className={`vision-badge ${m.vision_used ? 'seen' : 'text'}`}>
+              {m.vision_used ? '👁 已睇相分析（雲端）' : '✍️ 文字分析（未睇相）'}
             </div>
-            <ul className="advice">
-              {m.analysis.advice.map((a, i) => {
-                const { lead, rest } = splitAdvice(a)
-                return (
-                  <li key={i}>
-                    <span className="n">{String(i + 1).padStart(2, '0')}</span>
-                    <span>
-                      <b>{lead}</b>
-                      {rest}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
+            <div className="card">
+              <h4>{m.analysis.title}</h4>
+              <div className="metrics">
+                {m.analysis.metrics.map((mm) => (
+                  <div className="metric" key={mm.key}>
+                    <div className="k">{mm.key}</div>
+                    <div className={`v ${mm.dir}`}>{mm.value}</div>
+                    {mm.note && <div className="d">{mm.note}</div>}
+                  </div>
+                ))}
+              </div>
+              <ul className="advice">
+                {m.analysis.advice.map((a, i) => {
+                  const { lead, rest } = splitAdvice(a)
+                  return (
+                    <li key={i}>
+                      <span className="n">{String(i + 1).padStart(2, '0')}</span>
+                      <span>
+                        <b>{lead}</b>
+                        {rest}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </>
         )}
         {m.disclaimer && <div className="disclaimer">{m.disclaimer}</div>}
       </div>
@@ -68,17 +87,39 @@ function Bubble({ m }: { m: Message }) {
   )
 }
 
-export function Chat({ conversation, conversations, messages, onSend, online, onSelectConversation }: Props) {
+export function Chat({
+  conversation,
+  conversations,
+  messages,
+  loading,
+  sending,
+  onSend,
+  online,
+  onSelectConversation,
+  onToggleCloud,
+}: Props) {
   const { toggle } = useTheme()
   const [draft, setDraft] = useState('')
   const [attached, setAttached] = useState<{ id: string; path: string }[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [localMode, setLocalMode] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Reset per-conversation composer state when switching body part (fix D1:
+  // a half-typed message must not leak into another conversation).
+  useEffect(() => {
+    setDraft('')
+    setAttached([])
+    setUploading(false)
+    setUploadErr(null)
+    setMenuOpen(false)
+  }, [conversation.id])
 
   const submit = () => {
     const t = draft.trim()
     if (!t && attached.length === 0) return
+    if (sending || uploading) return
     onSend(t || '（已上傳皮膚相）', attached)
     setDraft('')
     setAttached([])
@@ -87,12 +128,21 @@ export function Chat({ conversation, conversations, messages, onSend, online, on
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
+    setUploading(true)
+    setUploadErr(null)
     api
       .uploadPhoto(f)
       .then((p) => setAttached((prev) => [...prev, p]))
-      .catch(() => window.alert('相片上傳失敗，請確認後端已起。'))
+      .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
+      .finally(() => setUploading(false))
     e.target.value = ''
   }
+
+  const cloudOn = conversation.cloudAnalysis
+  const cloudLabel = cloudOn
+    ? '雲分析已開：影相會送雲端 vision 分析'
+    : '本地模式：相唔會上雲分析（純文字）'
+  const busy = sending || uploading
 
   return (
     <main className="chat">
@@ -134,14 +184,28 @@ export function Chat({ conversation, conversations, messages, onSend, online, on
       </header>
 
       <div className="thread">
-        <div className="day">今天</div>
         <div className="hello">
           早晨呀 ☀️ 今日{conversation.bodyPart}感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會
           <b>一路記住</b>幫你追蹤。
         </div>
-        {messages.map((m) => (
-          <Bubble key={m.id} m={m} />
-        ))}
+        {loading && messages.length === 0 && <p className="empty small">載入緊對話歷史…</p>}
+        {messages.map((m, i) => {
+          const prevDate = i > 0 ? messages[i - 1].date : null
+          return (
+            <div key={m.id}>
+              {m.date !== prevDate && <div className="day">{dayChip(m.date)}</div>}
+              <Bubble m={m} />
+            </div>
+          )
+        })}
+        {sending && (
+          <div className="msg coach">
+            <div className="a coach" />
+            <div className="bubble typing">
+              <span className="pulse" /> 教練諗緊…（睇相＋分析＋建議，約 5–10 秒）
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="compose">
@@ -161,23 +225,35 @@ export function Chat({ conversation, conversations, messages, onSend, online, on
             </svg>
           </span>
         </div>
+        {uploading && <span className="chip uploading">⏳ 上傳緊張相…</span>}
         {attached.map((a) => (
-          <span key={a.id} className="attach">
+          <span key={a.id} className="attach ok">
             <img src={`/api/photos/${a.id}`} alt="預覽" />
-            <i onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}>×</i>
+            <i className="ok-mark">✓</i>
+            <i className="x" onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}>
+              ×
+            </i>
           </span>
         ))}
+        {uploadErr && <span className="chip upload-err">✗ 上傳失敗：{uploadErr}</span>}
+        {attached.length > 0 && !cloudOn && (
+          <span className="warn-chip">⚠️ 本地模式：張相唔會俾 AI 睇（撳 ☁️ 開雲分析先會睇相）</span>
+        )}
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder={`問${conversation.bodyPart}教練任何嘢…（食咗咩／用咗咩／反應）`}
         />
-        <span className="mode" title={localMode ? '本地模式：相唔會上雲分析' : '雲分析（opt-in）'}>
-          本地 <span className={`sw${localMode ? ' on' : ''}`} onClick={() => setLocalMode((v) => !v)} /> 雲
+        <span
+          className={`mode ${cloudOn ? 'cloud' : 'local'}`}
+          title={cloudLabel}
+          onClick={() => online && onToggleCloud(conversation.id, !cloudOn)}
+        >
+          {cloudOn ? '☁️ 雲' : '🔒 本地'}
         </span>
-        <button className="send" onClick={submit}>
-          發送
+        <button className="send" onClick={submit} disabled={busy}>
+          {sending ? '處理中…' : '發送'}
         </button>
       </div>
     </main>
