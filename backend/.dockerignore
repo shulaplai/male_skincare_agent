@@ -1,0 +1,25 @@
+# Build context for the backend image. NEVER ship secrets or local data.
+.env
+.env.*
+data
+*.db
+*.sqlite3
+.hf-cache
+
+# Python tooling / caches
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Not needed at runtime
+.git
+.gitignore
+Dockerfile
+.dockerignore
+tests
+eval
+*.md

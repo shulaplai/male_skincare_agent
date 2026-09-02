@@ -63,7 +63,9 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 
 - 矛盾：新結論同舊結論衝突 → 舊標 `superseded_by`，新 `version+1`，歷史保留。
 - 一致：confidence 向新高靠攏（cap 0.97）、expiry 延長。
-- **設計目標**：reconcile 按 **attribute tag + direction** 判斷「一致 vs 矛盾」（唔靠文字相同）—— 記憶系統嘅升級方向，實施狀態見 `status-vs-claims.md` #6（而家只寫 `derived/recent_status` 一條，confidence 累積未生效）。
+- **reconcile 按 attribute tag + direction（Q47，已實現）**：derived insight 每條對應一個 attribute key（tag）+ 狀態類別（direction = `problem` ≥2 ／`normal` ≤1）。同一 tag 同 direction → strengthen（confidence 升、text 更新做最新、expiry 延長）；direction flip → supersede（舊標 `superseded_by`、新 version+1）。**唔靠文字相同判斷一致/矛盾**（byte-identical text 先會永遠撞唔上）。
+- **Preferences 低頻抽取（Q48，已實現）**：`app/preferences.py` —— code 由**重複**確認證據抽偏好：diet trigger tag ≥3 個唔同日（21 日 window）→ global preference「近排成日食…」；同一產品 ≥3 日 → conversation preference「常用產品：…」。text 冇變就唔寫（throttle，低頻）。
+- **Fact 寫手**：用戶確認嘅事件（`POST /events`）係 ground truth —— diet → 當日 `Entry.diet` + **global timeline**（Q31）；product start/stop → `products` table + per-product fact insight（「由 X 開始用…」，check-in 自動 fact）。
 
 ## 6. 向量庫：點解 SQLite + cosine，唔係 Qdrant/pgvector？
 
@@ -80,7 +82,7 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 |---|---|---|
 | 視覺分析（analyze） | `deepseek-v4-flash-vision-exp` | 一次性、要睇相；同 text 同價（image ≈384 tok） |
 | 建議生成 / 正文（advise） | `deepseek-v4-flash` | 深度文字 |
-| 記憶更新 | 同上（text model） | fast tier 未有第二個 model（memory rewrite 時再諗） |
+| 記憶更新 | —（唔用 LLM） | memory 係 deterministic code（reconcile/preferences/facts），唔靠 prompt 寫記憶 |
 | Embedding | 本地 fastembed MiniLM（ONNX） | 離線、免費、無 torch |
 
 > DeepSeek V4 預設 thinking mode 會令強制 `tool_choice` 400 —— adapter 對 structured output 自動加 `thinking: {type: disabled}`（`llm.py`）。
@@ -100,6 +102,8 @@ OpenAI 官方 API 香港仍然 403；**Anthropic 亦 403**（唔喺 supported re
 ## 10. 前端設計方向（已鎖定＋已實現）
 
 - **主界面：教練對話優先（chat-first）** —— 對話係主角，右側 panel 顯示**真實**皮膚指標、AI 記憶、因果時間線（live，冇 hardcode demo 分數）。
-- **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 一個「面部皮膚」，用戶可開新對話；**每個部位有獨立 entries/photos/insights/timeline/messages**。global scope（全身性「因」）係設計方向（`Insight`/`TimelineEvent` 嘅 conversation FK 可 NULL），寫手未做（Layer 2）。
-- **數據面板**：真實 per-attribute 0–3 趨勢、sparkline、AI 偵測 timeline —— 唔做 arbitary composite score（例如「78 分」）。
+- **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 一個「面部皮膚」，用戶可開新對話；**每個部位有獨立 entries/photos/insights/timeline/messages**。
+- **Global scope（Q31，已實現）**：`Insight`／`TimelineEvent` 嘅 conversation FK 可 NULL = 全身性記錄。diet 自報事件寫 **global timeline**（飲食影響所有部位）；每個 conversation 嘅 `/summary` timeline = 自己嘅事件 + global events merge（UI 標 🌐）。`get_skin_profile` tool 連 global insights 一齊俾 coach；correlation detector 亦睇 global diet 事件。
+- **相關性觀察（Q30，已實現）**：`app/correlation.py` —— deterministic cause→effect candidate：product 首次使用日／diet 事件日做 cause episode，比較 episode 前後 window 嘅 attribute severity；≥2 次重複先算 strong（UI 明示「唔等於因果」）。LLM 唔參與判斷。
+- **數據面板**：真實 per-attribute 0–3 趨勢、sparkline、AI 偵測 timeline —— 唔做 arbitary composite score（例如「78 分」）。進度 view 有 rolling multi-anchor 對比（最新 vs 上次／~1M／~3M，`/summary.anchors`，Q12）。
 - **Chat 歷史**：`chat_messages` 持久化，reload 唔清空；每次 consult stateless + 最近 N 條 messages context。

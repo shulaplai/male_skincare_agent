@@ -38,7 +38,7 @@
 
 **畫面**：切返面部，打「塊面突然大面積爛晒好痛」→ show 紅旗 banner「建議轉介皮膚科醫生」。再開 terminal show `python -m eval.run_eval --fake`。
 
-旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋3 個 agent 場景全綠，仲有 40 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
+旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋3 個 agent 場景全綠，仲有 60 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
 
 ## 2:30 收尾
 

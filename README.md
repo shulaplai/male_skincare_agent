@@ -5,7 +5,7 @@
 一個**真係落地嘅 AI Agent product**（唔係薄薄哋包層 API 嘅 chatbot）：
 - **多步 stateful agent**（LangGraph，5 nodes）：分析相/文字 → 揀工具 → 生成建議 → guardrail → 寫入日記
 - **視覺分析**：有相＋conversation 開咗「雲分析」→ 送 `deepseek-v4-flash-vision-exp`（HK 直連）；冇相／off → 純文字降級，UI 標明
-- **長期記憶**：facts / derived / preferences 三類設計，30 日衰減 + 矛盾 versioning（memory rewrite 進行中，見 docs）
+- **長期記憶**：facts / derived / preferences 三類；derived per-attribute reconcile（tag+direction：strengthen / supersede versioning + 30 日 expiry）；preference 低頻抽取（Q48）；自報事件自動寫 global fact / timeline（Q25/Q31）
 - **Local-first**：相永遠留喺用戶機；每 conversation 一個雲分析開關（default off，self-hoster 可 env 改 default）；冇 key 行 FakeLLM 示範
 - **RAG 美容知識庫**：文字/PDF 語料 → chunk → embed → SQLite（Python cosine，升級路徑留咗）
 - **Eval harness 入 CI**：RAG recall + agent golden scenarios + 安全 check（+ 有 key 時 LLM-as-judge），FAIL 唔准 merge
@@ -29,7 +29,7 @@
 | Embedding | fastembed（ONNX、無 torch、多語言 MiniLM） |
 | LLM | **DeepSeek V4**（`deepseek-v4-flash` text／`deepseek-v4-flash-vision-exp` vision，HK 直連）；冇 key → FakeLLM |
 | 前端 | React + Vite + TypeScript |
-| 部署 | Docker Compose（⚠️ 修復中，見下） |
+| 部署 | Docker Compose（frontend nginx proxy `/api`→backend、bind volume、corpus bake） |
 | Eval | 自建 harness（recall@3 + MRR + agent golden + 安全 + judge）入 CI |
 
 ## 目錄結構
@@ -64,11 +64,16 @@ npm install && npm run dev    # http://localhost:5173（proxy /api → 8001）
 
 # 自己 host 想新 conversation 自動開雲分析（可選）
 echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart backend
+
+# Interview demo：想個 UI 即刻有 90 日數據睇（獨立 DEMO DB，唔掂你真 data）
+cd backend && ./.venv/bin/python scripts/seed_demo.py
+SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn app.main:app --port 8001
+# 前端照常：cd ../frontend && npm run dev（:5173 proxy /api -> :8001）
 ```
 
 ## 部署
 
-> ⚠️ **而家日常用 = local dev**（backend + frontend 本地跑）。`docker compose up --build` 個 production 形態**仲未整好**（frontend nginx 未配 `/api` proxy、compose env 路徑未對、RAG corpus 未 bake）—— 修復計劃喺 `docs/status-vs-claims.md` #18。修好之前唔好喺 interview 用 Docker 做 demo。
+> ⚠️ **日常用 = local dev**（backend + frontend 本地跑，最可靠）。`docker compose up --build` 提供 production 形態：frontend nginx 有 `/api` proxy → backend、data 用 bind volume、corpus 喺 image build 時 bake（詳情 `docs/status-vs-claims.md` #18）。Interview 想零 setup 展示，用 `seed_demo.py`（上面）仲快。
 
 ## 面試交付物清單
 
@@ -76,7 +81,7 @@ echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart bac
 |---|---|
 | 技術決策 + 面試談資（已對齊 reality） | `docs/architecture.md` |
 | **Docs claim vs code 現況對照（live）** | `docs/status-vs-claims.md` |
-| 三個月 roadmap（Phase 已完成，v2 待寫） | `docs/roadmap.md` |
+| Roadmap v2（Phase 0–5 對照 reality） | `docs/roadmap.md` |
 | Demo video 劇本（2.5 分鐘） | `docs/demo-script.md` |
 | 技術 blog 大綱 | `docs/blog-outline.md` |
 | Eval report（sample） | `docs/eval-report-sample.md` |

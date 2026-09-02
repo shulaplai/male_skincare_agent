@@ -1,57 +1,67 @@
-# Roadmap — SkinCoach（3 個月）
+# Roadmap — SkinCoach（v2，對照 reality）
 
-> ⚠️ **現況更新**：Phase 0–5 嘅 code 大部分已做（backend 40 tests 綠、agent 5-node 真、RAG 有 corpus、chat-first UI 真、eval 入 CI）。
-> 真正仲爭嘅唔係「起骨架」，而係：memory rewrite（Block 3）、Layer 2 功能、docs 一致化、demo video/blog。
-> **最新現況同 claim 對照睇 `docs/status-vs-claims.md`（live）；呢份 roadmap v2 等所有決定收齊先重寫。**
-
-目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
+> 目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
+> 呢份係 v2：每個 phase 對照 `docs/status-vs-claims.md`（live）寫**完成度**，唔再寫「打算做」當做咗。
+> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 60 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
 
 ---
 
-## Phase 0 — 地基（✅ 進行中）
-- monorepo：`backend/` + `frontend/` + `docs/`
-- 後端骨架（FastAPI + config）、前端骨架（React+Vite+TS）
-- Docker Compose + Dockerfile
-- README + architecture + roadmap
-- 舊 SKINFILE 移去 `archive/skinfile/`
+## Phase 0 — 地基 ✅
+- monorepo（backend + frontend + docs）、FastAPI + React+Vite+TS 骨架 ✅
+- Docker Compose + Dockerfile ✅（v2 修咗：frontend nginx `/api` proxy、bind volume、corpus bake；狀態見 status #18）
+- README + architecture + roadmap + AGENTS.md ✅
+- 舊 SKINFILE → `archive/skinfile/` 博物館 ✅
 
-## Phase 1 — 數據層（local-first 核心）
-- SQLite schema：users / entries / photos / insights（memory）/ products
-- 相片壓縮（max 1024px、JPEG）+ 落 file system，metadata 落 DB
-- 長期記憶規則（三類 / 30 日衰減 / 矛盾 versioning）落 SQL
-- Export / Import（zip = SQLite + 相），滿足「一定可以儲喺用戶自己電腦」
+## Phase 1 — 數據層（local-first 核心）✅
+- SQLite schema：users / conversations / entries / photos / insights / timeline_events / chat_messages / products ✅（加 column 用 `_COLUMN_MIGRATIONS` auto-ALTER）
+- 相片壓縮落 file system、metadata 落 DB ✅
+- 長期記憶規則落 SQL：fact / derived / preference + tag+direction reconcile（Q47）✅
+- Export/Import zip ✅
+- **demo environment**：`scripts/seed_demo.py` 起獨立 DEMO DB（Q10/Q19）✅
 
-## Phase 2 — RAG 美容知識庫
-- 上網搵中英美容 PDF（皮膚學、成分、暗瘡、屏障、routine 等）
-- 掃描版 → OCR（pdf skill + Tesseract/PaddleOCR）
-- chunk + embed（sentence-transformers 多語言 model）→ sqlite-vec
-- 檢索接口 + **recall eval**（golden questions）
+## Phase 2 — RAG 美容知識庫 ✅
+- 中英 corpus（zh basics + DermNet + incidecoder + Europe PMC 擴充爬蟲）✅
+- chunk + embed（fastembed MiniLM，無 OCR —— 語料多數係 text）→ SQLite JSON embedding + Python cosine ✅
+- 檢索接口 + **recall eval**（golden queries）✅
+- Runtime 用 hybrid（semantic recall + keyword re-rank）✅
 
-## Phase 3 — Agent（LangGraph）
-- 多步 state graph：分析相 → 讀記憶 → 檢索 → 揀工具 → 生成建議 → 寫入
-- Tool whitelist（查產品 / 查日記 / 查知識庫）
-- Pydantic 型別合約（JSON mode 輸出）
-- Medical guardrail + disclaimer
-- Model tiering + vision 降級 + 本地模式（Ollama）
+## Phase 3 — Agent（LangGraph）✅
+- 5-node state graph：analyze → tools → advise → guardrail → persist ✅
+- Tool whitelist（profile / recent entries / search_knowledge）✅
+- Pydantic 型別合約（`SkinAnalysis` / `Advice` / `DetectedEvent`）✅
+- Medical guardrail + disclaimer ✅
+- Model tiering + vision consent 降級（DeepSeek V4，無 Ollama）✅
+- **Layer 2 功能**（喺 Phase 3 之後做埋）：
+  - 自報事件確認（chat detect → chips confirm → 落 DB）✅
+  - diet → **global** timeline（Q31）＋ products table（Q28）＋ per-product fact hook ✅
+  - preference 低頻抽取（Q48，deterministic throttle）✅
+  - correlation detector（Q30，deterministic candidates）✅
+  - rolling multi-anchor 對比（/summary.anchors + UI，Q12）✅
 
-## Phase 4 — 前端（3 個方向揀一）
-- 先出 **3 個 HTML 方向 prototype** 俾你揀（chat-first / dashboard-first / 問卷-first）
-- 揀完起真 React UI：Dashboard / Check-in / Consult（chat）/ Timeline（一年因果 trace）/ Settings
-- 接後端 API
+## Phase 4 — 前端 ✅
+- chat-first 真 UI：Chat / RightPanel（live 指標/記憶/時間線）/ Records / Progress（趨勢 + anchors + correlations）/ Settings ✅
+- 多部位對話（每部位獨立日記/記憶/時間線）✅
+- 記憶修正 UI：改筆記、刪日記、刪相、刪 insight（Q52 delete/edit）✅
+- 接後端 API（server source of truth，無 demo data）✅
 
-## Phase 5 — Eval + Production
-- Eval harness：retrieval recall + LLM-as-judge（具體性/相關性/安全）+ golden set
-- CI（GitHub Actions）：typecheck / pytest / eval 綠先 merge
-- logging / 錯誤分類 / rate limit / 基本 auth
-- Docker 部署（VPS / Railway / Fly）
-- README + demo video + 技術 blog（解釋 RAG + agent 架構 + 點控制 LLM）
+## Phase 5 — Eval + Production 🟡（大部分完成）
+- Eval harness：RAG recall + agent golden scenarios + safety + LLM-as-judge（有 key 時）✅
+- CI（GitHub Actions）：typecheck / pytest / eval `--fake` 綠先 merge ✅
+- Docker 部署（compose up 撳得郁）✅（以 status #18 為準）
+- README + demo video + 技術 blog：
+  - 技術 blog 大綱 ✅（`docs/blog-outline.md`）；完整 blog post 草稿 🟡 `docs/blog-post.md`（本文檔配套）
+  - demo video 🟡 —— 要真人 screen record，劇本喺 `docs/demo-script.md`；未錄影
 
 ---
 
-## 面試交付物清單（最終要齊）
+## 面試前 checklist（跟 `docs/status-vs-claims.md` 末段一齊用）
 
-- [ ] GitHub repo + 有質素 README + architecture/roadmap docs
-- [ ] 部署咗、撳得郁嘅網
-- [ ] eval report（recall + judge 分數 + 安全維度）
-- [ ] demo video（2-3 分鐘：由影相到一年後 trace）
-- [ ] 技術 blog（點解 LangGraph / 點控制 LLM / memory 點設計）
+- [ ] 真 vision smoke test（☁️ 開、影相 → `vision_used: true`、badge 出現）
+- [ ] 新 conversation 第一次 upload → 詳盡 onboarding reply
+- [ ] Reload 頁面 → thread 仲喺度
+- [ ] `pytest -q`（60 綠）+ `npm run typecheck` + `npm run build`
+- [ ] `eval.run_eval --fake` PASS（recall 100%、MRR 0.90、3 agent scenarios）
+- [ ] `scripts/seed_demo.py` → demo DB 行得起（interview 零準備 demo 用）
+- [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」
+- [ ] 錄 demo video（2–3 分鐘，跟 `docs/demo-script.md`）
+- [ ] Blog post 上稿前對照 `docs/blog-post.md` 草稿 + status doc 最新數字

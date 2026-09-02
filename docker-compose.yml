@@ -1,12 +1,56 @@
+# SkinCoach — local single-user Docker deployment.
+#
+#   docker compose up --build
+#     UI       http://localhost:5173   (nginx: static SPA + /api + /health proxy)
+#     Backend  http://localhost:8001   (direct access; GET /health = liveness)
+#     Data     ./data                 (SQLite db + photos, bind-mounted at /app/data)
+#
+# No .env file is required: the backend runs with sane defaults (FakeLLM + hash
+# embeddings) when no API keys are provided. To enable cloud photo analysis,
+# pass the key in the shell (or via a `.env` next to this file):
+#
+#     export SKINCOACH_DEEPSEEK_API_KEY=sk-...
+#     docker compose up --build
+#
+# NOTE on precedence: compose `environment:` overrides `env_file:`. The
+# optional `backend/.env` below is loaded (required: false) so any
+# SKINCOACH_* variable NOT listed under `environment:` still applies; for the
+# API keys listed there, provide them via the shell / root `.env` instead.
+
 services:
   backend:
     build: ./backend
+    environment:
+      # Container-absolute paths: all runtime data lives under /app/data.
+      SKINCOACH_DATABASE_URL: "sqlite:////app/data/skincoach.db"
+      SKINCOACH_DATA_DIR: /app/data
+      # Sane defaults so `up --build` works with no keys / no .env at all.
+      SKINCOACH_LLM_PROVIDER: ${SKINCOACH_LLM_PROVIDER:-deepseek}
+      SKINCOACH_DEEPSEEK_API_KEY: ${SKINCOACH_DEEPSEEK_API_KEY:-}
+      SKINCOACH_ANTHROPIC_API_KEY: ${SKINCOACH_ANTHROPIC_API_KEY:-}
+      SKINCOACH_OPENAI_API_KEY: ${SKINCOACH_OPENAI_API_KEY:-}
+      SKINCOACH_DEEPSEEK_TEXT_MODEL: ${SKINCOACH_DEEPSEEK_TEXT_MODEL:-deepseek-v4-flash}
+      SKINCOACH_DEEPSEEK_VISION_MODEL: ${SKINCOACH_DEEPSEEK_VISION_MODEL:-deepseek-v4-flash-vision-exp}
+      SKINCOACH_ANTHROPIC_MODEL: ${SKINCOACH_ANTHROPIC_MODEL:-claude-sonnet-5}
+      SKINCOACH_OPENAI_MODEL: ${SKINCOACH_OPENAI_MODEL:-gpt-5}
+      SKINCOACH_CLOUD_ANALYSIS_DEFAULT: ${SKINCOACH_CLOUD_ANALYSIS_DEFAULT:-false}
+    env_file:
+      # Optional: reuse the gitignored dev .env for vars not overridden above.
+      - path: ./backend/.env
+        required: false
     ports:
       - "8001:8000"
-    env_file: .env
     volumes:
+      # Persist SQLite db + photos across rebuilds (dir must exist for bind mount).
       - ./data:/app/data
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # First boot may download the embedding model before uvicorn starts.
+      start_period: 120s
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -14,3 +58,4 @@ services:
       - "5173:80"
     depends_on:
       - backend
+    restart: unless-stopped
