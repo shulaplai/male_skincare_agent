@@ -1,0 +1,192 @@
+# SkinCoach 中文護膚語料 seed（每行一個 URL，# 係註解）
+# 用途：男性護膚 agent 嘅內部知識庫，中文優先。
+# 備註：港台美容媒體多數反 bot / JS 渲染，建議用 crawl_zh.py（Playwright）逐個限速 craw；
+#       政府 / 皮膚科組織 / 健康媒體多數靜態，httpx 就得。
+
+# ============ A. 皮膚科權威 / 官方衛教（優先、可信） ============
+# 香港皮膚科醫學院 HKCD
+https://hkcderm.org/%e6%9a%97%e7%98%a1/
+https://hkcderm.org/%e6%bf%95%e7%96%b9/
+# 台灣皮膚科醫學會
+https://derma.org.tw/resources/content.php?id=3
+https://tspad.com.tw/activity/1096/
+# 香港衞生署衞生防護中心（社會衞生服務 / 皮膚）
+https://www.chp.gov.hk/tc/static/24039.html
+# 華人健康網（皮膚科 / 保養 / 美麗新知）
+https://my.top1health.com/Article/49/26016
+https://my.top1health.com/Article/248/97876
+https://my.top1health.com/Article/248/95515
+https://my.top1health.com/Article/249/95826
+https://my.top1health.com/Article/242/97993
+https://my.top1health.com/Article/242/42934
+https://my.top1health.com/Article/249/42934
+https://my.top1health.com/Article/242/29453
+https://my.top1health.com/Article/249/13068
+https://my.top1health.com/Article/242/15199
+https://my.top1health.com/Article/197/16384
+https://my.top1health.com/Article/242/97827
+# 康健雜誌（美容保養）
+https://www.commonhealth.com.tw/article/90096
+https://www.commonhealth.com.tw/article/91086
+https://www.commonhealth.com.tw/blog/5881
+https://www.commonhealth.com.tw/channel/46
+# Hello 醫師（皮膚健康）
+https://helloyishi.com.tw/skin-health/skincare/how-to-build-a-skin-care-routine/
+https://helloyishi.com.tw/skin-health/skincare/
+# 良醫健康網（商周）
+https://health.businessweekly.com.tw/article/ARTL003014081
+https://health.businessweekly.com.tw/article/ARTL003007894
+http://health-cache.businessweekly.com.tw/article/ARTL003011043.html
+# 健康醫療網
+https://www.healthnews.com.tw/article/69271
+# 早安健康（美體美膚）
+https://news.everydayhealth.com.tw/category/beauty/
+https://edh.tw/articles/3JojFud
+https://edh.tw/articles/HHSkgxt
+# 科普中國 / 健康中國（官方科普）
+https://cloud.kepuchina.cn/h5/detail?id=7257192907417415680
+https://cloud.kepuchina.cn/h5/detail?id=7486838680299765760
+https://cloud.kepuchina.cn/h5/detail?id=7361805273575649280
+https://health.cnr.cn/jkgdxw/20241119/t20241119_526980606.shtml
+https://health.cnr.cn/jkgdxw/20250808/t20250808_527308492.shtml
+https://health.cnr.cn/jkgdxw/20250304/t20250304_527089079.shtml
+# 政府衛健委 / 醫院皮膚科
+https://wsjk.tj.gov.cn/JKJY5233/JKZS7782/202607/t20260716_7336608.html
+https://health.ncu.edu.tw/zh/post/154
+https://www.jxndefy.cn/info/1012/10084.htm
+https://www.jxndefy.cn/info/3293/15912.htm
+https://www.qphospital.com/article/2790
+https://www.xkyy.com.cn/info/1691/24141.htm
+https://www.fybj.net/popularize_hot/2024/kaznzYaJ.html
+https://hlm.tzuchi.com.tw/home/index.php/news/health-education/2025-05-28-03-38-23
+https://anan.gov.cn/anan/mrkpnew/202507/2208ed5ace5d463c97c7dc7bed14694e.shtml
+https://www.fshtcm.com.cn/zyy2023/ksdh/qtks/gkys_38981/jkkp/202511/t20251124_6423367.html
+https://www.jiexiuyiyuan.com/jkjy/1956.html
+https://www.kmsgdqrmyy.org.cn/show.aspx?model=content&id=8158
+https://www.bjcyh.com.cn:6065/Html/News/Articles/73746.html
+# 中國醫藥信息查詢平台（問答）
+https://m.dayi.org.cn/qa/285201.html
+https://m.dayi.org.cn/qa/285202.html
+https://m.dayi.org.cn/qa/303461
+https://m.dayi.org.cn/qa/298071.html
+# 丁香醫生
+https://dxy.com/article/79113
+# 泛科學 PanSci（科普）
+https://pansci.asia/archives/127930/
+# 美的好朋友 MedPartner（成分 / 洗臉）
+https://www.medpartner.club/tag/face-cleaning/
+
+# ============ B. 男士護膚專題（產品定位核心） ============
+https://health.hkej.com/health/article/3945715/
+https://www.roomie.tw/posts/143997
+http://bk.cnpharm.com/zgyyb/2025/11/13/322697.html
+https://at.iherb.com/blog/mens-skincare-routine/1051
+https://hodrmen.cc/men-skincare-32/men-skincare-31/
+https://www.hodrmen.com/
+https://www.too-beauty.com/zh-TW/blogs/%e7%a4%a6%e7%89%a9%e5%bd%a9%e5%a6%9d%e7%9f%a5%e8%ad%98/260511
+https://ladieschoice.com.hk/%e3%80%90%e9%a6%99%e6%b8%af%e7%94%b7%e5%a3%ab%e8%ad%b7%e8%86%9a%e3%80%913%e6%ad%a5ko%e6%b2%b9%e5%85%89%e6%9a%97%e7%98%a1%ef%bc%81%e4%b8%8a%e7%8f%ad%e6%97%8f%e7%b0%a1%e6%98%93%e4%bf%9d%e9%a4%8a/
+https://www.gq.com.tw/special/2025-gq-grooming-oneshot
+https://www.gq.com.tw/tag/%e7%b2%be%e8%8f%af%e6%b6%b2
+http://www.dgnet.com.tw/articleview.php?product_id=1165&issue_id=5244&article_id=26474
+https://www.zhihu.com/question/648014526/answer/3438514696
+https://www.zhihu.com/question/592212380/answer/2964455198
+https://www.zhihu.com/question/277842192/answer/1209967739
+https://www.jianshu.com/p/d965cd2bf58b
+
+# ============ C. 暗瘡 / 粉刺 / 痘痘 ============
+https://www.cosmopolitan.com.hk/beauty/how-to-choose-aha-products2
+https://www.hk01.com/%e7%be%8e%e5%ae%b9%e6%89%8b%e5%b8%b3/679213/
+https://www.hk01.com/%e7%be%8e%e5%ae%b9%e6%89%8b%e5%b8%b3/763667/
+
+# ============ D. 毛孔 / 控油 / 油性肌 ============
+http://bk.cnpharm.com/zgyyb/2025/08/07/app_321720.html
+https://coolhealth.com.tw/healthtrend/oily-t-zone
+
+# ============ E. 敏感肌 / 皮膚屏障 / 酒糟 ============
+https://www.bella.tw/articles/skincare/41388
+https://www.hbn.com.tw/ceramide-barrier-repair-guide-2025
+https://news.bioon.com/article/8fa693654e94.html
+
+# ============ F. 保濕 / 乾燥 ============
+https://www.cosmopolitan.com.hk/beauty/how-to-hydrate-dry-skin
+https://www.elle.com.hk/beauty_and_health/skincare-the-mysteries-of-oil
+https://www.elle.com.hk/beauty_and_health/ahead-of-skincare
+
+# ============ G. 防曬 ============
+https://www.womenshealthmag.com/tw/beauty/skin/g73292315/apply-sunscreen-correctly/
+http://www.sinphar.com.tw/magazine?cls=&cls2=1&id=25
+https://www.91160.com/doctors/articledetail/docid-200707209/articleid-397851.html
+
+# ============ H. 清潔 / 洗面 ============
+https://www.womenshealthmag.com/tw/beauty/skin/g64938688/7-keys-to-proper-face-cleansing/
+https://www.cosmopolitan.com/tw/beauty/skin/g63945174/2026-facewash-reccommendation/
+https://pc.hgdaily.com.cn/p/506101.html
+https://www.thepaper.cn/newsDetail_forward_29944046
+
+# ============ I. 保養順序 / 基礎步驟 ============
+https://wp.shiseido.com.tw/blog/posts/how-to-do-skincare
+https://www.inalumie.com/blogs/skincare-face/skincare-order
+https://www.helenarubinstein.com.tw/blog/posts/skincare-routine
+https://millizo.hk/zh/maintenance-sequence-guide/
+https://blog.hktvmall.com/hktvmore-health/skincare-routine-steps/
+https://www.marieclaire.com.tw/beauty/skin-care/72501
+https://www.hk01.com/%e7%be%8e%e5%ae%b9%e6%89%8b%e5%b8%b3/1009383/
+https://adoctor.tw/article/47797
+
+# ============ J. 成分 / 成分黨 ============
+https://ingrelens.com/skincare-knowledge/a301/peptide-skincare-routine-order-combination-guide
+https://www.igdry.com/d/8734.html
+https://www.igdry.com/d/6026.html
+https://www.igdry.com/d/17838.html
+https://www.igdry.com/1375.html
+https://www.oaige.com/w/9737.html
+https://www.oaige.com/w/20540.html
+https://tw.news.yahoo.com/%e6%b0%b4%e6%a5%8a%e9%85%b8-%e6%98%af%e6%b2%b9%e7%97%98%e8%82%8c%e5%b0%88%e5%88%a9-%e8%ae%93%e7%9a%ae%e8%86%9a%e7%a7%91%e9%86%ab%e7%94%9f%e5%91%8a%e8%a8%b4%e4%bd%a0%e5%a6%82%e4%bd%95%e5%9c%a8%e6%97%a5%e5%b8%b8%e8%ad%b7%e8%86%9a%e4%b8%ad%e5%a6%a5%e5%96%84%e4%bd%bf%e7%94%a8%e4%b8%8d%e5%88%ba%e6%bf%80-%e4%b8%a6%e6%9c%892025%e6%b0%b4%e6%a5%8a%e9%85%b8%e4%bf%9d%e9%a4%8a%e6%96%b0%e5%93%81%e6%8e%a8%e8%96%a6-elle-233000860.html
+
+# ============ K. 美白淡斑 / 色素 ============
+https://www.yywsb.com/article/69378.html
+https://www.harpersbazaar.com/tw/beauty/skincare/g64440202/best-skin-whitening-products/
+
+# ============ L. 抗老 / 皺紋 / 膠原 ============
+https://www.cosmopolitan.com/tw/beauty/skin/g63682541/10-habits-for-anti-aging-skincare/
+http://www.bch-syfy.cn/Html/News/Articles/12071.html
+https://www.dermayoung.com.tw/anti-aging/
+https://www.vogue.com.tw/tag/%e6%8a%97%e8%80%81
+https://www.hk01.com/%e7%be%8e%e5%ae%b9%e6%89%8b%e5%b8%b3/1050012/
+
+# ============ M. 混合肌 / 膚質分類 ============
+https://www.greenvines.com.tw/apps/blogs/blog-category-skincare-face/blog-combination-skin-skincare/
+https://www.dermacept.com.tw/zh-TW/blogs/skincare-journal/balance
+https://www.puravida.com.tw/blogs/beautiful-life/195063
+https://poplady-mag.com/article/297098/
+https://www.takami-labo.com.tw/combination-skin.html
+https://www.cosmart.hk/aggregate/cosmo/beauty/combination-skin-care-guide
+https://wp.shiseido.com.tw/vi/blog/posts/skincare-for-combination-skin
+
+# ============ N. 眼周 / 眼霜 / 精華 ============
+https://anan.gov.cn/anan/aahz/202009/b7a360e47bda490cb92a0dccc59a6b2e.shtml
+https://anan.gov.cn/anan/aahz/202007/c5217701a8eb4a5c9afe90346b597f04.shtml
+https://anan.gov.cn/anan/aahz/202301/ccd7a745ab194761b247c7b89491a913.shtml
+https://www.vogue.com.tw/article/%e7%9c%bc%e9%9c%9c-%e7%9c%bc%e9%83%a8%e7%b2%be%e8%8f%af-%e7%9c%bc%e9%83%a8%e4%bf%9d%e9%a4%8a
+
+# ============ O. 男士刮鬍 / 鬍後護理 ============
+https://archer.com.hk/blog/post-shave-redness-irritation
+
+# ============ P. 美容媒體分類入口（每頁可再展開多篇，供 crawler 續抓） ============
+https://www.bella.tw/tag?tags=%e8%ad%b7%e8%86%9a%e6%96%b9%e6%b3%95
+https://www.juksy.com/search/%23JUKSY%e4%bf%9d%e9%a4%8a
+https://www.marieclaire.com.tw/beauty/star?page=29
+
+# ============ Q. 濕疹 / 皮膚病 ============
+https://hkuhs.med.hku.hk/en/blogs/%e7%95%b0%e4%bd%8d%e6%80%a7%e6%bf%95%e7%96%b9%ef%bc%9a%e6%88%90%e5%9b%a0%e3%80%81%e7%97%87%e7%8b%80%e5%8f%8a%e6%b2%bb%e7%90%86/
+https://health.businessweekly.com.tw/article/ARTL003016443
+https://www.kingnet.com.tw/news/single?newId=47519
+https://health.hkej.com/health/article/4145414/
+https://cmuh.org.tw/NewsInfo/NewsArticle?no=5657
+
+# ============ R. 護膚誤區 / 迷思 ============
+https://www.womenshealthmag.com/tw/beauty/skin/a65458943/things-dermatologists-would-never-do-1753066502/
+https://www.womenshealthmag.com/tw/beauty/skin/a70879725/things-dermatologists-would-never-do-1753066502-1774860952/
+https://my.top1health.com/Article/248/97380
+https://www.commonhealth.com.tw/blog/6405
+https://health.cnr.cn/jkgdxw/20260528/t20260528_527638350.shtml
