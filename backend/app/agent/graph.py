@@ -33,7 +33,12 @@ from ..models import (
     new_id,
     utcnow,
 )
-from .attributes import build_change_lines, severity_map
+from .attributes import (
+    build_change_lines,
+    describe_attribute,
+    direction_for,
+    severity_map,
+)
 from .guardrails import apply_guardrails
 from .llm import FakeLLM
 from .prompts import ADVISE_SYSTEM, ANALYZE_SYSTEM, build_advise_prompt, build_analyze_prompt
@@ -181,47 +186,60 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         )
                     )
 
-            # Long-term memory (derived "recent_status" summary for now; the
-            # per-attribute tag+direction rewrite lands with the memory block).
-            candidate = make_derived(new_id(), "recent_status", analysis.summary, 0.6, now)
-            existing = (
-                session.query(Insight)
-                .filter_by(conversation_id=conv_id, kind="derived", tag="recent_status")
-                .order_by(Insight.version.desc())
-                .first()
-            )
-            if existing and existing.superseded_by is None and not is_expired(from_orm(existing), now):
-                for r in reconcile(from_orm(existing), candidate, now):
-                    if r.id == existing.id:
-                        existing.confidence = r.confidence
-                        existing.expires_at = r.expires_at
-                        existing.superseded_by = r.superseded_by
-                    elif r.id == candidate.id:
-                        session.add(
-                            Insight(
-                                conversation_id=conv_id,
-                                kind=r.kind,
-                                tag=r.tag,
-                                direction=r.direction,
-                                text=r.text,
-                                confidence=r.confidence,
-                                expires_at=r.expires_at,
-                                version=r.version,
-                            )
-                        )
-            else:
-                session.add(
-                    Insight(
-                        conversation_id=conv_id,
-                        kind="derived",
-                        tag="recent_status",
-                        direction="",
-                        text=analysis.summary,
-                        confidence=0.6,
-                        expires_at=expiry_for(now),
-                        version=1,
-                    )
+            # Long-term memory (Q14/Q47): one derived insight per attribute,
+            # keyed by tag (attribute) + direction (problem/normal). Same
+            # tag+direction strengthens (confidence up, expiry extended); a
+            # direction flip supersedes and version-bumps, keeping history.
+            for attr in analysis.attributes:
+                direction = direction_for(attr.severity)
+                candidate = make_derived(
+                    new_id(),
+                    attr.key,
+                    describe_attribute(attr.key, attr.severity),
+                    0.6,
+                    now,
+                    direction=direction,
                 )
+                existing = (
+                    session.query(Insight)
+                    .filter_by(conversation_id=conv_id, kind="derived", tag=attr.key)
+                    .filter(Insight.superseded_by.is_(None))
+                    .first()
+                )
+                if existing is not None and not is_expired(from_orm(existing), now):
+                    for r in reconcile(from_orm(existing), candidate, now):
+                        if r.id == existing.id:
+                            existing.confidence = r.confidence
+                            existing.expires_at = r.expires_at
+                            existing.text = r.text
+                            existing.direction = r.direction
+                            existing.superseded_by = r.superseded_by
+                        elif r.id == candidate.id:
+                            session.add(
+                                Insight(
+                                    conversation_id=conv_id,
+                                    kind=r.kind,
+                                    tag=r.tag,
+                                    direction=r.direction,
+                                    text=r.text,
+                                    confidence=r.confidence,
+                                    expires_at=r.expires_at,
+                                    version=r.version,
+                                )
+                            )
+                else:
+                    session.add(
+                        Insight(
+                            conversation_id=conv_id,
+                            kind="derived",
+                            tag=attr.key,
+                            direction=direction,
+                            text=describe_attribute(attr.key, attr.severity),
+                            confidence=0.6,
+                            expires_at=expiry_for(now),
+                            version=1,
+                        )
+                    )
 
             # Chat turns (Q7/Q35): persist user message + coach reply so the
             # thread survives a reload. The coach payload carries everything the

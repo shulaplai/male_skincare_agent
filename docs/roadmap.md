@@ -1,5 +1,9 @@
 # Roadmap — SkinCoach（3 個月）
 
+> ⚠️ **現況更新**：Phase 0–5 嘅 code 大部分已做（backend 40 tests 綠、agent 5-node 真、RAG 有 corpus、chat-first UI 真、eval 入 CI）。
+> 真正仲爭嘅唔係「起骨架」，而係：memory rewrite（Block 3）、Layer 2 功能、docs 一致化、demo video/blog。
+> **最新現況同 claim 對照睇 `docs/status-vs-claims.md`（live）；呢份 roadmap v2 等所有決定收齊先重寫。**
+
 目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
 
 ---

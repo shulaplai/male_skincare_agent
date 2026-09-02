@@ -1,6 +1,7 @@
 # 技術 Blog 大綱：《點樣控制一個 AI Agent，而唔係俾佢控制你》
 
 > 對應 repo 嘅真實實作。每個 section 都係「點解」＋「點做」＋「tradeoff」，照住可以寫成一篇 2000–3000 字嘅 blog。
+> ⚠️ 寫之前對照 `docs/status-vs-claims.md`：例如 §5 memory「重複證據 → confidence 升」而家係**設計**（strengthen 要靠 tag+direction 先實現），model 名要用 DeepSeek V4（唔好用退役 alias），eval 數字用最新 report。
 
 ## 0. TL;DR
 

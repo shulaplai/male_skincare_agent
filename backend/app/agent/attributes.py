@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import datetime
 
+from ..memory import DIRECTION_NORMAL, DIRECTION_PROBLEM
 from ..models import Entry
 from .schemas import AttributeKey
 
@@ -54,6 +55,17 @@ def severity_map(attributes: list[dict]) -> dict[str, int]:
 
 def attribute_severity_text(sev: int) -> str:
     return {0: "正常", 1: "輕微", 2: "中等", 3: "嚴重"}.get(sev, "正常")
+
+
+def direction_for(severity: int) -> str:
+    """State category for memory (Q47): >=2 is a problem, <=1 is normal."""
+    return DIRECTION_PROBLEM if severity >= 2 else DIRECTION_NORMAL
+
+
+def describe_attribute(key: AttributeKey, severity: int) -> str:
+    """Human text for a derived memory insight, e.g. 「暗瘡：中等」."""
+    label = ATTRIBUTE_LABELS.get(key, key)
+    return f"{label}：{attribute_severity_text(severity)}"
 
 
 def _day(entry: Entry) -> datetime.date:

@@ -1,6 +1,6 @@
 # Architecture — SkinCoach
 
-呢份記錄**每個技術決定嘅「點解」**，係面試被問到時照住講嘅談資。舊 SKINFILE 嘅 DECISIONS.md（`archive/skinfile/DECISIONS.md`）仍值得睇，啲概念（memory 衰減、model tiering、prefix caching、vision 降級）喺度升級重用。
+> 呢份記錄**每個技術決定嘅「點解」**，係面試被問到時照住講嘅談資。**實施現況同 docs claim 嘅對照睇 `status-vs-claims.md`（live）**；呢份文件描述已實現嘅設計，唔再包含「打算做但未做」嘅字眼。舊 SKINFILE 嘅 DECISIONS.md（`archive/skinfile/DECISIONS.md`）仍值得睇（博物館）。
 
 ---
 
@@ -14,42 +14,44 @@ LLM 係**一個組件**，唔係**個 product**。下面每一層都係「點控
 
 | 層 | 點控制 | 結果 |
 |---|---|---|
-| LangGraph state graph | 每條 edge、每個 node 都係你自己嘅 code，checkpoint 你自己揀 | agent 嘅「流程」係確定性、可 debug |
-| Pydantic 型別合約 | 所有 LLM 輸出強制 fit schema（JSON mode），唔俾 free text | 前端 render 到、可以 trace、可以 eval |
-| Tool whitelist | agent 只可 call 你定義嘅 `@tool`（查產品/日記/知識庫），冇任意外部 URL/代碼 | 唔會越權 |
-| Guardrail | 硬規則唔經 LLM：唔診斷/唔開藥/唔俾劑量；嚴重情況強制轉介皮膚科；每答 disclaimer | 安全，唔係靠 prompt 祈求 |
-| Eval 門檻 | 每改 prompt 過 golden set + LLM-as-judge，CI 綠先 merge | 唔會靜靜哋變差 |
+| LangGraph state graph | 每條 edge、每個 node 都係你自己嘅 code（5 nodes 線性 flow） | agent 嘅「流程」係確定性、可 debug |
+| Pydantic 型別合約 | 所有 LLM 輸出強制 fit schema（`SkinAnalysis` 含固定 attributes、`Advice`），唔俾 free text | 前端 render 到、可以 trace、可以 eval |
+| Tool whitelist | agent 只可 call whitelist 工具（`get_skin_profile`/`get_recent_entries`/`search_knowledge`），冇任意外部 URL/代碼 | 唔會越權 |
+| Guardrail | 硬規則唔經 LLM：唔診斷/唔開藥/唔俾劑量；紅旗詞強制轉介皮膚科；每答自動加 disclaimer | 安全，唔係靠 prompt 祈求 |
+| Eval 門檻 | agent golden scenarios + RAG recall 入 CI（`--fake` deterministic），FAIL 唔准 merge | 唔會靜靜哋變差 |
 
-## 2. Agent 流程（LangGraph）
+## 2. Agent 流程（LangGraph，5 nodes 線性）
 
 ```
-用戶影相/打卡（相永遠儲喺本地；授權先上雲分析，用完即棄）
+用戶影相/打字（相儲喺本地；conversation 開咗「雲分析」先送相上雲）
    ▼
-node1 視覺分析   vision model（可降級純文字，fallback chain）
+analyze   「而家」張相 → vision model（deepseek-v4-flash-vision-exp，consent off / 冇相 → 純文字降級）
    ▼
-node2 讀長期記憶  facts / derived / preferences（30日衰減 + 矛盾 versioning）
+tools     執行 analysis 揀嘅 whitelist 工具（讀 memory / 讀日記 / 檢索知識庫）
+          + load 最近 10 條 chat messages 做 context
    ▼
-node3 檢索知識庫  sqlite-vec（中英美容 PDF 語料）
+advise    text model（deepseek-v4-flash）出 Advice：reply 正文（2–5 句解釋）+ items（行動點）
    ▼
-node4 揀工具     whitelist：查產品 / 查日記 / 查知識庫
+guardrail deterministic：紅旗 → 轉介；藥物/劑量詞 → 收起建議；自動 disclaimer
    ▼
-node5 生成建議   強制 Pydantic schema
-   ▼
-node6 寫入日記 + 更新記憶（重複證據升 confidence、矛盾就 supersede 留歷史）
+persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 diff 寫 timeline event
+          + 更新 memory + 寫 ChatMessage（reload 唔清空）
 ```
+
+**LLM 只出現喺 `analyze`（出結構化分析）同 `advise`（出建議正文）兩個模糊層**；工具分派、guardrail、change detect、timeline、persist 全部係 deterministic code。變化 detect（上次／~1M／~3M）係 code 對歷史 severity 做 diff（`app/agent/attributes.py`），唔會送多張相俾 model。
 
 ## 3. 點解 LangGraph，唔係 Pydantic AI？
 
 - 要練／展示嘅正正係「**自己控制 agent**」。LangGraph 俾你擁有 state graph 每一條 edge，唔係黑盒。
-- **長期記憶** = LangGraph `checkpointer` + 自己嘅 SQLite（日記、timeline、memory 規則），呢個係自定義 logic，唔係 framework 幫你慳嗰 part。
+- **長期記憶唔用 checkpointer**：每次 consult 係 stateless，靠 SQLite（Entry/memory/`chat_messages`）+ 最近 N 條 messages 做 context —— 效果一樣、code 全自家、token 可控。跨日記憶靠 structured insights（帶 confidence/expiry），唔靠 raw conversation。
 - LangGraph 喺 CV 值錢、生態大、可視化好；Pydantic AI 輕但「故事」冇咁完整。
 
 ## 4. Local-first + opt-in 雲分析（Privacy 決策）
 
-- 相 + 日記**永遠**留喺用戶機（SQLite + file system）。
-- 雲分析係 **opt-in**：用戶主動授權先送相上雲，分析完相即棄、雲唔留底。
-- 「純本地模式」開關 → 全行 Ollama（vision + text），相一次都唔離開部機。
-- 面試講法：「local-first 係產品價值，唔係技術潔癖；opt-in 雲分析係成本／質素嘅 tradeoff，我將『儲存』同『分析』拆開做兩個獨立決策。」
+- 相 + 日記**永遠**留喺用戶部機（SQLite + file system）。
+- 雲分析係 **opt-in**：每個 conversation 一個「雲分析」開關（`cloud_analysis`，default 由 `SKINCOACH_CLOUD_ANALYSIS_DEFAULT` 控制，product default = off）。off 時相唔會離開部機：agent 行純文字分析，prompt 會同 model 講明「有相但睇唔到」，UI 標「未睇相」。
+- 冇 API key 時行 **FakeLLM**（deterministic 罐頭輸出，成個 graph 跑得通）—— 唔係 Ollama。
+- 面試講法：「local-first 係產品價值；opt-in 雲分析係成本／質素嘅 tradeoff，我將『儲存』同『分析』拆開做兩個獨立決策，consent 係 code gate 唔係靠 prompt。」
 
 ## 5. 長期記憶（沿用 SKINFILE 概念，落咗 SQLite）
 
@@ -59,41 +61,45 @@ node6 寫入日記 + 更新記憶（重複證據升 confidence、矛盾就 super
 | derived | 「T 字位偏油」confidence 0.82 | 30 日 expiry 衰減；再評估可延長/升 confidence |
 | preferences | 「鍾意清爽質地」 | 穩定 |
 
-- 矛盾：新結論 tag 唔同 → 舊標 `supersededBy`，新 `version+1`，歷史保留。
+- 矛盾：新結論同舊結論衝突 → 舊標 `superseded_by`，新 `version+1`，歷史保留。
 - 一致：confidence 向新高靠攏（cap 0.97）、expiry 延長。
+- **設計目標**：reconcile 按 **attribute tag + direction** 判斷「一致 vs 矛盾」（唔靠文字相同）—— 記憶系統嘅升級方向，實施狀態見 `status-vs-claims.md` #6（而家只寫 `derived/recent_status` 一條，confidence 累積未生效）。
 
 ## 6. 向量庫：點解 SQLite + cosine，唔係 Qdrant/pgvector？
 
-- local-first 優先 → **SQLite `chunks` 表 + Python cosine，零額外 infra、零 native 依賴**。
+- local-first 優先 → **SQLite `chunks` 表（JSON embedding）+ Python cosine，零額外 infra、零 native 依賴**。
 - 語料規模（幾十～幾百份文件、幾千 chunks）用 Python cosine 係 instant；未到需要獨立向量庫。
 - 抽象層隔開 `add_chunks` / `search`，之後換 **sqlite-vec / pgvector** 唔使改上層。
-- Embedding 用 **fastembed**（ONNX、無 torch、多語言 MiniLM），模型 cache 指去 workspace；測試用 dependency-free 嘅 hashing embedder。
+- Embedding 用 **fastembed**（ONNX、無 torch、多語言 MiniLM-L12-v2）；測試／CI 用 dependency-free 嘅 hashing embedder（`DeterministicEmbedder`）。
+- Corpus：PDF/JATS XML/文字 → 抽 text → chunk → embed；**冇 OCR**（語料多數係 text，未需要）。
 - 面試講法：「我唔係為用而用向量庫；SQLite + cosine 夠用、可測試；接口抽象咗，升級路徑清楚。」
 
-## 7. Model Tiering（沿用 + 擴充）
+## 7. Model Tiering（DeepSeek V4，HK 直連）
 
 | 任務 | model | 理由 |
 |---|---|---|
-| 視覺分析 | strong vision（雲）／本地 Qwen-VL | 深度、一次性 |
-| 建議生成 | strong text | 深度 |
-| 記憶更新 / insight 擷取 | fast text | 高頻、機械化 |
-| Embedding | 本地 fastembed（ONNX、多語言 MiniLM） | 離線、免費、無 torch |
+| 視覺分析（analyze） | `deepseek-v4-flash-vision-exp` | 一次性、要睇相；同 text 同價（image ≈384 tok） |
+| 建議生成 / 正文（advise） | `deepseek-v4-flash` | 深度文字 |
+| 記憶更新 | 同上（text model） | fast tier 未有第二個 model（memory rewrite 時再諗） |
+| Embedding | 本地 fastembed MiniLM（ONNX） | 離線、免費、無 torch |
+
+> DeepSeek V4 預設 thinking mode 會令強制 `tool_choice` 400 —— adapter 對 structured output 自動加 `thinking: {type: disabled}`（`llm.py`）。
 
 ## 8. 安全 guardrail（health-adjacent 必答題）
 
 護膚建議係 health-adjacent，production 一定要：
 1. 硬規則（deterministic，唔經 LLM）：唔診斷疾病、唔開藥、唔俾劑量。
-2. 高危信號（持續出血 / 突然大面積爛面 / 長期潰瘍）→ 強制轉介皮膚科醫生，唔俾護膚建議。
-3. 每個 AI 建議帶 disclaimer。
-4. Eval 有「安全」維度評分（LLM-as-judge）。
+2. 高危信號（大面積／潰瘍／流膿／持續出血…）→ 強制轉介皮膚科醫生，收起護膚建議。
+3. 每個 AI 建議自動帶 disclaimer。
+4. Eval 有「安全」維度（`safety.py` deterministic checks + 有 key 時 LLM-as-judge 三維評分）。
 
-## 9. 香港直連 provider（沿用 SKINFILE 實測）
+## 9. 香港直連 provider（2026 實測更新）
 
-OpenAI 官方 API 香港 403；production 後端係 server-to-server（冇 CORS 問題，比純前端闊鬆），但都預設用香港直連得嘅 provider：Anthropic / DeepSeek / Gemini / OpenRouter 等。詳細見舊 `archive/skinfile/DECISIONS.md` §9。
+OpenAI 官方 API 香港仍然 403；**Anthropic 亦 403**（唔喺 supported regions）。後端係 server-to-server（冇 CORS 問題），實際用 **DeepSeek**（HK 直連 ✅，2026-08 起有 vision：`deepseek-v4-flash-vision-exp`）。其他 provider（Gemini／OpenRouter／DashScope Qwen／GLM）都係 OpenAI-compatible 形狀，換 base_url + key 就用到 `OpenAICompatLLM`。詳細背景見 `archive/skinfile/DECISIONS.md` §9（博物館）。
 
-## 10. 前端設計方向（已鎖定）
+## 10. 前端設計方向（已鎖定＋已實現）
 
-- **主界面：教練對話優先（chat-first）** —— 對話係主角，右側 panel 放「皮膚指數 + AI 記憶 + 因果時間線」。
-- **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 得一個「面部皮膚」對話，用戶可開新對話；**每個部位有獨立嘅日記、記憶、時間線、皮膚指數**。
-- **數據面板保留**（方向 02 嗰啲）：皮膚指數、油光／泛紅／暗瘡指標、sparkline、before/after、因果時間線 —— 全部照做，只係收埋喺 chat 側邊，唔做主角。
-- 呢個設計對應到 **數據層**（Phase 1）嘅影響：所有 record（entries／photos／insights／timeline）都要加 `body_part` 維度；一個 user 多個 conversation/部位。
+- **主界面：教練對話優先（chat-first）** —— 對話係主角，右側 panel 顯示**真實**皮膚指標、AI 記憶、因果時間線（live，冇 hardcode demo 分數）。
+- **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 一個「面部皮膚」，用戶可開新對話；**每個部位有獨立 entries/photos/insights/timeline/messages**。global scope（全身性「因」）係設計方向（`Insight`/`TimelineEvent` 嘅 conversation FK 可 NULL），寫手未做（Layer 2）。
+- **數據面板**：真實 per-attribute 0–3 趨勢、sparkline、AI 偵測 timeline —— 唔做 arbitary composite score（例如「78 分」）。
+- **Chat 歷史**：`chat_messages` 持久化，reload 唔清空；每次 consult stateless + 最近 N 條 messages context。
