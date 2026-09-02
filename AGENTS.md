@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 40 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 42 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval           # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -27,12 +27,12 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 |---|---|---|
 | `backend/app/main.py` | FastAPI routes | 所有 API 都喺度；DB session 用 `get_session` |
 | `backend/app/agent/` | LangGraph agent：`graph.py`（5 nodes）、`llm.py`（adapters + get_llm）、`prompts.py`（純函數）、`schemas.py`（Pydantic 合約）、`attributes.py`（固定 attribute schema + change detect）、`tools.py`（whitelist）、`guardrails.py`（deterministic） | 核心邏輯 |
-| `backend/app/memory.py` | Memory 規則（decay / reconcile） | **仲未改做 tag+direction（見「未完成」）** |
+| `backend/app/memory.py` | Memory 規則（decay / reconcile，tag+direction 語義 Q47） | pure functions；persist 喺 graph.py call |
 | `backend/app/rag/` | chunking / embeddings / vectorstore / hybrid / ingest | `hybrid.py` 暫時係 orphan（見陷阱） |
 | `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER） |
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB |
-| `backend/tests/` | pytest（而家 40 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 42 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `docs/` | architecture / roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims | 見 `docs/status-vs-claims.md` 對照 |
@@ -60,7 +60,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **DeepSeek V4 thinking mode**：V4 預設開 thinking，thinking 唔俾強制 `tool_choice`（`with_structured_output` 會咁做）→ HTTP 400。解法：`OpenAICompatLLM._client()` 對 deepseek base_url 加 `extra_body={"thinking": {"type": "disabled"}}`（`"off"` string 唔得，會 400）。**唔好移除**。
 - **Vision 要用 vision model**：analyze 送相要用 `vision_llm`（`deepseek-v4-flash-vision-exp`），唔好用 text model call `structured_vision`（會靜靜 fallback）。`service.run_consult` 要同時傳 `llm=get_llm("text")` 同 `vision_llm=get_llm("vision")`。
 - **`deepseek-chat` 已退役**（2026-07）：model id 要用 `deepseek-v4-flash`／`deepseek-v4-flash-vision-exp`。Anthropic 3.5 alias 都冇咗，HK 直連 Anthropic/OpenAI 係 403。
-- **reconcile strengthen 要 byte-identical text**：真 LLM 每日 summary 唔同 → 永遠行 supersede、confidence 卡 0.6。**未修**（memory rewrite 用 tag+direction 解決）——未做之前唔好聲稱 confidence 會累積。
+- **reconcile 用 tag + direction，唔係 text（Q47）**：同一 tag 同 direction → strengthen（confidence 升、text 更新做最新）；direction flip（problem↔normal）→ supersede。改返舊「比 text」邏輯 = 回歸 bug。
 - **`hybrid.py` 係 orphan**：runtime 同 eval 都行純 semantic `retrieve()`；接線或者刪，唔好兩邊留。
 - **eval 唔可以污染 dev DB**：`run_eval` 一定用自己 temp DB；見到佢寫入 `backend/data` 就係 bug。
 - **FakeLLM 唔係「真 offline」**：冇 key 時 `service.run_consult` 仍然會 instantiate `FastembedEmbedder`（首次會 download model 或靜靜 fallback hash）。test 用 `DeterministicEmbedder`。
@@ -71,6 +71,6 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 
 ## 未完成（見 `docs/status-vs-claims.md` 最新狀態）
 
-- Block 3：memory rewrite（per-attribute tag + direction reconcile、fact=check-in 自報/手動寫入、preference 低頻抽取）
-- Layer 2：rolling 多錨點 UI 呈現、product 庫、diet trigger tagging、correlation detector、目標＋趨勢、global scope 寫入
+- Layer 1 已全部完成（Block 1–3 + frontend sync + eval/CI + docs）。
+- Layer 2：rolling 多錨點 UI 呈現、product 庫（products table）、diet trigger tagging、correlation detector、目標＋趨勢、global scope 寫入、preference 低頻抽取、check-in 自動 fact（products/diet UI 出咗先有 input）
 - Layer 3：delete/edit UI、demo environment＋seed script、Docker compose 修復（nginx proxy / env 路徑 / corpus bake）、Settings 測試連線已做、roadmap v2、blog/demo video

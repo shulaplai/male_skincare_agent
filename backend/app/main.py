@@ -33,6 +33,13 @@ class CloudAnalysisRequest(BaseModel):
     enabled: bool
 
 
+class FactRequest(BaseModel):
+    """A ground-truth fact the user records themselves (Q25): not derived by AI."""
+    text: str
+    tag: str = "user_fact"
+    global_scope: bool = False  # body-spanning fact (Q27/Q31) -> conversation_id NULL
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
@@ -95,6 +102,31 @@ def set_cloud_analysis(cid: str, req: CloudAnalysisRequest, db: Session = Depend
     c.cloud_analysis = req.enabled
     db.commit()
     return {"id": c.id, "cloud_analysis": bool(c.cloud_analysis)}
+
+
+@app.post("/api/conversations/{cid}/facts")
+def create_fact(cid: str, req: FactRequest, db: Session = Depends(get_session)) -> dict:
+    """User-recorded ground-truth fact (Q25). `global_scope` => affects all body parts."""
+    if not req.global_scope:
+        conv = db.query(Conversation).filter_by(id=cid).first()
+        if conv is None:
+            raise HTTPException(status_code=404, detail="conversation not found")
+    fact = Insight(
+        conversation_id=None if req.global_scope else cid,
+        kind="fact",
+        tag=req.tag,
+        direction="",
+        text=req.text,
+    )
+    db.add(fact)
+    db.commit()
+    return {
+        "id": fact.id,
+        "kind": "fact",
+        "tag": fact.tag,
+        "text": fact.text,
+        "scope": "global" if req.global_scope else "body_part",
+    }
 
 
 @app.post("/api/consult")

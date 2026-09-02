@@ -43,9 +43,16 @@ def test_agent_end_to_end():
     # Persist wrote an entry + a derived insight.
     session = sf()
     assert session.query(Entry).filter_by(conversation_id=cid).count() == 1
-    insight = session.query(Insight).filter_by(conversation_id=cid, kind="derived").first()
-    assert insight is not None
-    assert insight.tag == "recent_status"
+    # Persist wrote one derived insight per rated attribute (Q14/Q47).
+    derived = (
+        session.query(Insight)
+        .filter_by(conversation_id=cid, kind="derived")
+        .all()
+    )
+    assert len(derived) >= 1
+    tags = {i.tag for i in derived}
+    assert tags & {"acne", "oiliness", "redness"}
+    assert all(i.direction in ("problem", "normal") for i in derived)
     session.close()
 
 

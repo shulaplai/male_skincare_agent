@@ -19,7 +19,7 @@
 | 3 | Model tiering：strong vision / strong text / fast（architecture §7、舊 DECISIONS） | ✅ 分層：analyze=vision-exp、advise/text=deepseek-v4-flash；`fast_model`/`strong_model` 死 config 已刪 | (a)(b) | ✅ **真**（Q20） |
 | 4 | Local mode（Ollama）（README/architecture §4） | 冇 Ollama adapter；冇 key = FakeLLM（唔係真 offline，embedder 照 load） | (c) | ✅ docs 已改：FakeLLM 示範模式、冇 Ollama；Ollama 唔做 |
 | 5 | LangGraph checkpointer 做長期記憶（architecture §3） | 冇用 checkpointer。實際：stateless consult + SQLite + 最近 10 條 messages context | (a) | ✅ docs 已改（§3 明確唔用 checkpointer） |
-| 6 | 三類 memory（fact/derived/preference）+ 30 日衰減 + 矛盾 versioning（README/architecture §5） | ✅ schema + decay + supersede 真（`memory.py`）；但 persist **只寫 derived/recent_status**；fact/preference 冇寫手；**strengthen branch 要 byte-identical text → 真 LLM 永遠 supersede、confidence 卡 0.6** | (b) | 🟡 **Block 3 未做**：per-attribute tag+direction reconcile（Q14）、fact=自報+手動（Q25）、preference 低頻抽（Q13） |
+| 6 | 三類 memory（fact/derived/preference）+ 30 日衰減 + 矛盾 versioning（README/architecture §5） | ✅ **per-attribute reconcile 真**（tag+direction，Q47）：strengthen 唔再靠 byte-identical text，confidence 會累積；direction flip → supersede。`POST /api/conversations/{cid}/facts` 真（手動 fact，可 global）；preference 低頻抽（Q13）＋check-in 自動 fact（要 products/diet UI）屬 Layer 2 | (b) | ✅ Block 3（derived+fact）**完成**；preference/自動 fact 列 Layer 2 |
 | 7 | 因果時間線 / 一年 trace（README / demo-script） | ✅ deterministic change detect + timeline events（`attributes.py`，threshold 先寫、每日最多一條）**真**；但係「一年 trace」UI 深層未做 | (b)(c) | 🟡 事件寫手真；一年視圖屬 stretch（Layer 2） |
 | 8 | RAG：PDF→OCR→chunk→embed→sqlite-vec（README） | RAG 真（chunks + cosine）；冇 OCR（pypdf 抽 text）；embedding 存 JSON | (a) | ✅ docs 已改（README/architecture §6：冇 OCR、JSON embed） |
 | 9 | Hybrid retrieval（git log 最新） | ❌ `hybrid.py` orphan：runtime + eval 都行純 semantic `retrieve()` | (a) | 🟡 接線（tools.py search_knowledge 用 search_hybrid）或者刪；兩邊唔好留 |
@@ -37,7 +37,7 @@
 
 ## Open work（由呢張表反推）
 
-- **Block 3（Layer 1 餘下）**：memory rewrite —— per-attribute tag + direction reconcile、fact 寫手（check-in 自報 + 手動「記低」API/UI）、preference 低頻抽取。做完 #6 先算 Layer 1 完成。
+- **Block 3（Layer 1）**：memory rewrite（derived per-attribute reconcile + fact endpoint）—— ✅ 完成（#6）。Layer 1 而家全部完成。
 - **Layer 2**：#9（hybrid 接線或刪）、#16（global 寫手：diet trigger tagging Q29 / product 庫 Q28 / correlation detector Q30 / 目標+趨勢 Q26）、rolling 1M/3M 對比 UI 呈現（Q12 code 已寫，UI 未用）、demo environment + seed script（Q10/Q19）。
 - **Layer 3**：delete/edit UI（Q32）、Docker 修復（#18）、roadmap v2（用呢張表做底）、blog/demo video、Settings 已經有測試連線。
 - **Docs sweep（(a) 類）**：architecture node 數/checkpointer/Ollama/RAG 字眼、eval-report-sample 同 demo-script 數字、README 部署段、roadmap 標題註 —— ✅ 已完成（今輪）；剩 #18 Docker 屬 code 唔係 docs。
