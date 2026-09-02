@@ -8,6 +8,8 @@ interface Props {
   onSelect: (id: string) => void
   onAdd: () => void
   onNavigate: (view: View) => void
+  onRename: (c: Conversation) => void
+  onDelete: (c: Conversation) => void
 }
 
 const NAV: { key: View; label: string; icon: JSX.Element }[] = [
@@ -52,7 +54,7 @@ const NAV: { key: View; label: string; icon: JSX.Element }[] = [
   },
 ]
 
-export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate }: Props) {
+export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate, onRename, onDelete }: Props) {
   return (
     <aside className="side">
       <div className="brand">
@@ -87,6 +89,10 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
                 {c.isDefault ? '主對話' : '部位對話'}
                 {c.cloudAnalysis ? ' · ☁️' : ' · 🔒'}
               </span>
+            </span>
+            <span className="convo-actions" onClick={(e) => e.stopPropagation()}>
+              <i title="改名" onClick={() => onRename(c)}>✎</i>
+              <i title="刪除" onClick={() => onDelete(c)}>🗑</i>
             </span>
           </div>
         ))}

@@ -55,6 +55,22 @@ export async function createConversation(bodyPart: string, icon = '🧴'): Promi
   )
 }
 
+export async function renameConversation(cid: string, bodyPart: string): Promise<ApiConversation> {
+  return parse(
+    await fetch(`/api/conversations/${cid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body_part: bodyPart }),
+    }),
+  )
+}
+
+export async function deleteConversation(cid: string): Promise<{ status: string }> {
+  return parse(
+    await fetch(`/api/conversations/${cid}`, { method: 'DELETE' }),
+  )
+}
+
 export async function setCloudAnalysis(cid: string, enabled: boolean): Promise<{ cloud_analysis: boolean }> {
   return parse(
     await fetch(`/api/conversations/${cid}/cloud-analysis`, {

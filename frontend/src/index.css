@@ -1176,3 +1176,8 @@ body {
 .quickbar input { flex: 1; min-width: 0; }
 .metric .v.neutral { color: var(--muted, #888); }
 .chip.neutral { background: var(--bg2, #eee); }
+.convo { position: relative; }
+.convo-actions { display: none; gap: 2px; align-items: center; }
+.convo:hover .convo-actions { display: inline-flex; }
+.convo-actions i { font-style: normal; cursor: pointer; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+.convo-actions i:hover { background: var(--bg2, #eee); }

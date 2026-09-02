@@ -209,6 +209,33 @@ export default function App() {
       .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
   }
 
+
+  const renameConversation = (c: Conversation) => {
+    const name = window.prompt('改名做？', c.bodyPart)
+    if (!name?.trim()) return
+    api.renameConversation(c.id, name.trim()).then((r) => {
+      setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, bodyPart: r.body_part } : x)))
+    }).catch((e: Error) => window.alert(`改名失敗：${e.message}`))
+  }
+
+  const deleteConv = (c: Conversation) => {
+    if (!window.confirm(`永久刪除「${c.bodyPart}」同佢所有紀錄（相／日記／記憶／時間線）？呢個動作冇得復原。`)) return
+    api.deleteConversation(c.id)
+      .then(async () => {
+        const rest = conversations.filter((x) => x.id !== c.id)
+        if (rest.length) {
+          setConversations(rest)
+          if (activeId === c.id) setActiveId(rest[0].id)
+        } else {
+          const nc = await api.createConversation('面部皮膚', '🧔')
+          setConversations([toConversation(nc, true)])
+          setActiveId(nc.id)
+        }
+        setRefreshKey((k) => k + 1)
+      })
+      .catch((e: Error) => window.alert(`刪除失敗：${e.message}`))
+  }
+
   if (!active) {
     return (
       <ThemeProvider>
@@ -232,6 +259,8 @@ export default function App() {
           onSelect={setActiveId}
           onAdd={addConversation}
           onNavigate={setView}
+          onRename={renameConversation}
+          onDelete={deleteConv}
         />
         {view === 'chat' && (
           <>

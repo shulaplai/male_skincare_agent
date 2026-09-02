@@ -15,7 +15,7 @@ from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
-from app.models import ChatMessage, Conversation, Entry, Insight, TimelineEvent
+from app.models import ChatMessage, Conversation, Entry, Insight, Product, TimelineEvent
 from app.photo import save_photo
 from app.self_report import apply_events
 
@@ -40,6 +40,10 @@ class FactRequest(BaseModel):
     text: str
     tag: str = "user_fact"
     global_scope: bool = False  # body-spanning fact (Q27/Q31) -> conversation_id NULL
+
+
+class RenameRequest(BaseModel):
+    body_part: str
 
 
 class EventsRequest(BaseModel):
@@ -109,6 +113,33 @@ def set_cloud_analysis(cid: str, req: CloudAnalysisRequest, db: Session = Depend
     c.cloud_analysis = req.enabled
     db.commit()
     return {"id": c.id, "cloud_analysis": bool(c.cloud_analysis)}
+
+
+@app.put("/api/conversations/{cid}")
+def rename_conversation(cid: str, req: RenameRequest, db: Session = Depends(get_session)) -> dict:
+    """Rename a conversation (Q52)."""
+    c = db.query(Conversation).filter_by(id=cid).first()
+    if c is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    name = req.body_part.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name cannot be empty")
+    c.body_part = name
+    db.commit()
+    return {"id": c.id, "body_part": c.body_part, "icon": c.icon, "cloud_analysis": bool(c.cloud_analysis)}
+
+
+@app.delete("/api/conversations/{cid}")
+def delete_conversation(cid: str, db: Session = Depends(get_session)) -> dict:
+    """Permanently delete a conversation and all its records (Q32/Q52)."""
+    c = db.query(Conversation).filter_by(id=cid).first()
+    if c is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    db.query(ChatMessage).filter_by(conversation_id=cid).delete()
+    db.query(Product).filter_by(conversation_id=cid).delete()
+    db.delete(c)  # cascades entries -> photos, insights, timeline_events
+    db.commit()
+    return {"status": "ok", "deleted": cid}
 
 
 @app.post("/api/conversations/{cid}/facts")
