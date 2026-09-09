@@ -2,7 +2,7 @@
 
 > 用途：單一 source of truth —— 邊啲 docs claim 係真、邊啲係 drift、邊啲未做。改 code ／改 docs 之後要更新呢張表。
 > 缺口類型：(a) 純文字 drift → 改 docs；(b) 真數據路徑缺口 → 做真 code；(c) 面試 stretch → 降級／標明 demo。
-> 最後更新：Layer 2/3 全部落地之後（correlation / preference / global scope / anchors UI / delete-edit UI / demo seed / hybrid 接線）。
+> 最後更新：三套 UI 結構揀選落地之後（layout registry + journal/dash shells + settings picker，見 #25）。
 
 ## 總覽
 
@@ -38,6 +38,7 @@
 | 22 | Preferences 低頻抽取（Q48） | ✅ `app/preferences.py`：diet tag ≥3 日／產品 ≥3 日 → preference；text 冇變唔 rewrite | (b) | ✅ Layer 2 **完成** |
 | 23 | Memory-correction UI（delete/edit） | ✅ 改 entry note、刪 entry（連相 + 同日 conv events）、刪單相、刪 insight（清 superseded_by 指針） | (b) | ✅ Layer 3 **完成** |
 | 24 | Demo environment + seed（Q10/Q19） | ✅ `scripts/seed_demo.py` → 獨立 `data/demo.db`（90 日 synthetic + global diet events 令 correlation 有得睇）；唔掂真 data | (b) | ✅ Layer 3 **完成** |
+| 25 | 三套 UI 結構俾 User 揀（介面結構） | ✅ `layouts/` registry（`defs.ts` 定義 chat/journal/dash）＋ Settings「介面結構」揀選（CSS wireframe 縮圖、即時切換、`localStorage skc-layout` persist）；`?layout=` preview override；三套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + `blocks.tsx`），feature parity；headless DOM smoke（3 套 shell + scene 切換 + drawer + picker）零 console error；typecheck + build 綠 | (b) | ✅ **真**：純 presentation layer，食同一批 `/summary` 等 API |
 
 ## Open work（由呢張表反推）
 
@@ -53,6 +54,7 @@
 - [ ] `python -m pytest -q` 60 綠 + `npm run typecheck` + `npm run build`
 - [ ] `python -m eval.run_eval --fake` PASS（#12）
 - [ ] `scripts/seed_demo.py` 起 DEMO DB → 開 UI 展示 90 日數據（#24）
+- [ ] 三套結構試一次（#25）：`/?layout=chat|journal|dash` 或 Settings「介面結構」切換；journal FAB 開對話 drawer、dash 大廳 CTA 入 chat scene
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」
 - [ ] 揀好面試敘事用邊幾條真 claim（#1/3/6/7/11/12/14/21/22）——每條都要答到「點 control LLM」
 - [ ] 錄 demo video（跟 `docs/demo-script.md`）

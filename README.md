@@ -7,6 +7,7 @@
 - **視覺分析**：有相＋conversation 開咗「雲分析」→ 送 `deepseek-v4-flash-vision-exp`（HK 直連）；冇相／off → 純文字降級，UI 標明
 - **長期記憶**：facts / derived / preferences 三類；derived per-attribute reconcile（tag+direction：strengthen / supersede versioning + 30 日 expiry）；preference 低頻抽取（Q48）；自報事件自動寫 global fact / timeline（Q25/Q31）
 - **Local-first**：相永遠留喺用戶機；每 conversation 一個雲分析開關（default off，self-hoster 可 env 改 default）；冇 key 行 FakeLLM 示範
+- **三套可揀嘅 UI 結構**：教練對話（原本）／皮膚日記（逐日 feed）／進度儀表板（widgets 大廳）—— Settings「介面結構」即時切換（`localStorage` persist，`/?layout=journal|dash` 可 preview）；全部食同一批真數據 API
 - **RAG 美容知識庫**：文字/PDF 語料 → chunk → embed → SQLite（Python cosine，升級路徑留咗）
 - **Eval harness 入 CI**：RAG recall + agent golden scenarios + 安全 check（+ 有 key 時 LLM-as-judge），FAIL 唔准 merge
 

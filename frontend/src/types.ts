@@ -2,6 +2,9 @@ export type Theme = 'light' | 'dark'
 
 export type View = 'chat' | 'records' | 'progress' | 'settings'
 
+/** 三套可揀嘅 UI「結構」（Q: 介面結構）—— 唔同場景主導嘅排法，食同一批 API。 */
+export type LayoutId = 'chat' | 'journal' | 'dash'
+
 export type AttributeKey = 'acne' | 'oiliness' | 'redness' | 'dryness' | 'pores' | 'texture'
 
 export interface Conversation {

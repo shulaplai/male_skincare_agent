@@ -10,6 +10,8 @@ interface Props {
   onNavigate: (view: View) => void
   onRename: (c: Conversation) => void
   onDelete: (c: Conversation) => void
+  /** compact = 淨係部位對話（journal/dash 結構用，冇 site 導覽同 profile） */
+  compact?: boolean
 }
 
 const NAV: { key: View; label: string; icon: JSX.Element }[] = [
@@ -54,9 +56,9 @@ const NAV: { key: View; label: string; icon: JSX.Element }[] = [
   },
 ]
 
-export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate, onRename, onDelete }: Props) {
+export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate, onRename, onDelete, compact }: Props) {
   return (
-    <aside className="side">
+    <aside className={`side${compact ? ' compact' : ''}`}>
       <div className="brand">
         <span className="dot" />
         <div>
@@ -79,7 +81,7 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
             className={`convo${c.id === activeId ? ' active' : ''}`}
             onClick={() => {
               onSelect(c.id)
-              onNavigate('chat')
+              if (!compact) onNavigate('chat')
             }}
           >
             <span className="part">{c.icon}</span>
@@ -106,27 +108,31 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
         </div>
       </div>
 
-      <nav className="nav">
-        {NAV.map((n) => (
-          <a key={n.key} className={view === n.key ? 'active' : ''} onClick={() => onNavigate(n.key)}>
-            {n.icon}
-            {n.label}
-          </a>
-        ))}
-      </nav>
+      {!compact && (
+        <>
+          <nav className="nav">
+            {NAV.map((n) => (
+              <a key={n.key} className={view === n.key ? 'active' : ''} onClick={() => onNavigate(n.key)}>
+                {n.icon}
+                {n.label}
+              </a>
+            ))}
+          </nav>
 
-      <div className="profile">
-        <div className="who">
-          <div className="avatar" />
-          <div>
-            <div className="name">SkinCoach · 單機用戶</div>
-            <div className="sub">{online ? 'Agent 在線' : '離線（只記 session）'}</div>
+          <div className="profile">
+            <div className="who">
+              <div className="avatar" />
+              <div>
+                <div className="name">SkinCoach · 單機用戶</div>
+                <div className="sub">{online ? 'Agent 在線' : '離線（只記 session）'}</div>
+              </div>
+            </div>
+            <div className="skin-tag">
+              <i className={online ? 'ok' : ''} /> 數據只存呢部機（local-first）
+            </div>
           </div>
-        </div>
-        <div className="skin-tag">
-          <i className={online ? 'ok' : ''} /> 數據只存呢部機（local-first）
-        </div>
-      </div>
+        </>
+      )}
     </aside>
   )
 }

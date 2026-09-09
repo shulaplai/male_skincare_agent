@@ -74,9 +74,14 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **Frontend draft 要 reset**：切 conversation 要清 draft/attached（`Chat.tsx` useEffect on conversation.id）。
 - **Memory kind**：backend 用 `fact | derived | preference`；frontend `kindLabel` 要用 `preference` 唔係 `pref`。
 - **DB 有真 key／真 data**：`backend/.env` 係真 DeepSeek key，`backend/data` 有真 corpus —— 開發時唔好 print key、唔好鏟 data dir。
+- **三套結構 UI（layout shells）**：`App` 淨係 dispatch `ChatShell / JournalShell / DashShell`（registry 喺 `src/layouts/defs.ts`）；揀咗邊套存 `localStorage['skc-layout']`。App wrapper class 係 `app layout-<id>`，**唔好改做 `shell-<id>`** —— `.shell-chat` 係 journal/dash 內部 chat 場景嘅 grid container class，同名會撞到成個 app grid 壞咗（真實撞過：chat 佈局變咗兩欄）。
+- **`?layout=chat|journal|dash`**：URL preview override（唔會寫入偏好），demo／smoke 用。
+- **新 home 畫面食真數據**：`JournalHome`／`DashHome` 用 `getSummary`／`getCorrelations`／`p.messages`（App 已載）；空態全部係「未有…」，唔可以放 demo 數。
+- **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。
 
 ## 現況（見 `docs/status-vs-claims.md` 最新狀態）
 
 - Layer 1 已完成（Block 1–3 + frontend sync + eval/CI + docs）。
 - Layer 2 已完成：rolling 多錨點 UI（`/summary.anchors`）、product 庫（products table）、diet trigger tagging、correlation detector（`app/correlation.py` + `/correlations`）、global scope 寫入（diet → global timeline Q31）、preference 低頻抽取（`app/preferences.py`）、check-in 自動 fact（product fact hook）、hybrid 接線（tools search_knowledge）。
 - Layer 3：delete/edit UI（entry note / delete entry / delete photo / delete insight）已做；demo environment＋seed script（`scripts/seed_demo.py`）已做；Settings 測試連線已做；Docker compose 修復（nginx proxy / env 路徑 / corpus bake）見 status #18（狀態以 status-vs-claims 為準）；roadmap v2 同 blog/demo video 係 docs 層交付。
+- UI 結構三選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=` 可 preview；三套共用同一批 view 元件（Chat/RecordsView/ProgressView/SettingsView + blocks），feature parity（詳 status-vs-claims #25）。

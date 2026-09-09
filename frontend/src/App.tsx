@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { LayoutProvider, useLayout } from './layouts/LayoutContext'
+import { ChatShell } from './layouts/ChatShell'
+import { JournalShell } from './layouts/JournalShell'
+import { DashShell } from './layouts/DashShell'
 import { ThemeProvider } from './theme'
-import { Sidebar } from './components/Sidebar'
-import { Chat } from './components/Chat'
-import { RightPanel } from './components/RightPanel'
-import { RecordsView } from './components/RecordsView'
-import { ProgressView } from './components/ProgressView'
-import { SettingsView } from './components/SettingsView'
 import * as api from './api'
 import { fromServerMessage } from './format'
-import type { Conversation, DetectedEvent, Message, View } from './types'
+import type { Conversation, DetectedEvent, Message } from './types'
+import type { ShellProps } from './layouts/defs'
 
 let localId = 1
 const local = (): string => `m${localId++}`
@@ -17,12 +16,22 @@ function toConversation(c: api.ApiConversation, isDefault = false): Conversation
   return { id: c.id, bodyPart: c.body_part, icon: c.icon, cloudAnalysis: c.cloud_analysis, isDefault }
 }
 
+function Shells({ shellProps }: { shellProps: ShellProps }) {
+  const { layout } = useLayout()
+  return (
+    <div className={`app layout-${layout}`}>
+      {layout === 'chat' && <ChatShell {...shellProps} />}
+      {layout === 'journal' && <JournalShell {...shellProps} />}
+      {layout === 'dash' && <DashShell {...shellProps} />}
+    </div>
+  )
+}
+
 export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
   const [online, setOnline] = useState(false)
-  const [view, setView] = useState<View>('chat')
   const [refreshKey, setRefreshKey] = useState(0)
   const [sending, setSending] = useState(false)
   const [loadingThread, setLoadingThread] = useState(false)
@@ -178,7 +187,6 @@ export default function App() {
       .finally(() => setSending(false))
   }
 
-
   const confirmEvents = (cid: string, msgId: string, events: DetectedEvent[]) => {
     if (!online) return
     api
@@ -209,7 +217,6 @@ export default function App() {
       .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
   }
 
-
   const renameConversation = (c: Conversation) => {
     const name = window.prompt('改名做？', c.bodyPart)
     if (!name?.trim()) return
@@ -239,51 +246,40 @@ export default function App() {
   if (!active) {
     return (
       <ThemeProvider>
-        <div className="app">
-          <main className="view full">
-            <p className="empty">連接緊 backend…（如冇反應，請確認 uvicorn 已喺 :8001 起咗）</p>
-          </main>
-        </div>
+        <LayoutProvider>
+          <div className="app layout-chat">
+            <main className="view full">
+              <p className="empty">連接緊 backend…（如冇反應，請確認 uvicorn 已喺 :8001 起咗）</p>
+            </main>
+          </div>
+        </LayoutProvider>
       </ThemeProvider>
     )
   }
 
+  const shellProps: ShellProps = {
+    conversations,
+    active,
+    messages,
+    online,
+    sending,
+    loadingThread,
+    refreshKey,
+    onSelectConversation: setActiveId,
+    onAddConversation: addConversation,
+    onRenameConversation: renameConversation,
+    onDeleteConversation: deleteConv,
+    onToggleCloud: setCloud,
+    onSend: sendMessage,
+    onConfirmEvents: confirmEvents,
+    onQuickRecord: quickRecord,
+  }
+
   return (
     <ThemeProvider>
-      <div className="app">
-        <Sidebar
-          conversations={conversations}
-          activeId={active.id}
-          view={view}
-          online={online}
-          onSelect={setActiveId}
-          onAdd={addConversation}
-          onNavigate={setView}
-          onRename={renameConversation}
-          onDelete={deleteConv}
-        />
-        {view === 'chat' && (
-          <>
-            <Chat
-              conversation={active}
-              conversations={conversations}
-              messages={messages[active.id] ?? []}
-              sending={sending}
-              onSend={sendMessage}
-              online={online}
-              loading={loadingThread}
-              onSelectConversation={setActiveId}
-              onToggleCloud={setCloud}
-              onConfirmEvents={confirmEvents}
-              onQuickRecord={quickRecord}
-            />
-            <RightPanel conversation={active} refreshKey={refreshKey} onToggleCloud={setCloud} />
-          </>
-        )}
-        {view === 'records' && <RecordsView conversation={active} />}
-        {view === 'progress' && <ProgressView conversation={active} />}
-        {view === 'settings' && <SettingsView />}
-      </div>
+      <LayoutProvider>
+        <Shells shellProps={shellProps} />
+      </LayoutProvider>
     </ThemeProvider>
   )
 }
