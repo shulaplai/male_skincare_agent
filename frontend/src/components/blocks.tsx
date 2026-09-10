@@ -1,7 +1,12 @@
 import type { CorrelationResult, MemoryItem, RecordEntry, TimelineEvent } from '../types'
 
-/** 純 display blocks：食 props，唔自己 fetch（新結構嘅 home 共用）。 */
+/**
+ * 純 display blocks：食 props、唔自己 fetch（新結構 home 共用）。
+ * 規矩：新結構要用嘅顯示邏輯放呢度（`kindLabel` 係 canonical memory kind 標籤）；
+ * 舊 view（RightPanel / ProgressView）暫時仍有自己嘅版本，之後收返嚟呢度。
+ */
 
+/** Memory kind 標籤（canonical；backend 用 fact | derived | preference） */
 export const kindLabel: Record<MemoryItem['kind'], string> = {
   derived: '推導記憶',
   preference: '偏好',
@@ -35,6 +40,22 @@ export function attrSeries(entries: RecordEntry[], key: string): { dates: string
     }
   }
   return { dates, sev }
+}
+
+/** 某日某個 attribute 嘅 severity（0–3）；冇記錄 = null */
+export function severityOf(entry: RecordEntry | undefined, key: string): number | null {
+  return entry ? (entry.attributes ?? []).find((a) => a.key === key)?.severity ?? null : null
+}
+
+/** 0–3 級 dots（同 RightPanel 一樣視覺，但係共用 component） */
+export function LevelDots({ severity }: { severity: number }) {
+  return (
+    <span className="dots">
+      {[0, 1, 2, 3].map((d) => (
+        <i key={d} className={d <= severity ? `on lv${severity}` : ''} />
+      ))}
+    </span>
+  )
 }
 
 export function MemoryList({ items, onDelete }: { items: MemoryItem[]; onDelete?: (m: MemoryItem) => void }) {
