@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LayoutProvider, useLayout } from './layouts/LayoutContext'
-import { ChatShell } from './layouts/ChatShell'
-import { JournalShell } from './layouts/JournalShell'
-import { DashShell } from './layouts/DashShell'
+import { Shell } from './layouts/Shells'
 import { ThemeProvider } from './theme'
 import * as api from './api'
 import { fromServerMessage } from './format'
@@ -16,13 +14,15 @@ function toConversation(c: api.ApiConversation, isDefault = false): Conversation
   return { id: c.id, bodyPart: c.body_part, icon: c.icon, cloudAnalysis: c.cloud_analysis, isDefault }
 }
 
-function Shells({ shellProps }: { shellProps: ShellProps }) {
+/**
+ * 要喺 `LayoutProvider` **入面**先讀到 layout context（App 本身 render provider，
+ * 喺 App body 讀只會永遠拿到 default）→ 所以呢個 host 一定要係 provider 嘅 child。
+ */
+function LayoutHost({ p }: { p: ShellProps }) {
   const { layout } = useLayout()
   return (
     <div className={`app layout-${layout}`}>
-      {layout === 'chat' && <ChatShell {...shellProps} />}
-      {layout === 'journal' && <JournalShell {...shellProps} />}
-      {layout === 'dash' && <DashShell {...shellProps} />}
+      <Shell layout={layout} p={p} />
     </div>
   )
 }
@@ -278,7 +278,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <LayoutProvider>
-        <Shells shellProps={shellProps} />
+        <LayoutHost p={shellProps} />
       </LayoutProvider>
     </ThemeProvider>
   )

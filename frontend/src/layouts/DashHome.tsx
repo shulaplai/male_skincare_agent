@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react'
-import * as api from '../api'
-import { CorrelationList, MemoryList, TimelineList, Spark, attrSeries } from '../components/blocks'
+import { CorrelationList, LevelDots, MemoryList, Spark, TimelineList, attrSeries, severityOf } from '../components/blocks'
+import { useCorrelations } from '../hooks/useCorrelations'
+import { useInsightActions } from '../hooks/useInsightActions'
+import { useSummary } from '../hooks/useSummary'
 import { ATTRIBUTE_KEYS, ATTRIBUTE_META, severityText } from '../format'
-import type { AttributeAnchor, CorrelationResult, RecordEntry, Summary } from '../types'
-import type { ShellProps } from './defs'
+import type { AttributeAnchor, AnchorInfo } from '../types'
+import type { HomeProps } from './defs'
 
-function severityOf(e: RecordEntry | undefined, key: string): number | null {
-  return e ? (e.attributes ?? []).find((a) => a.key === key)?.severity ?? null : null
-}
-
-function AnchorCell({ v, now }: { v: { date: string; old: number; delta: number } | null; now: number }) {
+function AnchorCell({ v, now }: { v: AnchorInfo | null; now: number }) {
   if (!v) return <span className="anchor-cell none">—</span>
   const cls = v.delta === 0 ? 'same' : v.delta > 0 ? 'bad' : 'good'
   const arrow = v.delta === 0 ? '→' : v.delta > 0 ? '↑' : '↓'
@@ -20,76 +17,33 @@ function AnchorCell({ v, now }: { v: { date: string; old: number; delta: number 
   )
 }
 
-export function DashHome({
-  p,
-  onGoChat,
-  onGoRecords,
-  onGoProgress,
-}: {
-  p: ShellProps
-  onGoChat: () => void
-  onGoRecords: () => void
-  onGoProgress: () => void
-}) {
-  const cid = p.active!.id
-  const [summary, setSummary] = useState<Summary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [corr, setCorr] = useState<CorrelationResult | null>(null)
-  const [corrLoading, setCorrLoading] = useState(true)
-
-  const reload = () => {
-    setLoading(true)
-    api
-      .getSummary(cid)
-      .then(setSummary)
-      .catch(() => setSummary(null))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => {
-    let alive = true
-    setLoading(true)
-    setCorrLoading(true)
-    api
-      .getSummary(cid)
-      .then((s) => alive && setSummary(s))
-      .catch(() => alive && setSummary(null))
-      .finally(() => alive && setLoading(false))
-    api
-      .getCorrelations(cid)
-      .then((c) => alive && setCorr(c))
-      .catch(() => alive && setCorr(null))
-      .finally(() => alive && setCorrLoading(false))
-    return () => {
-      alive = false
-    }
-  }, [cid, p.refreshKey])
+/** 結構 3 home：進度儀表板 —— widgets 大廳，動作收喺頂部 CTA */
+export function DashHome({ p, nav }: HomeProps) {
+  const active = p.active!
+  const cid = active.id
+  const { summary, loading, reload } = useSummary(cid, p.refreshKey)
+  const { corr, loading: corrLoading } = useCorrelations(cid, p.refreshKey)
+  const { removeInsight } = useInsightActions(cid, reload)
 
   const entries = summary?.entries ?? []
   const latest = entries[0]
   const prev = entries[1]
   const anchors = summary?.anchors ?? []
 
-  const onDeleteInsight = (m: { id?: string; text: string }) => {
-    if (!m.id) return
-    if (!window.confirm(`刪除呢條記憶：「${m.text}」？`)) return
-    api.deleteInsight(cid, m.id).then(reload).catch((e: Error) => window.alert(`刪除失敗：${e.message}`))
-  }
-
   return (
     <div className="dash">
       <div className="dash-actions">
         <div className="dash-title">
-          {p.active!.icon} {p.active!.bodyPart} · 今日狀態一覽
+          {active.icon} {active.bodyPart} · 今日狀態一覽
         </div>
         <div className="dash-btns">
-          <button className="btn" onClick={onGoChat}>
+          <button className="btn" onClick={() => nav.go('chat')}>
             ✍️ 今日打卡／問教練
           </button>
-          <button className="btn ghost" onClick={onGoRecords}>
+          <button className="btn ghost" onClick={() => nav.go('records')}>
             🗂 完整記錄
           </button>
-          <button className="btn ghost" onClick={onGoProgress}>
+          <button className="btn ghost" onClick={() => nav.go('progress')}>
             📈 進度詳細
           </button>
         </div>
@@ -112,17 +66,13 @@ export function DashHome({
                 return (
                   <div className="attr" key={key}>
                     <span className="k">{ATTRIBUTE_META[key].zh}</span>
-                    <span className="dots">
-                      {[0, 1, 2, 3].map((d) => (
-                        <i key={d} className={d <= cur ? `on lv${cur}` : ''} />
-                      ))}
-                    </span>
+                    <LevelDots severity={cur} />
                     <span className="sev">{severityText(cur)}</span>
                     <span className={`delta ${delta.includes('惡化') ? 'bad' : 'good'}`}>{delta}</span>
                   </div>
                 )
               })}
-              {latest?.note && <p className="hint">{latest.note}</p>}
+              {latest.note && <p className="hint">{latest.note}</p>}
             </div>
           )}
         </section>
@@ -156,7 +106,7 @@ export function DashHome({
             <p className="empty small">載入中…</p>
           ) : anchors.length === 0 ? (
             <p className="empty small">
-              未有得比較。記錄夠 3 日以上，最新一日會同上次／約 1 個月前／約 3 個月前比較（±7 日內最接近嗰日）。
+              未有得比較。記錄夠 3 日以上，最新一日就會同上次／約 1 個月前／約 3 個月前比較（±7 日內最接近嗰日）。
             </p>
           ) : (
             <div className="anchor-table">
@@ -188,7 +138,7 @@ export function DashHome({
         <section className="dash-card mem">
           <h3>AI 記得你</h3>
           {summary ? (
-            <MemoryList items={summary.insights} onDelete={(m) => onDeleteInsight({ id: m.id, text: m.text })} />
+            <MemoryList items={summary.insights} onDelete={removeInsight} />
           ) : (
             <p className="empty small">載入中…</p>
           )}

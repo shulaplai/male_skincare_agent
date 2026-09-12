@@ -74,7 +74,14 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **Frontend draft 要 reset**：切 conversation 要清 draft/attached（`Chat.tsx` useEffect on conversation.id）。
 - **Memory kind**：backend 用 `fact | derived | preference`；frontend `kindLabel` 要用 `preference` 唔係 `pref`。
 - **DB 有真 key／真 data**：`backend/.env` 係真 DeepSeek key，`backend/data` 有真 corpus —— 開發時唔好 print key、唔好鏟 data dir。
-- **三套結構 UI（layout shells）**：`App` 淨係 dispatch `ChatShell / JournalShell / DashShell`（registry 喺 `src/layouts/defs.ts`）；揀咗邊套存 `localStorage['skc-layout']`。App wrapper class 係 `app layout-<id>`，**唔好改做 `shell-<id>`** —— `.shell-chat` 係 journal/dash 內部 chat 場景嘅 grid container class，同名會撞到成個 app grid 壞咗（真實撞過：chat 佈局變咗兩欄）。
+- **三套結構 UI（layout shells）**：分三層 ——
+  1. `src/layouts/defs.ts`：純 data（名／描述／`tabs`／props 型別），**唔可以 import React**
+  2. `src/layouts/Shells.tsx`：renderer registry（`LayoutId` → `ChatShell` / `StandardShell`+home）
+  3. `ChatShell`（原本三欄）／`StandardShell`（journal+dash 共用，只差 tabs + home；home component 一定要用 `<Home/>` element 渲染，**唔可以直接 call function**）
+  揀咗邊套存 `localStorage['skc-layout']`，`?layout=` preview 覆蓋一次。
+- **`useLayout()` 只可以喺 `LayoutProvider` 嘅 child 讀**：App 本身 render provider，所以 layout 要喺 `LayoutHost`（provider 內）讀；喺 App body 讀 = 永遠 default `chat`（真實撞過，layout 切換會靜靜失效）。
+- **App wrapper class 係 `app layout-<id>`**，唔好改做 `shell-<id>` —— `.shell-chat` 係 shell 內部 chat 場景 grid container，同名會撞壞成個 app grid（chat 佈局變兩欄）。
+- **新結構嘅 data／動作一律用 hooks**：`hooks/useSummary`、`useCorrelations`、`useEntryActions`、`useInsightActions`（`refreshKey` 一 bump 就 re-fetch）；顯示 block 一律 `components/blocks.tsx`。改 API 只應該改一處。
 - **`?layout=chat|journal|dash`**：URL preview override（唔會寫入偏好），demo／smoke 用。
 - **新 home 畫面食真數據**：`JournalHome`／`DashHome` 用 `getSummary`／`getCorrelations`／`p.messages`（App 已載）；空態全部係「未有…」，唔可以放 demo 數。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。

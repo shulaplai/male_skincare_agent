@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react'
+import type { LayoutId } from '../types'
 import { ChatShell } from './ChatShell'
 import { DashHome } from './DashHome'
 import { JournalHome } from './JournalHome'
 import { StandardShell } from './StandardShell'
-import { layoutById, type HomeProps, type LayoutId, type ShellProps } from './defs'
+import { layoutById, type HomeProps, type ShellProps } from './defs'
 
 /**
  * Renderer registry：`LayoutId` → 邊個 shell component 渲染。
