@@ -69,4 +69,6 @@ def run_tool(name: str, state: dict, session: Session, embedder: Embedder) -> di
         # surface same-language chunks without BM25 flood.
         results = search_hybrid(session, state["user_text"], embedder, top_k=3)
         return {"tool": name, "result": [c.text for c, _ in results]}
-    return {"tool": name, "result": None}
+    # Unknown names are ignored (whitelist policy) — flagged so the run trace and
+    # logs show that a hallucinated tool name was dropped instead of "ran fine".
+    return {"tool": name, "result": None, "error": "unknown tool (not in whitelist)"}

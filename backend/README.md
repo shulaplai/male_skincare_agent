@@ -95,7 +95,7 @@ HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 embedder；有 k
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest -q     # 60 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
+./.venv/bin/python -m pytest -q     # 73 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
                                     #        vision-consent / messages / self-report / correlation / preferences / API layers
 ```
 

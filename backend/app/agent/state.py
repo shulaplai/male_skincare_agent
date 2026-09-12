@@ -1,5 +1,21 @@
-"""LangGraph agent state."""
-from typing import TypedDict
+"""LangGraph agent state.
+
+`trace` collects one entry per node (node name, duration, and a small summary of
+what that node produced). It is the run's debug trail: `graph.stream()` shows the
+per-node deltas live, and `/api/consult` returns the final trace so a "reply
+looks wrong" report can be traced back to the exact stage. LangGraph merges list
+fields with `operator.add`, so each node appends instead of overwriting.
+"""
+import operator
+from typing import Annotated, TypedDict
+
+
+class TraceStep(TypedDict, total=False):
+    node: str
+    ms: float
+    keys: list[str]
+    # node-specific, small summaries (never the full prompt/photo)
+    detail: dict
 
 
 class AgentState(TypedDict, total=False):
@@ -16,4 +32,4 @@ class AgentState(TypedDict, total=False):
     first_checkin: bool
     advice: dict | None
     escalate: bool
-    error: str | None
+    trace: Annotated[list[TraceStep], operator.add]

@@ -45,5 +45,18 @@ class Settings(BaseSettings):
     # with cloud analysis enabled. The per-conversation toggle overrides this.
     cloud_analysis_default: bool = False
 
+    # ---- observability / debugging ----
+    # Log level for app modules (uvicorn keeps its own handlers).
+    log_level: str = "INFO"
+    # Where fastembed caches its ONNX model. Empty = library default, which is a
+    # temp dir that macOS periodically wipes (then the embedder silently falls
+    # back to the 128-dim hashing embedder). Point it at the data dir to keep it.
+    embedder_cache_dir: str = ""
+    # Append one JSON line per consult (local file only, no photos/keys) so a
+    # wrong-looking reply can be traced afterwards. Set
+    # SKINCOACH_RUN_LOG_ENABLED=false to turn it off.
+    run_log_enabled: bool = True
+    run_log_path: str = "./data/runs.jsonl"
+
 
 settings = Settings()

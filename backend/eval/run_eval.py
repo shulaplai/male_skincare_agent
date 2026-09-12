@@ -28,6 +28,7 @@ from app import models  # noqa: E402,F401  (register tables on Base.metadata)
 from app.agent.llm import FakeLLM, get_llm  # noqa: E402
 from app.db import Base  # noqa: E402
 from app.rag import DeterministicEmbedder, FastembedEmbedder, ingest_file  # noqa: E402
+from app.rag.hybrid import search_hybrid  # noqa: E402
 from eval.agent_eval import run_agent_eval  # noqa: E402
 from eval.judge import judge_advice  # noqa: E402
 from eval.rag_recall import evaluate_recall  # noqa: E402
@@ -82,8 +83,12 @@ def main() -> None:
         session.close()
 
         # 1) RAG recall@3 + MRR over the committed golden corpus.
+        #    Baseline = pure semantic `retrieve()` (stable CI gate). Runtime uses
+        #    hybrid, so hybrid is measured too — otherwise a hybrid regression
+        #    would be invisible here.
         session = Session()
         recall = evaluate_recall(session, rag_scenarios, embedder)
+        recall_hybrid = evaluate_recall(session, rag_scenarios, embedder, retriever=search_hybrid)
         session.close()
 
         # 2) Agent golden scenarios through the real graph (deterministic gates).
@@ -108,14 +113,25 @@ def main() -> None:
         lines = ["# SkinCoach Eval Report", ""]
         lines.append(f"（golden corpus：{n_chunks} chunks · {'fake' if args.fake else 'real'} mode）")
         lines.append("")
-        lines.append(f"## RAG recall@{recall['top_k']}: {recall['recall'] * 100:.0f}% · MRR: {recall['mrr']:.2f}")
+        lines.append(f"## RAG recall@{recall['top_k']}: {recall['recall'] * 100:.0f}% · MRR: {recall['mrr']:.2f}（semantic baseline）")
         for r in recall["results"]:
+            lines.append(f"- {r['id']}: {'PASS' if r['hit'] else 'FAIL'} (rank={r['rank']})")
+        lines.append("")
+        lines.append(
+            f"## Hybrid（runtime path，同一 golden set）recall: {recall_hybrid['recall'] * 100:.0f}% · "
+            f"MRR: {recall_hybrid['mrr']:.2f}"
+        )
+        for r in recall_hybrid["results"]:
             lines.append(f"- {r['id']}: {'PASS' if r['hit'] else 'FAIL'} (rank={r['rank']})")
         lines.append("")
         lines.append("## Agent scenarios")
         for r in agent_results:
             mark = "PASS" if r["passed"] else "FAIL"
-            lines.append(f"- {r['id']}: {mark} (escalate={r['escalate']}, violations={r['violations']})")
+            tools = r.get("tools") or {}
+            tool_note = " · ".join(f"{k}={v}" for k, v in tools.items()) or "冇 tool 跑過"
+            lines.append(
+                f"- {r['id']}: {mark} (escalate={r['escalate']}, violations={r['violations']}, tools: {tool_note})"
+            )
 
         if judge_scores is not None:
             lines.append("")

@@ -2,7 +2,7 @@
 
 > 目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
 > 呢份係 v2：每個 phase 對照 `docs/status-vs-claims.md`（live）寫**完成度**，唔再寫「打算做」當做咗。
-> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 60 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
+> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 73 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
 
 ---
 
@@ -59,7 +59,7 @@
 - [ ] 真 vision smoke test（☁️ 開、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding reply
 - [ ] Reload 頁面 → thread 仲喺度
-- [ ] `pytest -q`（60 綠）+ `npm run typecheck` + `npm run build`
+- [ ] `pytest -q`（73 綠）+ `npm run typecheck` + `npm run build`
 - [ ] `eval.run_eval --fake` PASS（recall 100%、MRR 0.90、3 agent scenarios）
 - [ ] `scripts/seed_demo.py` → demo DB 行得起（interview 零準備 demo 用）
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」

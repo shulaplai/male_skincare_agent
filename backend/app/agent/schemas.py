@@ -33,7 +33,18 @@ class SkinAnalysis(BaseModel):
     summary: str
     metrics: list[Metric] = Field(default_factory=list)
     attributes: list[Attribute] = Field(default_factory=list)
-    tool_calls: list[str] = Field(default_factory=list)
+    # Tools the model wants run for this turn. Names must come from
+    # `tools.WHITELIST`; unknown names are ignored at execution time (and are
+    # recorded in the run trace). The description matters: without it the model
+    # had no idea which tools exist (see prompts.TOOL_GUIDE).
+    tool_calls: list[str] = Field(
+        default_factory=list,
+        description=(
+            "要執行嘅工具名，只可以用：get_skin_profile（讀長期記憶）、"
+            "get_recent_entries（讀最近紀錄）、search_knowledge（檢索護膚知識庫）。"
+            "唔需要就留空 array。"
+        ),
+    )
 
 
 class DetectedEvent(BaseModel):

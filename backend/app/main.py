@@ -1,5 +1,6 @@
 """FastAPI entrypoint."""
 import datetime
+import logging
 import uuid
 from contextlib import asynccontextmanager
 
@@ -55,6 +56,13 @@ class EventsRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # App-module logs (vision failures, tool errors, embedder fallback) must be
+    # visible: they were silent before, which made "reply looks wrong" reports
+    # impossible to trace. uvicorn keeps its own handlers.
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper(), logging.INFO),
+        format="%(levelname)s %(name)s: %(message)s",
+    )
     init_db()
     yield
 

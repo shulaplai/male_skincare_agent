@@ -3,12 +3,28 @@
 """
 import json
 
+# Tool names the agent may propose in `SkinAnalysis.tool_calls`. This list MUST
+# stay in sync with `tools.WHITELIST` (enforced by tests/test_prompts.py): before
+# this guide existed the model was never told which tools exist, so a real LLM
+# returned an empty `tool_calls` — retrieval/memory silently never ran, while
+# FakeLLM (hardcoded tool names) kept every test green.
+TOOL_GUIDE = (
+    "你可以喺 `tool_calls` 要求以下工具（只可以用呢三個名；唔需要就留空）：\n"
+    "- `get_skin_profile`：讀你對呢位用戶嘅長期記憶（皮膚狀態、偏好、已知事實）。"
+    "問到「一路以嚟」「我記得你」或者要個人化建議時填。\n"
+    "- `get_recent_entries`：讀最近幾日紀錄（指標、飲食、用緊咩產品）。"
+    "要比較「近排有咩變化」或者用戶提到之前發生嘅事時填。\n"
+    "- `search_knowledge`：檢索護膚知識庫（成分、症狀、護理做法）。"
+    "要知識性／機理性解釋，或者問「點解」「應該點做」時填。"
+)
+
 ANALYZE_SYSTEM = (
     "你係男性護膚分析師。用廣東話簡短總結用戶嘅皮膚狀況。"
     "對每個 attribute（acne 暗瘡 / oiliness 油光 / redness 泛紅 / dryness 乾燥 / pores 毛孔 / texture 質感）"
     "逐個評 0–3：0=正常、1=輕微、2=中等、3=嚴重；睇唔到或未提及就畀 0。"
     "metrics 係畀用戶睇嘅重點變化，key 用中文（例如「油光」「新暗瘡」「泛紅」），只列明顯嗰啲。"
-    "唔好診斷疾病、唔好開藥。"
+    "唔好診斷疾病、唔好開藥。\n\n"
+    + TOOL_GUIDE
 )
 
 ADVISE_SYSTEM = (

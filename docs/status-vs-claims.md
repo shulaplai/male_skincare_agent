@@ -2,13 +2,13 @@
 
 > 用途：單一 source of truth —— 邊啲 docs claim 係真、邊啲係 drift、邊啲未做。改 code ／改 docs 之後要更新呢張表。
 > 缺口類型：(a) 純文字 drift → 改 docs；(b) 真數據路徑缺口 → 做真 code；(c) 面試 stretch → 降級／標明 demo。
-> 最後更新：三套 UI 結構揀選落地之後（layout registry + journal/dash shells + settings picker，見 #25）。
+> 最後更新：observability／debug 路線落地（node trace + trace_consult CLI + 靜默失敗收窄 + tool 名 prompt 修正，見 #26/#27）。
 
 ## 總覽
 
 - **定位**：見工 portfolio + showcase；自己係 daily user（single-user）。
 - **真數據路徑 100% 真；面試敘事可以 stretch 但唔可以喺真路徑扮真。**
-- Backend tests **60/60 綠**；frontend typecheck + build 綠；eval（--fake）100% recall / MRR 0.90 / 3 agent scenarios PASS；CI 有 pytest + eval + frontend jobs。
+- Backend tests **73/73 綠**；frontend typecheck + build 綠；eval（--fake）semantic recall 100% / MRR 0.90（baseline）＋ hybrid recall 100% / MRR 1.00（runtime path）＋ 3 agent scenarios PASS（含 `expect_tool` gate）；CI 有 pytest + eval + frontend jobs。
 
 ## 對照表
 
@@ -26,7 +26,7 @@
 | 10 | Embedding model env / bge-m3 | ✅ dead config 已刪；code 用 MiniLM-L12-v2（fastembed 預設） | (a) | ✅ |
 | 11 | LLM-as-judge 三維評分 | ✅ `eval/judge.py` 接線：有 key 時逐 scenario 評分；--fake skip | (c) | ✅（Q17） |
 | 12 | Eval 入 CI、「綠先 merge」 | ✅ CI `eval` job（`--fake`，FAIL → exit 1）；temp DB + golden corpus | (b) | ✅（Q16） |
-| 13 | 「20 / 40 / 42 tests」 | 實際 **60** 個（backend） | (a) | ✅ 文件已改 60 |
+| 13 | 「20 / 40 / 42 tests」 | 實際 **73** 個（backend） | (a) | ✅ 文件已改 73 |
 | 14 | Chat-first UI + 右 panel 指數/記憶/時間線 | ✅ chat-first 真；右 panel live（真 attributes/insights/timeline，global 🌐 標記）；假 78 分刪走 | (b) | ✅ |
 | 15 | Chat 歷史 persist | ✅ `chat_messages` + messages endpoint；reload 唔清空 | (b) | ✅（Q7/Q35） |
 | 16 | 每個部位獨立日記/記憶/時間線 + global scope | ✅ body-part scoped 真；**global 寫手已做**：diet → global timeline（Q31）、global fact/preference 可見於 summary + coach tools | (b) | ✅ Layer 2 **完成** |
@@ -40,6 +40,9 @@
 | 24 | Demo environment + seed（Q10/Q19） | ✅ `scripts/seed_demo.py` → 獨立 `data/demo.db`（90 日 synthetic + global diet events 令 correlation 有得睇）；唔掂真 data | (b) | ✅ Layer 3 **完成** |
 | 25 | 三套 UI 結構俾 User 揀（介面結構） | ✅ `layouts/` registry（`defs.ts` 定義 chat/journal/dash）＋ Settings「介面結構」揀選（CSS wireframe 縮圖、即時切換、`localStorage skc-layout` persist）；`?layout=` preview override；三套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + `blocks.tsx`），feature parity；headless DOM smoke（3 套 shell + scene 切換 + drawer + picker）零 console error；typecheck + build 綠 | (b) | ✅ **真**：純 presentation layer，食同一批 `/summary` 等 API |
 
+| 26 | 「AI 會用工具／RAG 檢索」（architecture §2、README feature list） | ⚠️ **曾經係真 bug**：prompt 從來冇提過任何 tool 名，schema `tool_calls` 又冇 description → 實測真 DeepSeek 回 `tool_calls: []`，RAG 同長期記憶**完全冇跑**；因為 FakeLLM 硬編碼 tool 名，pytest 60 綠 + eval --fake PASS 都 detect 唔到。修法：`prompts.TOOL_GUIDE` + schema description + `expect_tool` eval gate；修完實測真 LLM 回齊三個 tool | (b) | ✅ 已修＋有 test／eval gate |
+| 27 | 「AI agent 可以 debug」（我自己嘅開發流程） | ✅ node trace（`state["trace"]`：node／ms／摘要）、`graph.stream()` live delta、`/api/consult` 回最終 trace、`data/runs.jsonl` run log、`scripts/trace_consult.py` CLI（temp DB + FakeLLM 預設）；vision／tool 失敗同 embedder fallback 由「靜靜吞」改為 log + trace；embedding 維度 384/128 混用會 raise 而唔係靜靜比前綴 | (b) | ✅ **真**（#26 就係靠呢套工具查出嚟） |
+
 ## Open work（由呢張表反推）
 
 - **#18 Docker 真機驗證**：code 已改，要喺有 Docker 嘅機 `docker compose up --build` 行一次，確認 UI／photo upload／API proxy 全部通先可以畫 ✅。
@@ -51,9 +54,10 @@
 - [ ] 真 vision smoke test（開 ☁️、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding 回覆（baseline 解釋）
 - [ ] Reload 頁面 → thread 仲喺度（#15）
-- [ ] `python -m pytest -q` 60 綠 + `npm run typecheck` + `npm run build`
+- [ ] `python -m pytest -q` 73 綠 + `npm run typecheck` + `npm run build`
 - [ ] `python -m eval.run_eval --fake` PASS（#12）
 - [ ] `scripts/seed_demo.py` 起 DEMO DB → 開 UI 展示 90 日數據（#24）
+- [ ] Debug 路線試一次（#27）：`scripts/trace_consult.py --text "…"`（fake，安全）＋ `--real` 對照；`data/runs.jsonl` 有紀錄
 - [ ] 三套結構試一次（#25）：`/?layout=chat|journal|dash` 或 Settings「介面結構」切換；journal FAB 開對話 drawer、dash 大廳 CTA 入 chat scene
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」
 - [ ] 揀好面試敘事用邊幾條真 claim（#1/3/6/7/11/12/14/21/22）——每條都要答到「點 control LLM」
