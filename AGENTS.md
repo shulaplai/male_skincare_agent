@@ -100,3 +100,9 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - Layer 3：delete/edit UI（entry note / delete entry / delete photo / delete insight）已做；demo environment＋seed script（`scripts/seed_demo.py`）已做；Settings 測試連線已做；Docker compose 修復（nginx proxy / env 路徑 / corpus bake）見 status #18（狀態以 status-vs-claims 為準）；roadmap v2 同 blog/demo video 係 docs 層交付。
 - Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
 - UI 結構三選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=` 可 preview；三套共用同一批 view 元件（Chat/RecordsView/ProgressView/SettingsView + blocks），feature parity（詳 status-vs-claims #25）。
+
+## Agent skills（issue tracker）
+
+- **Issue tracker**：`docs/agents/issue-tracker.md` —— 呢個 repo 嘅 issue 住喺 GitHub Issues（`shulaplai/male_skincare_agent`），一律用 `gh` CLI。`/wayfinder` 嘅 map／ticket／blocking／frontier 操作寫喺該檔嘅「Wayfinding operations」一節（map ＝ `wayfinder:map` label 嗰個 issue，tickets 係佢嘅 sub-issues，blocking 用 GitHub native dependencies）。
+- **Wayfinder map**：`gh issue list --label wayfinder:map` 搵得到。而家有一個 in-flight 嘅 effort 喺度逐行審計 `docs/status-vs-claims.md` 嘅 claim —— **改 claims 表之前，先睇該 map 嘅 Decisions-so-far**，唔好當表上嘅 ✅ 已經獨立驗證過。
+- **未 configure 嘅部分**：`/setup-matt-pocock-skills` 未跑齊，所以 triage label 詞彙（`docs/agents/triage-labels.md`）同 domain docs（`CONTEXT.md` + `docs/adr/`）仲未有。要用 `/triage` 或者 domain-modeling 就補跑。
