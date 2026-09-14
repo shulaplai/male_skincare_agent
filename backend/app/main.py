@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app import correlation, crud
@@ -18,7 +19,16 @@ from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
-from app.models import ChatMessage, Conversation, Entry, Insight, Photo, Product, TimelineEvent
+from app.models import (
+    ChatMessage,
+    Conversation,
+    Entry,
+    Insight,
+    Photo,
+    Product,
+    TimelineEvent,
+    utcnow,
+)
 from app.photo import save_photo
 from app.self_report import apply_events
 
@@ -234,12 +244,19 @@ def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
     entries = db.query(Entry).filter_by(conversation_id=cid).order_by(Entry.date.desc()).all()
     # Insights: conversation-scoped derived memory + global facts/preferences
     # (Q31 — body-spanning memory belongs to every body part's view).
+    #
+    # Expiry is honoured on read as well as at write time. `reconcile` only *extends*
+    # expiry when it strengthens a row, so this filter is what makes the documented
+    # 30-day decay real: without it an expired insight stayed visible in /summary and
+    # in the coach's prompt forever — and since `strengthen` is the only path that
+    # raises confidence, the stale row could end up outranking the fresh one.
     insights = (
         db.query(Insight)
         .filter(
             (Insight.conversation_id == cid) | (Insight.conversation_id.is_(None))
         )
         .filter(Insight.superseded_by.is_(None))
+        .filter(or_(Insight.expires_at.is_(None), Insight.expires_at > utcnow()))
         .order_by(Insight.created_at.desc())
         .all()
     )

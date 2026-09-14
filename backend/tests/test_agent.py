@@ -74,3 +74,44 @@ def test_agent_escalates_on_red_flag():
     )
 
     assert result["escalate"] is True
+
+
+def test_structured_retries_once_on_parse_failure():
+    """#13: the provider sometimes returns a tool call named after one of the RAG tools
+    advertised in prompts.TOOL_GUIDE (e.g. `get_skin_profile`) instead of the schema's
+    own tool. langchain's parser takes `tool_calls[0]` without checking the name, so it
+    raises `OutputParserException: Unknown tool type` — measured on 5 of 7 real calls on
+    the production `/api/consult` path. One retry keeps a consult alive; a persistent
+    failure must still propagate, because there is no honest fallback analysis and
+    inventing one would persist fabricated data as the user's record.
+    """
+    from langchain_core.exceptions import OutputParserException
+
+    from app.agent.llm import OpenAICompatLLM
+
+    class Flaky:
+        def __init__(self, fail_times: int):
+            self.fail_times = fail_times
+            self.calls = 0
+
+        def invoke(self, messages):
+            self.calls += 1
+            if self.calls <= self.fail_times:
+                raise OutputParserException("Unknown tool type: 'get_skin_profile'.")
+            return "parsed"
+
+    # `_invoke` only touches its runnable, so no client/credentials are needed here.
+    invoke = OpenAICompatLLM._invoke
+
+    flaky = Flaky(fail_times=1)
+    assert invoke(object(), flaky, [("human", "hi")]) == "parsed"
+    assert flaky.calls == 2, "a single parse failure should be retried once"
+
+    always = Flaky(fail_times=99)
+    try:
+        invoke(object(), always, [("human", "hi")])
+    except OutputParserException:
+        pass
+    else:
+        raise AssertionError("a persistent parse failure must propagate, not be swallowed")
+    assert always.calls == 2, "retry once, not forever"

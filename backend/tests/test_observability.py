@@ -235,7 +235,7 @@ def test_run_log_is_written_and_contains_trace(tmp_path, monkeypatch):
 
     monkeypatch.setattr(settings, "run_log_enabled", True)
     monkeypatch.setattr(settings, "run_log_path", str(tmp_path / "runs.jsonl"))
-    service._write_run_log("cid-x", "下巴爆瘡", {"vision_used": False, "escalate": False, "trace": [{"node": "analyze"}]})
+    service.write_run_log("cid-x", "下巴爆瘡", {"vision_used": False, "escalate": False, "trace": [{"node": "analyze"}]})
 
     lines = (tmp_path / "runs.jsonl").read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 1
@@ -252,4 +252,4 @@ def test_run_log_failure_never_raises(monkeypatch):
 
     monkeypatch.setattr(settings, "run_log_enabled", True)
     monkeypatch.setattr(settings, "run_log_path", "/proc/definitely/not/writable.jsonl")
-    service._write_run_log("cid", "text", {})  # 唔應該拋 exception
+    service.write_run_log("cid", "text", {})  # 唔應該拋 exception

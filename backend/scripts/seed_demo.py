@@ -73,6 +73,23 @@ def main() -> None:
     args = parser.parse_args()
 
     out = Path(args.out)
+    # `--out` is unvalidated and the next few lines unlink whatever sits at that
+    # path, so `--out ./data/skincoach.db` would delete the real database. Refuse
+    # the real DB explicitly rather than trusting the caller to be careful.
+    protected = {(Path(__file__).resolve().parents[1] / "data" / "skincoach.db").resolve()}
+    try:
+        from app.config import settings as _settings
+
+        _url = _settings.database_url
+        if _url.startswith("sqlite:///"):
+            protected.add(Path(_url.replace("sqlite:///", "", 1)).resolve())
+    except Exception:  # settings unavailable (e.g. odd CWD) — keep the script-relative guard
+        pass
+    if out.resolve() in protected:
+        raise SystemExit(
+            f"refusing to write {out}: that is the app's real database, and --out "
+            "deletes its target. Use the default ./data/demo.db or another path."
+        )
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         out.unlink()

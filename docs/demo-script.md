@@ -26,7 +26,7 @@
 
 **畫面**：指住右邊「AI 記得你」panel（confidence bar）同「因果時間線」。
 
-旁白：「佢會記住『T 字位偏油』（confidence 0.82），呢啲係推導記憶、30 日會過期；新證據同舊結論矛盾會 version 覆蓋、留歷史。右邊時間線 trace 返『食辣 → 爆瘡』嘅因果。呢啲規則全部係 deterministic code，唔係靠 prompt 祈求。」
+旁白：「佢會記住『T 字位偏油』（confidence 0.60，之後每次再確認升 0.05），呢啲係推導記憶、30 日會過期；新證據同舊結論矛盾會 version 覆蓋、留歷史。右邊時間線 trace 返『食辣 → 爆瘡』嘅因果。呢啲規則全部係 deterministic code，唔係靠 prompt 祈求。」
 
 ## 1:50–2:10 多部位對話 + 數據
 
@@ -38,7 +38,7 @@
 
 **畫面**：切返面部，打「塊面突然大面積爛晒好痛」→ show 紅旗 banner「建議轉介皮膚科醫生」。再開 terminal show `python -m eval.run_eval --fake`。
 
-旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋3 個 agent 場景全綠，仲有 73 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
+旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋3 個 agent 場景全綠，仲有 77 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
 
 ## 2:30 收尾
 

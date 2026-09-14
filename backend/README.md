@@ -12,7 +12,7 @@ cp .env.example .env        # 填 key（冇 key 都行到：FakeLLM + hash embed
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001
 
 # 健康檢查
-curl http://localhost:8001/health        # {"status":"ok","llm_provider":"deepseek"}
+curl http://localhost:8001/health        # {"status":"ok","app":"SkinCoach","llm_provider":"deepseek"}
 
 # 前端一齊跑（可選）
 cd ../frontend && npm run dev            # http://localhost:5173（proxy /api -> 8001）
@@ -68,7 +68,7 @@ POST /api/consult  ──►  LangGraph：analyze → tools → advise → guard
 | Route | 用途 |
 |---|---|
 | `POST /api/consult` | 行 agent graph |
-| `GET/POST /api/conversations`、`PUT/DELETE /api/conversations/{cid}` | 部位 conversation CRUD（rename/delete Q52） |
+| `GET/POST /api/conversations`、`GET/PUT/DELETE /api/conversations/{cid}` | 部位 conversation CRUD（rename/delete Q52） |
 | `PUT /api/conversations/{cid}/cloud-analysis` | 雲分析開關（Q18） |
 | `POST /api/conversations/{cid}/facts` | 手動 ground-truth fact（可 global） |
 | `POST /api/conversations/{cid}/events` | confirm detected_events → 寫 Entry/timeline/products/preferences |
@@ -85,8 +85,10 @@ POST /api/consult  ──►  LangGraph：analyze → tools → advise → guard
 
 ```bash
 ./.venv/bin/python -m eval.run_eval --fake        # deterministic：FakeLLM + hash embedder（CI 用）
-HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 embedder；有 key 時連埋 LLM-as-judge
+FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 embedder；有 key 時連埋 LLM-as-judge
 ```
+
+> model cache 認 `FASTEMBED_CACHE_PATH`（fastembed 自己嘅 env var）；`HF_HOME` 對 fastembed 冇作用，model 會落返 OS temp dir、清機就重新 download。
 
 - 行 **temp DB** + committed `eval/golden/` corpus —— 唔會掂 dev DB，clean clone 都 reproducible。
 - 報告：`eval/out/report.md`（gitignored）。任何 FAIL → exit 1（CI gate）。
@@ -95,7 +97,7 @@ HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 embedder；有 k
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest -q     # 73 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
+./.venv/bin/python -m pytest -q     # 77 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
                                     #        vision-consent / messages / self-report / correlation / preferences / API layers
 ```
 
@@ -104,5 +106,5 @@ HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 embedder；有 k
 | Script | 用途 |
 |---|---|
 | `scripts/ingest_corpus.py` | 掃 `corpus/` + `data/corpus/` 入 chunks（pdf/xml/txt/md） |
-| `scripts/seed_demo.py` | 起一個**獨立** DEMO DB（`data/demo.db`，~90 日 synthetic entries + events + memory + chat），interview demo 用；唔掂真 data |
+| `scripts/seed_demo.py` | 起一個**獨立** DEMO DB（`data/demo.db`，~90 日 synthetic entries + events + memory + chat），interview demo 用；default 路徑唔掂真 data。⚠️ `--out` 冇 validation 而且會 `unlink()` 目標路徑（指去真 `data/skincoach.db` 已經有 guard 會 `SystemExit` 拒絕，其他路徑自己小心） |
 | `scripts/crawl_*.py` / `expand_*.py` | corpus 擴充（要 `trafilatura`/`playwright`，pyproject 未列入 —— 見 root `AGENTS.md`） |

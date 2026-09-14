@@ -4,9 +4,9 @@
 import json
 
 # Tool names the agent may propose in `SkinAnalysis.tool_calls`. This list MUST
-# stay in sync with `tools.WHITELIST` (enforced by tests/test_prompts.py): before
-# this guide existed the model was never told which tools exist, so a real LLM
-# returned an empty `tool_calls` — retrieval/memory silently never ran, while
+# stay in sync with `tools.WHITELIST` (enforced by tests/test_observability.py).
+# Before this guide existed the model was never told which tools exist, so a real
+# LLM returned an empty `tool_calls` — retrieval/memory silently never ran, while
 # FakeLLM (hardcoded tool names) kept every test green.
 TOOL_GUIDE = (
     "你可以喺 `tool_calls` 要求以下工具（只可以用呢三個名；唔需要就留空）：\n"
@@ -41,9 +41,23 @@ ADVISE_SYSTEM = (
 )
 
 
-def build_analyze_prompt(user_text: str, has_photo: bool, photo_viewed: bool = False) -> str:
+def build_analyze_prompt(
+    user_text: str,
+    has_photo: bool,
+    photo_viewed: bool = False,
+    photo_unreadable: bool = False,
+) -> str:
     if has_photo and photo_viewed:
         note = "（有用戶上傳嘅皮膚相，相已附上俾你分析）"
+    elif has_photo and photo_unreadable:
+        # Consent WAS granted and the bytes were requested — the file simply could
+        # not be loaded. Telling the model "本地模式：相唔會離開用戶部機" here would be
+        # a false claim about data locality, and the model is instructed to relay
+        # the note to the user.
+        note = (
+            "（用戶上傳咗皮膚相，但張相讀唔到，你今次睇唔到。"
+            "請只靠文字評估，並喺回覆講明今次睇唔到張相，唔好話用戶冇提供相片。）"
+        )
     elif has_photo:
         note = (
             "（用戶上傳咗皮膚相，但而家係本地模式：相唔會離開用戶部機、你睇唔到張相。"

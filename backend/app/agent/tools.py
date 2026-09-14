@@ -6,7 +6,9 @@ names); execution happens here, and unknown names are ignored.
 """
 from sqlalchemy.orm import Session
 
-from ..models import Entry, Insight, Product
+from sqlalchemy import or_
+
+from ..models import Entry, Insight, Product, utcnow
 from ..rag.embeddings import Embedder
 from ..rag.hybrid import search_hybrid
 
@@ -25,6 +27,9 @@ def run_tool(name: str, state: dict, session: Session, embedder: Embedder) -> di
                 | (Insight.conversation_id.is_(None))
             )
             .filter(Insight.superseded_by.is_(None))
+            # Expired memory must not reach the coach either — /summary and the
+            # prompt have to agree about what the user's memory actually is.
+            .filter(or_(Insight.expires_at.is_(None), Insight.expires_at > utcnow()))
             .order_by(Insight.kind, Insight.tag)
             .all()
         )

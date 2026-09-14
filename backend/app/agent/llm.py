@@ -9,14 +9,18 @@
 vision-capable model (`kind="vision"`), everything else the plain text model.
 DeepSeek V4 is the default provider (HK-reachable, vision since 2026-08).
 """
+import logging
 from typing import TypeVar
 
+from langchain_core.exceptions import OutputParserException
 from pydantic import BaseModel
 
 from ..config import settings
 from .schemas import Advice, Metric, SkinAnalysis, TimelineSummary
 
 T = TypeVar("T", bound=BaseModel)
+
+logger = logging.getLogger(__name__)
 
 
 class FakeLLM:
@@ -119,8 +123,27 @@ class OpenAICompatLLM:
         # `response_format: json_schema`, so force tool-based extraction.
         return self._client().with_structured_output(schema, method="function_calling")
 
+    def _invoke(self, runnable, messages):
+        """Invoke the structured runnable, retrying once on a parse failure.
+
+        The provider occasionally returns a *tool call* named after one of the RAG
+        tools advertised in `prompts.TOOL_GUIDE` (e.g. `get_skin_profile`) instead of
+        the schema's own tool. langchain's `PydanticToolsParser(first_tool_only=True)`
+        takes `tool_calls[0]` without checking its name, so that surfaces as
+        `OutputParserException: Unknown tool type: ...` — measured on 5 of 7 real calls,
+        on the production `/api/consult` path and in the real eval gate. One retry turns
+        a frequently-fatal consult into a rare one. A second failure is left to
+        propagate on purpose: there is no honest fallback analysis, and inventing one
+        would persist fabricated data as the user's record.
+        """
+        try:
+            return runnable.invoke(messages)
+        except OutputParserException as e:
+            logger.warning("structured output parse failed (%s) — retrying once", e)
+            return runnable.invoke(messages)
+
     def structured(self, system: str, user: str, schema: type[T]) -> T:
-        return self._runnable(schema).invoke([("system", system), ("human", user)])
+        return self._invoke(self._runnable(schema), [("system", system), ("human", user)])
 
     def structured_vision(self, system: str, user: str, schema: type[T], images: list[dict]) -> T:
         # Standard OpenAI-compatible image_url content blocks (base64 data URL).
@@ -134,7 +157,7 @@ class OpenAICompatLLM:
                     },
                 }
             )
-        return self._runnable(schema).invoke([("system", system), ("human", content)])
+        return self._invoke(self._runnable(schema), [("system", system), ("human", content)])
 
 
 def get_llm(kind: str = "text"):

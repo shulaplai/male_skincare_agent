@@ -17,21 +17,35 @@ export function useSummary(cid: string, refreshKey = 0): SummaryState {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [nonce, setNonce] = useState(0)
 
-  const reload = useCallback(() => {
+  const reload = useCallback(() => setNonce((n) => n + 1), [])
+
+  useEffect(() => {
+    // Cancellation guard: switching body part (or bumping refreshKey) can leave an
+    // older request in flight, and its late response would otherwise overwrite the
+    // newer one — rendering body part A's metrics under B's heading. Same pattern
+    // as useCorrelations.ts and the inline effect in RightPanel.tsx.
+    let alive = true
     setLoading(true)
     setError(null)
     api
       .getSummary(cid)
-      .then(setSummary)
+      .then((s) => {
+        if (alive) setSummary(s)
+      })
       .catch((e: Error) => {
+        if (!alive) return
         setSummary(null)
         setError(e.message || '載入失敗')
       })
-      .finally(() => setLoading(false))
-  }, [cid])
-
-  useEffect(reload, [reload, refreshKey])
+      .finally(() => {
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [cid, refreshKey, nonce])
 
   return { summary, loading, error, reload }
 }

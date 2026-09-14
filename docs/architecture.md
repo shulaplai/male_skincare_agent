@@ -58,7 +58,7 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 | 類型 | 例子 | 生命週期 |
 |---|---|---|
 | facts | entries、相 | 永久（受容量限制） |
-| derived | 「T 字位偏油」confidence 0.82 | 30 日 expiry 衰減；再評估可延長/升 confidence |
+| derived | 「T 字位偏油」confidence 0.60 | 30 日 expiry 衰減；起始 0.60、每次 strengthen +0.05（cap 0.97），再評估可延長/升 confidence |
 | preferences | 「鍾意清爽質地」 | 穩定 |
 
 - 矛盾：新結論同舊結論衝突 → 舊標 `superseded_by`，新 `version+1`，歷史保留。

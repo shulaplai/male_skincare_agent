@@ -34,6 +34,7 @@ from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 
 from app.agent.graph import build_graph  # noqa: E402
+from app.agent import service
 from app.agent.llm import FakeLLM, get_llm  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db import Base  # noqa: E402
@@ -116,18 +117,26 @@ def main() -> None:
     }
 
     final: dict = {}
+    trace_steps: list = []
     for step in graph.stream(state):
         for node, delta in step.items():
             if not delta:
                 print(f"▸ {node}")
                 continue
             final.update({k: v for k, v in delta.items() if k != "trace"})
+            trace_steps.extend(delta.get("trace", []))
             for t in delta.get("trace", []):
                 print(f"▸ {t['node']}  ({t['ms']} ms)")
                 print(f"    {json.dumps(t['detail'], ensure_ascii=False)}")
 
     if args.json:
         print(json.dumps(final, ensure_ascii=False, indent=2))
+
+    # The run log used to be reachable only via POST /api/consult, which made the
+    # documented debug flow ("trace_consult.py …；data/runs.jsonl 有紀錄") false —
+    # this CLI builds the graph itself and never went through service.run_consult.
+    service.write_run_log(cid, args.text, {**final, "trace": trace_steps})
+    print(f"\nrun log: {settings.run_log_path}")
 
     print("\n──────── 呢次 run 寫咗落 DB ────────")
     session = sf()

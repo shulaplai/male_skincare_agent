@@ -69,10 +69,14 @@ def _step(node: str, started: float, detail: dict) -> TraceStep:
     }
 
 
-def _text_only_analysis(llm, state, has_photo: bool) -> SkinAnalysis:
+def _text_only_analysis(
+    llm, state, has_photo: bool, photo_unreadable: bool = False
+) -> SkinAnalysis:
     return llm.structured(
         ANALYZE_SYSTEM,
-        build_analyze_prompt(state["user_text"], has_photo, photo_viewed=False),
+        build_analyze_prompt(
+            state["user_text"], has_photo, photo_viewed=False, photo_unreadable=photo_unreadable
+        ),
         SkinAnalysis,
     )
 
@@ -91,6 +95,11 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
         analysis = None
         vision_error: str | None = None
         images_loaded = 0
+        # Whether the vision branch is *entered* is a different fact from whether it
+        # produced an analysis. Computing this after the `vision = False` fallback
+        # below is what used to report `vision_attempted: False` for a photo the code
+        # had actually tried to read — a trace that misleads whoever debugs it.
+        vision_attempted = bool(has_photo and consent and not isinstance(vllm, FakeLLM))
         if vision:
             images = [
                 img
@@ -111,9 +120,25 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     logger.warning("vision analysis failed,降級做純文字: %s", vision_error)
                     analysis = None
 
+        # A photo we could not read is not "no photo" and not "local mode": consent was
+        # granted and the bytes were requested, the file just failed to load. Pass that
+        # through so the model gets an accurate reason instead of a false privacy claim.
+        photo_unreadable = vision_attempted and images_loaded == 0
         if analysis is None:
-            analysis = _text_only_analysis(llm, state, has_photo)
+            analysis = _text_only_analysis(llm, state, has_photo, photo_unreadable)
             vision = False
+        if photo_unreadable:
+            vision_reason = "photo_unreadable"
+        elif vision_error:
+            vision_reason = "vision_error"
+        elif vision:
+            vision_reason = "used"
+        elif has_photo and not consent:
+            vision_reason = "consent_off"
+        elif has_photo and isinstance(vllm, FakeLLM):
+            vision_reason = "fake_llm"
+        else:
+            vision_reason = "no_photo"
         return {
             "analysis": analysis.model_dump(),
             "vision_used": vision,
@@ -124,9 +149,10 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     {
                         "has_photo": has_photo,
                         "cloud_consent": consent,
-                        "vision_attempted": vision or bool(vision_error),
+                        "vision_attempted": vision_attempted,
                         "vision_used": vision,
                         "images_loaded": images_loaded,
+                        "vision_reason": vision_reason,
                         "vision_error": vision_error,
                         "tool_calls": list(analysis.tool_calls),
                         "attributes": len(analysis.attributes),

@@ -62,4 +62,4 @@ React (frontend) ──/api──> FastAPI ──> LangGraph agent
 ## 10. 教訓 + 下一步
 
 - 教訓：vector DB 唔使急住上，SQLite + cosine 夠用（抽象層留升級路）。
-- 下一步：真 vision model 接相分析、多用戶 auth、Postgres+pgvector 升級。
+- 下一步：多用戶 auth、Postgres+pgvector 升級。

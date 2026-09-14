@@ -37,7 +37,7 @@ def _get_embedder() -> FastembedEmbedder:
     return _embedder
 
 
-def _write_run_log(conversation_id: str, text: str, result: dict) -> None:
+def write_run_log(conversation_id: str, text: str, result: dict) -> None:
     """Append one JSON line per consult. Best-effort: never breaks a consult."""
     if not settings.run_log_enabled:
         return
@@ -93,5 +93,5 @@ def run_consult(conversation_id: str, text: str, photo_paths: list[str] | None =
         }
     )
     result["vision_used"] = bool(result.get("vision_used"))
-    _write_run_log(conversation_id, text, result)
+    write_run_log(conversation_id, text, result)
     return result

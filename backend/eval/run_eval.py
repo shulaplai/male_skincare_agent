@@ -150,8 +150,17 @@ def main() -> None:
         (out / "report.md").write_text(report)
         print(report)
 
-        failed = any(not r["hit"] for r in recall["results"]) or any(
-            not r["passed"] for r in agent_results
+        # Gate on everything this report advertises. The semantic baseline alone is
+        # not enough: the live eval measures `search_hybrid` by calling the *function*
+        # directly, so reverting `tools.search_knowledge` to pure `retrieve()` kept
+        # this at exit 0 while the report still printed a healthy hybrid number — the
+        # gate was pointed at a path the product does not use. The wiring itself is
+        # guarded at the source level by
+        # tests/test_hybrid.py::test_search_knowledge_routes_through_hybrid.
+        failed = (
+            any(not r["hit"] for r in recall["results"])
+            or any(not r["hit"] for r in recall_hybrid["results"])
+            or any(not r["passed"] for r in agent_results)
         )
         sys.exit(1 if failed else 0)
     finally:

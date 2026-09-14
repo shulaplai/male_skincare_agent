@@ -38,7 +38,7 @@
 ```
 backend/          FastAPI + LangGraph agent + RAG + storage + eval（睇 backend/README.md）
 frontend/         React + Vite + TS
-docs/             architecture / roadmap / demo-script / blog-outline / status-vs-claims
+docs/             architecture / roadmap / demo-script / blog-outline / blog-post / eval-report-sample / status-vs-claims
 archive/skinfile/ 舊 SKINFILE（純前端 demo，博物館）
 AGENTS.md         開發指引（人類 + AI agent）
 ```
@@ -65,6 +65,8 @@ npm install && npm run dev    # http://localhost:5173（proxy /api → 8001）
 
 # 自己 host 想新 conversation 自動開雲分析（可選）
 echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart backend
+# ⚠️ 呢招喺 Docker 下冇效：compose 喺 `environment:` 釘死咗 SKINCOACH_CLOUD_ANALYSIS_DEFAULT（會蓋過 env_file）。
+#    Docker 要改成 export SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true，或者寫落 repo root `.env`，再 `docker compose up`。
 
 # Interview demo：想個 UI 即刻有 90 日數據睇（獨立 DEMO DB，唔掂你真 data）
 cd backend && ./.venv/bin/python scripts/seed_demo.py
@@ -74,7 +76,7 @@ SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn ap
 
 ## 部署
 
-> ⚠️ **日常用 = local dev**（backend + frontend 本地跑，最可靠）。`docker compose up --build` 提供 production 形態：frontend nginx 有 `/api` proxy → backend、data 用 bind volume、corpus 喺 image build 時 bake（詳情 `docs/status-vs-claims.md` #18）。Interview 想零 setup 展示，用 `seed_demo.py`（上面）仲快。
+> ⚠️ **日常用 = local dev**（backend + frontend 本地跑，最可靠）。`docker compose up --build` 提供 production 形態：frontend nginx 有 `/api` proxy → backend、data 用 bind volume、corpus 喺 image build 時 bake（詳情 `docs/status-vs-claims.md` #18）。注意 Docker 個 bind volume source 係 **repo 根 `./data`**，同 local dev 嘅 `backend/data/` 係兩個唔同目錄 —— 你本地累積嘅記錄（`backend/data/skincoach.db`）唔會喺 Docker UI 出現。Interview 想零 setup 展示，用 `seed_demo.py`（上面）仲快。
 
 ## 面試交付物清單
 

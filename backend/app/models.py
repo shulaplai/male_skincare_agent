@@ -105,7 +105,9 @@ class Insight(Base):
     conversation_id: Mapped[str | None] = mapped_column(ForeignKey("conversations.id"), nullable=True, index=True)
     kind: Mapped[str] = mapped_column(String(20))  # fact | derived | preference
     tag: Mapped[str] = mapped_column(String(120), default="")  # e.g. "skin_type", "product_reaction"
-    direction: Mapped[str] = mapped_column(String(20), default="")  # better|worse|same — derived attribute trends
+    # Derived attribute state: "problem" | "normal" (Q47 — the state category, not
+    # the trend; trends live in the entries timeline). Facts use "".
+    direction: Mapped[str] = mapped_column(String(20), default="")
     text: Mapped[str] = mapped_column(Text)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     expires_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

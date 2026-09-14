@@ -2,18 +2,18 @@
 
 > 目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
 > 呢份係 v2：每個 phase 對照 `docs/status-vs-claims.md`（live）寫**完成度**，唔再寫「打算做」當做咗。
-> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 73 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
+> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 77 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
 
 ---
 
 ## Phase 0 — 地基 ✅
 - monorepo（backend + frontend + docs）、FastAPI + React+Vite+TS 骨架 ✅
-- Docker Compose + Dockerfile ✅（v2 修咗：frontend nginx `/api` proxy、bind volume、corpus bake；狀態見 status #18）
+- Docker Compose + Dockerfile 🟡（v2 修咗：frontend nginx `/api` proxy、bind volume、corpus bake；`docker compose config` 通過，但 image 從來冇 build 過，狀態以 status #18 為準）
 - README + architecture + roadmap + AGENTS.md ✅
 - 舊 SKINFILE → `archive/skinfile/` 博物館 ✅
 
 ## Phase 1 — 數據層（local-first 核心）✅
-- SQLite schema：users / conversations / entries / photos / insights / timeline_events / chat_messages / products ✅（加 column 用 `_COLUMN_MIGRATIONS` auto-ALTER）
+- SQLite schema：users / conversations / entries / photos / insights / timeline_events / chat_messages / products / chunks ✅（加 column 用 `_COLUMN_MIGRATIONS` auto-ALTER）
 - 相片壓縮落 file system、metadata 落 DB ✅
 - 長期記憶規則落 SQL：fact / derived / preference + tag+direction reconcile（Q47）✅
 - Export/Import zip ✅
@@ -47,7 +47,7 @@
 ## Phase 5 — Eval + Production 🟡（大部分完成）
 - Eval harness：RAG recall + agent golden scenarios + safety + LLM-as-judge（有 key 時）✅
 - CI（GitHub Actions）：typecheck / pytest / eval `--fake` 綠先 merge ✅
-- Docker 部署（compose up 撳得郁）✅（以 status #18 為準）
+- Docker 部署（compose up 撳得郁）🟡（以 status #18 為準；`docker compose config` 通過，但未 build／未 up 過）
 - README + demo video + 技術 blog：
   - 技術 blog 大綱 ✅（`docs/blog-outline.md`）；完整 blog post 草稿 🟡 `docs/blog-post.md`（本文檔配套）
   - demo video 🟡 —— 要真人 screen record，劇本喺 `docs/demo-script.md`；未錄影
@@ -59,8 +59,8 @@
 - [ ] 真 vision smoke test（☁️ 開、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding reply
 - [ ] Reload 頁面 → thread 仲喺度
-- [ ] `pytest -q`（73 綠）+ `npm run typecheck` + `npm run build`
-- [ ] `eval.run_eval --fake` PASS（recall 100%、MRR 0.90、3 agent scenarios）
+- [ ] `pytest -q`（77 綠）+ `npm run typecheck` + `npm run build`
+- [ ] `eval.run_eval --fake` PASS（semantic baseline recall 100% / MRR 0.90；hybrid（runtime path）100% / 1.00；3 agent scenarios）
 - [ ] `scripts/seed_demo.py` → demo DB 行得起（interview 零準備 demo 用）
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」
 - [ ] 錄 demo video（2–3 分鐘，跟 `docs/demo-script.md`）
