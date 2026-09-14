@@ -11,7 +11,7 @@ cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
 ./.venv/bin/python -m pytest -q                                   # 77 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
-HF_HOME=./.hf-cache ./.venv/bin/python -m eval.run_eval           # 真 embedder + 有 key 時連埋 LLM-as-judge
+FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
 ./.venv/bin/python scripts/seed_demo.py                           # 起獨立 DEMO DB（唔掂真 data；見 README）
 ./.venv/bin/python scripts/trace_consult.py --text "下巴爆瘡點算？"   # trace 一次 consult（temp DB + FakeLLM，安全）
@@ -35,7 +35,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 | `backend/app/correlation.py` | 相關性偵測（Q30）：cause episodes → attribute deltas，repeated = strong | deterministic；`/correlations` endpoint 用 |
 | `backend/app/self_report.py` | 確認自報事件 → Entry/timeline/products/facts | diet 寫 **global** timeline（Q31）；product fact hook |
 | `backend/app/rag/` | chunking / embeddings / vectorstore / hybrid / ingest | `hybrid.py` 已接線（`tools.search_knowledge` 用 `search_hybrid`） |
-| `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER） |
+| `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / **products** / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER） |
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
@@ -75,7 +75,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **FakeLLM 唔係「真 offline」**：冇 key 時 `service.run_consult` 仍然會 instantiate `FastembedEmbedder`（首次會 download model 或靜靜 fallback hash）。test 用 `DeterministicEmbedder`。
 - **Tool 名一定要喺 prompt 講清楚**：`prompts.TOOL_GUIDE` 列出 `tools.WHITELIST` 三個 tool，`SkinAnalysis.tool_calls` 亦有 description。曾經冇寫 → 真 DeepSeek 回 `tool_calls: []`（實測）→ RAG／記憶完全冇跑，但 FakeLLM 硬編碼 tool 名令 pytest + eval --fake 全綠。加減 tool 要同步三處（whitelist／TOOL_GUIDE／schema description），`tests/test_observability.py` 會檢查。
 - **Pydantic schema 有 cache**：`SkinAnalysis.model_fields["x"].description = None` **唔會**改變送去 LLM 嘅 JSON schema（核心 schema 已建好）。想驗「舊 schema 嘅行為」一定要另開一個 model class 再 monkeypatch 模組變數，唔係改 FieldInfo。
-- **每個 node 都要留 trace**：`state["trace"]`（`Annotated[list, operator.add]`）逐 node 記錄 node/ms/摘要；`graph.stream()` 睇 live delta，`/api/consult` 回最終 trace，`data/runs.jsonl` 留紀錄。**唔好再靜靜吞錯誤**（vision 失敗、tool 例外、未知 tool 名、embedder fallback 全部要 log + 入 trace）。
+- **每個 node 都要留 trace**：`state["trace"]`（`Annotated[list, operator.add]`）逐 node 記錄 node/ms/摘要；`graph.stream()` 睇 live delta，`/api/consult` 回最終 trace。run log（`data/runs.jsonl`）由 `service.write_run_log` 寫，**兩個入口都會寫**：`POST /api/consult` 同 `scripts/trace_consult.py`（後者以前唔會寫，所以 checklist 嗰句曾經係假）。**唔好再靜靜吞錯誤**（vision 失敗、tool 例外、未知 tool 名、embedder fallback 全部要 log + 入 trace）。
 - **embedding 維度唔可以混**：384（真 MiniLM）vs 128（hash fallback）唔可比，而 `_cosine` 用 `zip()` 會靜靜比前綴。`vectorstore.add_chunks` 會 raise，`search` 會跳過維度唔一致嘅 chunk 並 log warning。fastembed cache 預設喺 temp dir（會被清）→ 用 `SKINCOACH_EMBEDDER_CACHE_DIR` 指去 data dir。
 - **相片 id 有 shape check**：`photo.py` 只接受 32-char hex；`persist` 只 attach 真存在嘅相，唔好造 dangling Photo row。
 - **Frontend draft 要 reset**：切 conversation 要清 draft/attached（`Chat.tsx` useEffect on conversation.id）。
@@ -98,7 +98,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - Layer 1 已完成（Block 1–3 + frontend sync + eval/CI + docs）。
 - Layer 2 已完成：rolling 多錨點 UI（`/summary.anchors`）、product 庫（products table）、diet trigger tagging、correlation detector（`app/correlation.py` + `/correlations`）、global scope 寫入（diet → global timeline Q31）、preference 低頻抽取（`app/preferences.py`）、check-in 自動 fact（product fact hook）、hybrid 接線（tools search_knowledge）。
 - Layer 3：delete/edit UI（entry note / delete entry / delete photo / delete insight）已做；demo environment＋seed script（`scripts/seed_demo.py`）已做；Settings 測試連線已做；Docker compose 修復（nginx proxy / env 路徑 / corpus bake）見 status #18（狀態以 status-vs-claims 為準）；roadmap v2 同 blog/demo video 係 docs 層交付。
-- Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
+- Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`（`POST /api/consult` 同 `trace_consult.py` 都寫；`run_log_enabled` 預設 True，路徑 `./data/runs.jsonl` 跟 CWD）；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
 - UI 結構三選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=` 可 preview；三套共用同一批 view 元件（Chat/RecordsView/ProgressView/SettingsView + blocks），feature parity（詳 status-vs-claims #25）。
 
 ## Agent skills（issue tracker）

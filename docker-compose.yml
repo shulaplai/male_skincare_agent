@@ -34,6 +34,10 @@ services:
       SKINCOACH_ANTHROPIC_MODEL: ${SKINCOACH_ANTHROPIC_MODEL:-claude-sonnet-5}
       SKINCOACH_OPENAI_MODEL: ${SKINCOACH_OPENAI_MODEL:-gpt-5}
       SKINCOACH_CLOUD_ANALYSIS_DEFAULT: ${SKINCOACH_CLOUD_ANALYSIS_DEFAULT:-false}
+      # fastembed reads this (NOT HF_HOME), and /app/data is the bind-mounted
+      # volume — so the model survives a rebuild instead of being re-downloaded
+      # every time the container is recreated.
+      FASTEMBED_CACHE_PATH: /app/data/.fastembed-cache
     env_file:
       # Optional: reuse the gitignored dev .env for vars not overridden above.
       - path: ./backend/.env

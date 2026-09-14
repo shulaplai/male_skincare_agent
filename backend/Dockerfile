@@ -28,7 +28,10 @@ RUN chmod +x /app/docker_entrypoint.sh
 # Stream backend logs to `docker compose logs`.
 ENV PYTHONUNBUFFERED=1
 # Where fastembed caches models downloaded on first ingest (needs network).
-ENV HF_HOME=/app/.hf-cache
+# NOTE: fastembed reads FASTEMBED_CACHE_PATH, not HF_HOME — HF_HOME does nothing
+# here, which meant the model landed in the container's temp dir (re-downloaded on
+# every recreate) instead of on the /app/data volume.
+ENV FASTEMBED_CACHE_PATH=/app/data/.fastembed-cache
 
 EXPOSE 8000
 

@@ -24,6 +24,8 @@
 | **`#24` `seed_demo.py --out` 可以刪咗真 DB** | `backend/scripts/seed_demo.py` 加防護：指向真 DB 就拒絕 | 實測 `--out ./data/skincoach.db` 被拒、真 DB md5 不變；正常路徑照行 |
 | **C2 `trace_consult.py` 永遠唔會寫 run log**（所以 checklist「`data/runs.jsonl` 有紀錄」係假） | `scripts/trace_consult.py` 呼叫 `service.write_run_log()`（順便將 `_write_run_log` 變公開名），連 trace 一齊寫 | 實測寫出一行，5 個 node 齊 |
 | 3 個誤導性註釋／docstring | `chunking.py`（section 冇 producer）、`prompts.py:7`（指向唔存在嘅 `test_prompts.py`）、`models.py:108`（`direction` 寫住 `better\|worse\|same`，但 code 只寫 `problem\|normal`） | — |
+| **D10 `HF_HOME` 係假指示**：fastembed 只認 `FASTEMBED_CACHE_PATH`，所以 model cache 落 container temp、每次 recreate 重新 download | `backend/Dockerfile` 改用 `FASTEMBED_CACHE_PATH=/app/data/.fastembed-cache`（即 bind volume）；`docker-compose.yml` 加同一個 var；`AGENTS.md` 同 `.env.example` 嘅 `HF_HOME` 指令改返正確 | `docker compose config` exit 0 而且 render 出 `FASTEMBED_CACHE_PATH: /app/data/.fastembed-cache`；fastembed 只讀呢個 var（實測 `define_cache_dir`）。⚠️ **container 內部路徑未經 runtime 驗證**（呢部機冇 build 過 image） |
+| **`AGENTS.md` 自身嘅 stale 內容** | 表清單補返 `products`（9 張表只列咗 8）；run-log 措辭改成「`POST /api/consult` 同 `trace_consult.py` 都寫」；cache env var 改返正確 | 對 `models.py` / `service.py` 核實 |
 | **23 個文件 vs 現實嘅事實修正**（D1–D19 之中非決策相關嗰批）+ test 數 73 → 77 | `docs/*.md`、`README.md`、`backend/README.md`、`AGENTS.md` | 逐條對 code／指令核實；`eval-report-sample.md` 改成 generator 真實輸出 |
 
 ---
@@ -60,7 +62,6 @@
 | 唔改嘅嘢 | 為何 |
 |---|---|
 | **Journal 顯示 product id**（`🧴 5680cffc…`） | 修法係 `/summary` 要 resolve id → name。技術上細，但會改 API response shape + 前端 types，屬「改形狀」多過「執 bug」—— 想你決定之後才動。 |
-| **Docker 內 `FASTEMBED_CACHE_PATH` 未設**（model cache 落 containers temp，recreate 就重新 download） | 一行 compose 改動，但**呢部機冇 build 過 image**，我改完無法驗證，唔想寫未驗證嘅嘢入 compose。 |
 | **`/api/settings` 報 configured 而唔係 resolved model** | 屬 #14 嘅 provenance 政策一部分，一齊改才好。 |
 | **Vite 之外仲有 Config drift（D8/D10 部分）** | 已交文件 sweep 處理；剩低涉及行為嗰啲等決定。 |
 | **`archive/skinfile/`** | 博物館，唔動。 |
@@ -90,6 +91,7 @@ cp data/skincoach.db /tmp/check.db
 SKINCOACH_DATABASE_URL=sqlite:////tmp/check.db SKINCOACH_DATA_DIR=/tmp/checkdata \
   ./.venv/bin/python -c "from app.db import init_db; init_db()"
 
+docker compose config | grep FASTEMBED_CACHE_PATH   # 應該見到 /app/data/.fastembed-cache
 cd ../frontend && npm run typecheck && npm run build
 ```
 
