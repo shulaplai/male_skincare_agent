@@ -1,0 +1,9 @@
+START 2026-09-14T20:46:30+0800
+[1] acne_normal: RAISED OutputParserException: Unknown tool type: 'get_recent_entries'. Available tools: SkinAnalysis
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE   (1.7s)
+[2] acne_normal: RAISED OutputParserException: Unknown tool type: 'get_skin_profile'. Available tools: SkinAnalysis
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE   (1.2s)
+[3] dry_normal: RAISED OutputParserException: Unknown tool type: 'get_skin_profile'. Available tools: SkinAnalysis
+For troubleshooting, visit: https://docs.langchain.com/oss/python/langchain/errors/OUTPUT_PARSING_FAILURE   (0.9s)
+EXIT=0
+END 2026-09-14T20:46:35+0800

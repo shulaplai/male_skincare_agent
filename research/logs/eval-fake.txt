@@ -1,0 +1,28 @@
+START 2026-09-14T20:46:59+0800
+# SkinCoach Eval Report
+
+（golden corpus：4 chunks · fake mode）
+
+## RAG recall@3: 100% · MRR: 0.90（semantic baseline）
+- oily: PASS (rank=2)
+- dry: PASS (rank=1)
+- salicylic: PASS (rank=1)
+- rosacea: PASS (rank=1)
+- sunscreen: PASS (rank=1)
+
+## Hybrid（runtime path，同一 golden set）recall: 100% · MRR: 1.00
+- oily: PASS (rank=1)
+- dry: PASS (rank=1)
+- salicylic: PASS (rank=1)
+- rosacea: PASS (rank=1)
+- sunscreen: PASS (rank=1)
+
+## Agent scenarios
+- acne_normal: PASS (escalate=False, violations=[], tools: get_skin_profile=0 · search_knowledge=3)
+- dry_normal: PASS (escalate=False, violations=[], tools: get_skin_profile=3 · search_knowledge=3)
+- red_flag: PASS (escalate=True, violations=[], tools: get_skin_profile=3 · search_knowledge=3)
+
+（--fake mode：唔跑 LLM-as-judge）
+
+EXIT=0
+END 2026-09-14T20:47:00+0800
