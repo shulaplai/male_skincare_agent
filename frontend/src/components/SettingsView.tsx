@@ -56,8 +56,11 @@ export function SettingsView(props: Props) {
         <LayoutPicker />
       </div>
       <p className="hint">
-        三套都係同一批真數據嘅唔同排法：對話主導（原本）、日記主導（逐日回顧）、數據主導（快睇進度）。
-        切咗即刻生效，之後每次開都係呢套。
+        四套都係同一批真數據嘅唔同排法：對話主導（原本）、日記主導（逐日回顧）、數據主導（快睇進度）、
+        手機版（窄屏專用）。切咗即刻生效，之後每次開都係呢套。
+        <br />
+        窄屏（≤ 760px）會<b>自動</b>用手機版；喺呢度揀邊套即時蓋過（今次開頁有效）—— 闊屏就會用你揀嗰套。
+        想喺窄屏固定睇某一套，用 URL 加 <code>?layout=chat|journal|dash|mobile</code>（preview，唔會寫入偏好）。
       </p>
 
       <h3 className="block-title">Agent 連線</h3>

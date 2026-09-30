@@ -51,7 +51,9 @@ export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs,
           </div>
         </div>
         <div className="head-actions">
-          <div className={`status${online ? '' : ' offline'}`}>
+          {/* title 一定要有：手機版（`.app.layout-mobile`）會用 CSS 將文字收成一個 pulse 點，
+              冇 title 就會完全失去「在線／離線」呢個資訊 */}
+          <div className={`status${online ? '' : ' offline'}`} title={online ? 'Agent 在線' : '離線模式'}>
             <span className="pulse" /> {online ? 'Agent 在線' : '離線模式'}
           </div>
           <span

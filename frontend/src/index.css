@@ -54,7 +54,10 @@ body {
 .app {
   display: grid;
   grid-template-columns: 240px 1fr 330px;
+  /* 100vh 喺手機 = 連 URL bar 嘅高度 → 底部 composer／tab bar 會縮落 browser chrome 下面。
+     唔支援 dvh 嘅舊 browser 會用返上面 100vh（progressive enhancement）。 */
   height: 100vh;
+  height: 100dvh;
   max-width: 1540px;
   margin: 0 auto;
   width: 100%;
@@ -1786,6 +1789,38 @@ body {
 .mini-dash .m b:nth-child(4) {
   background: var(--accent);
 }
+/* 第 4 套：手機版 —— 單欄 + 頂 bar + 底部 5 個 tab */
+.mini-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.mini-mobile .top {
+  height: 8px;
+  background: var(--accent-soft);
+}
+.mini-mobile .body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  background: transparent;
+  justify-content: center;
+}
+.mini-mobile .body b:first-child {
+  height: 14px;
+  background: var(--accent);
+}
+.mini-mobile .bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  height: 9px;
+  background: transparent;
+}
+.mini-mobile .bar b {
+  height: 100%;
+}
 
 /* conversation manager（Settings） */
 .conv-mgr {
@@ -1878,5 +1913,312 @@ textarea:focus {
 @media (max-width: 1140px) {
   .shell-chat {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ============================================================
+   Layout shell 4: mobile
+   窄屏（≤760px）自動用（見 layouts/defs.ts resolveLayout）；闊屏揀咗就當「手機框」preview。
+   ⚠️ 斷點 760 嘅唯一真源係 defs.ts 嘅 MOBILE_MAX_WIDTH —— CSS 冇得 import，改一邊要改兩邊。
+   ============================================================ */
+
+/* ---------- 修真 bug：現有 journal／dash 喺窄屏被壓入 220px ----------
+   `.app.layout-journal`（:1252）同 `.app.layout-dash`（:1265）嘅 grid-template-columns 係
+   (0,2,0)，會蓋過前面 `@media (max-width: 760px)` 嗰條 `.app`（:882，(0,1,0)）；而 :880 又將
+   `.side` 收埋 → `.shell-main` 變成唯一 grid item，跌落 220px 第一欄，成個內容被壓扁。
+   下面用同等 specificity 而且放喺檔尾（同 specificity 時後者勝）修正。 */
+@media (max-width: 760px) {
+  .app.layout-journal,
+  .app.layout-dash {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .view {
+    padding: 18px 14px 26px;
+  }
+  .view-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .view-head h2 {
+    font-size: 19px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .compose {
+    flex-wrap: wrap;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  /* < 16px 會令 iOS Safari focus 輸入框時自動 zoom 成個 page */
+  .compose input {
+    font-size: 16px;
+    min-width: 0;
+  }
+  .quickbar {
+    flex-wrap: wrap;
+  }
+  .quickbar input {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .jm-feed {
+    padding: 16px 14px calc(110px + env(safe-area-inset-bottom, 0px));
+  }
+  .jm-fab {
+    right: 14px;
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ---------- shell 本體 ---------- */
+.app.layout-mobile {
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+}
+.app.layout-mobile .shell-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+/* 底部 .mob-tabs 取代頂部 scene tabs */
+.app.layout-mobile .shell-top .scene-tabs {
+  display: none;
+}
+.app.layout-mobile .top-row {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.app.layout-mobile .top-row .cur {
+  min-width: 0;
+}
+.app.layout-mobile .top-row h1 {
+  font-size: 17px;
+  max-width: 46vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app.layout-mobile .head-actions {
+  gap: 8px;
+}
+/* 收起「Agent 在線／離線模式」文字只留 pulse 點（文字入咗 title，仍然 hover 睇得到） */
+.app.layout-mobile .status {
+  font-size: 0;
+  letter-spacing: 0;
+  gap: 0;
+}
+.app.layout-mobile .status .pulse {
+  width: 9px;
+  height: 9px;
+}
+.app.layout-mobile .cloud-toggle {
+  font-size: 10px;
+  padding: 4px 8px;
+}
+.app.layout-mobile .theme {
+  width: 34px;
+  height: 34px;
+}
+/* ShellTop 已經有部位／狀態／雲／主題，唔好再出一次 Chat 自己嗰個 header */
+.app.layout-mobile .chathead {
+  display: none;
+}
+.app.layout-mobile .thread {
+  padding: 14px 12px;
+  gap: 16px;
+}
+.app.layout-mobile .hello,
+.app.layout-mobile .msg {
+  max-width: 100%;
+}
+.app.layout-mobile .compose {
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+}
+.app.layout-mobile .view {
+  padding: 16px 14px 26px;
+}
+.app.layout-mobile .dash-grid,
+.app.layout-mobile .layout-picker,
+.app.layout-mobile .settings-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app.layout-mobile .conv-mgr-row {
+  flex-wrap: wrap;
+}
+.app.layout-mobile .jm-drawer {
+  width: 100%;
+}
+.app.layout-mobile .anchor-row {
+  font-size: 11px;
+}
+.app.layout-mobile .entry-photos .photo-cell img {
+  width: 84px;
+  height: 84px;
+}
+
+/* ---------- 底部 tab bar ---------- */
+.mob-tabs {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mob-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 2px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--muted);
+}
+.mob-tabs button .ti {
+  font-size: 19px;
+  line-height: 1;
+}
+.mob-tabs button.active {
+  color: var(--accent-deep);
+}
+
+/* ---------- home「今日」（風格 01 柔卡） ---------- */
+.mob-home {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 14px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+/* 直向 flex 容器入面唔好俾 card 被壓扁 */
+.mob-home > * {
+  flex: none;
+}
+.mob-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(150deg, var(--glow), transparent 62%), var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px 17px;
+  box-shadow: var(--shadow);
+}
+.mob-hero-txt {
+  flex: 1;
+  min-width: 0;
+}
+.mob-hero .k {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.mob-hero .h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 28px;
+  line-height: 1.08;
+  letter-spacing: -0.3px;
+  margin: 6px 0 7px;
+}
+.mob-hero .sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+/* 環形進度：顯示「今日記低咗幾個指標」（--v = 0–100），唔係膚況分數 */
+.mob-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--v, 0) * 1%), var(--line) 0);
+}
+.mob-ring::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: var(--card);
+}
+.mob-ring span {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 500;
+}
+.mob-ring span small {
+  font-size: 10px;
+  color: var(--faint);
+}
+.mob-cta {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 16px;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+  box-shadow: 0 12px 26px -12px var(--accent);
+}
+.mob-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px 17px;
+  box-shadow: var(--shadow);
+}
+.mob-card h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--accent-deep);
+  letter-spacing: 0.2px;
+  margin-bottom: 12px;
+}
+/* 卡入面唔好再出多層卡（entry-card 預設有自己嘅 border／shadow） */
+.mob-card .entry-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 0 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.mob-card .entry-card:last-of-type {
+  border-bottom: none;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.app.layout-mobile .mob-card .jm-photos .photo-cell img {
+  width: 100px;
+  height: 100px;
+}
+
+/* ---------- 闊屏：當「手機框」preview（唔影響 ≤760px） ---------- */
+@media (min-width: 761px) {
+  .app.layout-mobile {
+    max-width: 420px;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow);
   }
 }

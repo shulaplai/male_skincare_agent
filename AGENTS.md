@@ -82,16 +82,25 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **Frontend draft 要 reset**：切 conversation 要清 draft/attached（`Chat.tsx` useEffect on conversation.id）。
 - **Memory kind**：backend 用 `fact | derived | preference`；frontend `kindLabel` 要用 `preference` 唔係 `pref`。
 - **DB 有真 key／真 data**：`backend/.env` 係真 DeepSeek key，`backend/data` 有真 corpus —— 開發時唔好 print key、唔好鏟 data dir。
-- **三套結構 UI（layout shells）**：分三層 ——
-  1. `src/layouts/defs.ts`：純 data（名／描述／`tabs`／props 型別），**唔可以 import React**
-  2. `src/layouts/Shells.tsx`：renderer registry（`LayoutId` → `ChatShell` / `StandardShell`+home）
-  3. `ChatShell`（原本三欄）／`StandardShell`（journal+dash 共用，只差 tabs + home；home component 一定要用 `<Home/>` element 渲染，**唔可以直接 call function**）
-  揀咗邊套存 `localStorage['skc-layout']`，`?layout=` preview 覆蓋一次。
+- **四套結構 UI（layout shells）**：分三層 ——
+  1. `src/layouts/defs.ts`：純 data（名／描述／`tabs`／props 型別）＋ 純函數 `resolveLayout` ＋ `MOBILE_MAX_WIDTH`，**唔可以 import React**
+  2. `src/layouts/Shells.tsx`：renderer registry（`LayoutId` → `ChatShell` / `StandardShell`+home / `MobileShell`）
+  3. `ChatShell`（原本三欄）／`StandardShell`（journal+dash 共用，只差 tabs + home；home component 一定要用 `<Home/>` element 渲染，**唔可以直接 call function**）／`MobileShell`（底部 tab bar，scene 一樣係 `home|chat|records|progress|settings`）
+  揀咗邊套存 `localStorage['skc-layout']`，`?layout=` preview 覆蓋一次；`LAYOUTS` 一定要將 `mobile` **排最後**（`layoutById` fallback 係 `LAYOUTS[0]`）。
+- **窄屏自動切換嘅唯一真源係 `defs.resolveLayout`（純函數）**：優先 `?layout=` > 今次手動揀 > 窄屏 `mobile` > `localStorage`。**唔好喺 component 直接讀 `window.innerWidth`**，亦唔好喺其他地方再寫一次呢個判斷。
+- **窄屏自動唔會將 `mobile` 寫入 `localStorage`**：persist 寫嘅永遠係用戶真揀嗰個。所以闊屏唔會殘留 `mobile`，但窄屏 reload 一定返 `mobile`。（CDP 實測。）
+- **`MOBILE_MAX_WIDTH = 760` 嘅 CSS 冇得 import**：`index.css` 尾段 `@media (max-width: 760px)` 同 `.app.layout-mobile` 係人手同步 —— **改一邊要改兩邊**。實測過 760 = mobile、761 = 桌面，兩邊一致。
+- **`.app.layout-journal` / `.app.layout-dash` 嘅 `grid-template-columns` 係 (0,2,0)，會蓋過 `@media (max-width:760px) .app` 嘅 (0,1,0)**（真實 bug：窄屏會令 `.shell-main` 跌落 220px 第一欄，內容被壓扁）。窄屏覆蓋一定要用**同等 specificity 而且放喺檔尾**。
+- **`mobile` shell 嘅 scene 區要用 `.shell-scene`，唔可以用 `.shell-chat`**：`.shell-chat` 係 2 欄 grid；另外 `mobile` 區會用 CSS 收埋 `.chathead`（`ShellTop` 已提供同一組資訊，唔好雙重 header）。
+- **`.app` 用 `height: 100vh; height: 100dvh`**：手機 `100vh` 連 URL bar 高度，底部 composer／tab bar 會縮落 browser chrome 下面。
+- **`.compose input` 窄屏要 16px**：< 16px 會令 iOS Safari focus 輸入框時自動 zoom 成個 page。
 - **`useLayout()` 只可以喺 `LayoutProvider` 嘅 child 讀**：App 本身 render provider，所以 layout 要喺 `LayoutHost`（provider 內）讀；喺 App body 讀 = 永遠 default `chat`（真實撞過，layout 切換會靜靜失效）。
 - **App wrapper class 係 `app layout-<id>`**，唔好改做 `shell-<id>` —— `.shell-chat` 係 shell 內部 chat 場景 grid container，同名會撞壞成個 app grid（chat 佈局變兩欄）。
 - **新結構嘅 data／動作一律用 hooks**：`hooks/useSummary`、`useCorrelations`、`useEntryActions`、`useInsightActions`（`refreshKey` 一 bump 就 re-fetch）；顯示 block 一律 `components/blocks.tsx`。改 API 只應該改一處。
-- **`?layout=chat|journal|dash`**：URL preview override（唔會寫入偏好），demo／smoke 用。
-- **新 home 畫面食真數據**：`JournalHome`／`DashHome` 用 `getSummary`／`getCorrelations`／`p.messages`（App 已載）；空態全部係「未有…」，唔可以放 demo 數。
+- **`?layout=chat|journal|dash|mobile`**：URL preview override（唔會寫入偏好），demo／smoke 用。preview 生效期間喺 Settings 揀結構會**解除 preview**（`clearPreview()` 用 `replaceState` 清走參數）—— 唔做嘅話個 picker 會似壞咗。
+- **新 home 畫面食真數據**：`JournalHome`／`DashHome`／`MobileHome` 用 `getSummary`／`getCorrelations`／`p.messages`（App 已載）；空態全部係「未有…」，唔可以放 demo 數。
+- **`MobileHome` 個環形進度係「今日記低咗幾個指標」（0–6），唔係膚況分數**：app **冇**「整體膚況分數」呢個概念（`index.css` 有 `.score` 嘅死 CSS，但 `RightPanel` 從來冇 render 過）。設計樣板 `design/mobile-1-soft-cards.html` 嗰個「膚況 2/3」係樣板自己發明 —— **唔可以照搬**（約定 #2／#10）。
+- **`LayoutPicker` 用 `Record<LayoutId, JSX.Element>` 而唔係 `if`／`switch` chain**：以前用 chain，加第 4 個 id 會**靜靜** render dash 嗰個縮圖。用 Record 漏咗就編譯唔過。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。
 
 ## 現況（見 `docs/status-vs-claims.md` 最新狀態）
@@ -100,7 +109,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - Layer 2 已完成：rolling 多錨點 UI（`/summary.anchors`）、product 庫（products table）、diet trigger tagging、correlation detector（`app/correlation.py` + `/correlations`）、global scope 寫入（diet → global timeline Q31）、preference 低頻抽取（`app/preferences.py`）、check-in 自動 fact（product fact hook）、hybrid 接線（tools search_knowledge）。
 - Layer 3：delete/edit UI（entry note / delete entry / delete photo / delete insight）已做；demo environment＋seed script（`scripts/seed_demo.py`）已做；Settings 測試連線已做；Docker compose 修復（nginx proxy / env 路徑 / corpus bake）見 status #18（狀態以 status-vs-claims 為準）；roadmap v2 同 blog/demo video 係 docs 層交付。
 - Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`（`POST /api/consult` 同 `trace_consult.py` 都寫；`run_log_enabled` 預設 True，路徑 `./data/runs.jsonl` 跟 CWD）；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
-- UI 結構三選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=` 可 preview；三套共用同一批 view 元件（Chat/RecordsView/ProgressView/SettingsView + blocks），feature parity（詳 status-vs-claims #25）。
+- UI 結構四選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）／`mobile`（手機版，**窄屏 ≤760px 自動**）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=chat|journal|dash|mobile` 可 preview；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + blocks），feature parity（詳 status-vs-claims #25）。手機版樣式揀咗 `design/mobile-1-soft-cards.html`（「柔卡」）；窄屏自動切換同桌面無回歸都用 CDP 實測過。
 
 ## Agent skills（issue tracker）
 

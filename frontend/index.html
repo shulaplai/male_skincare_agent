@@ -2,7 +2,9 @@
 <html lang="zh-Hant" data-theme="light">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover 係手機版（.app.layout-mobile）要嘅：冇佢就拎唔到
+         env(safe-area-inset-*)，底部 tab bar／輸入框會縮落 iOS home indicator 下面。 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>SkinCoach</title>
     <script>
       try {

@@ -1,6 +1,6 @@
 import type { Conversation, DetectedEvent, LayoutId, Message, View } from '../types'
 
-/** 所有 shell 共用嘅 props（由 App 一次過供俾三套結構）。 */
+/** 所有 shell 共用嘅 props（由 App 一次過供俾四套結構）。 */
 export interface ShellProps {
   conversations: Conversation[]
   active: Conversation | undefined
@@ -29,7 +29,7 @@ export interface SceneTab {
 }
 
 /**
- * Layout registry：三套「結構」嘅 **metadata／導覽 config**（純 data，唔含 JSX）。
+ * Layout registry：四套「結構」嘅 **metadata／導覽 config**（純 data，唔含 JSX）。
  * - Settings 揀選 UI（`LayoutPicker`）同 App dispatch（`Shells.tsx`）都係食呢個 list
  * - `tabs`：非 chat 結構嘅 scene tabs（chat 結構用 `Sidebar` 嘅 site nav，所以冇 tabs）
  * - 邊個 component 渲染由 `Shells.tsx` 決定（metadata 同 rendering 分家：呢度唔 import React）
@@ -42,6 +42,14 @@ export interface LayoutDef {
   blurb: string
   tabs?: SceneTab[]
 }
+
+/**
+ * `mobile` 結構嘅斷點。**呢個係唯一真源** —— `LayoutContext` 用佢砌 `matchMedia`。
+ * CSS 冇得 import，所以 `index.css` 尾段嗰個 `@media (max-width: 760px)` 同
+ * `.app.layout-mobile` 係人手同步；改呢個數一定要同時改 CSS（見 AGENTS.md 陷阱）。
+ * 760 = 原本 `index.css` `@media (max-width: 760px)` 收埋 sidebar 嗰個值，唔另立新標準。
+ */
+export const MOBILE_MAX_WIDTH = 760
 
 export const LAYOUTS: LayoutDef[] = [
   {
@@ -79,9 +87,54 @@ export const LAYOUTS: LayoutDef[] = [
       { key: 'settings', label: '設定', icon: '⚙️' },
     ],
   },
+  {
+    /** ⚠️ 一定排最後：`layoutById` fallback 係 `LAYOUTS[0]`，唔可以搶咗 `chat` 嘅 fallback。 */
+    id: 'mobile',
+    name: '手機版',
+    icon: '📱',
+    tagline: '手機主導 · 窄屏自動',
+    blurb:
+      '窄屏專用：頂部部位／狀態，底部 5 個 tab，單欄全屏。窄屏會自動用呢套，闊屏揀咗就當手機框 preview。',
+    tabs: [
+      { key: 'home', label: '今日', icon: '☀️' },
+      { key: 'chat', label: '對話', icon: '💬' },
+      { key: 'records', label: '記錄', icon: '🗂️' },
+      { key: 'progress', label: '進度', icon: '📈' },
+      { key: 'settings', label: '設定', icon: '⚙️' },
+    ],
+  },
 ]
 
 export const layoutById = (id: LayoutId): LayoutDef => LAYOUTS.find((l) => l.id === id) ?? LAYOUTS[0]
+
+/** `resolveLayout` 嘅輸入（全部由 `LayoutContext` 供，呢度唔碰 DOM）。 */
+export interface LayoutInputs {
+  /** `?layout=` 嘅 preview override（唔會寫入偏好） */
+  preview: LayoutId | null
+  /** 今次 page load 喺 Settings 手動揀過（覆蓋窄屏自動，但唔會持久化窄屏嗰層） */
+  pick: LayoutId | null
+  /** viewport 係唔係窄屏（`MOBILE_MAX_WIDTH`） */
+  narrow: boolean
+  /** `localStorage['skc-layout']` 記住嘅偏好 */
+  preferred: LayoutId
+}
+
+/**
+ * 決定實際 render 邊套結構。**純函數**（無 React／DOM 依賴）—— 呢個係窄屏自動切換嘅唯一真源，
+ * 亦係將來自動化測試可以直接 import 嘅位置（repo 而家冇 DOM harness，見 status #25）。
+ *
+ * 優先次序：`?layout=` > 今次手動揀 > 窄屏自動 `mobile` > 儲存嘅偏好。
+ *
+ * 注意（**CDP 實測過**）：窄屏自動**唔會將 `mobile` 寫入 `localStorage`** —— persist 寫嘅永遠係
+ * `preferred`（你喺 Settings 真揀嗰個）。所以：
+ * - 手機 reload 一定返 `mobile`，但你嘅偏好唔會被打亂；
+ * - 窄屏睇完之後返去闊屏，仍然係你原本揀嗰套（唔會殘留 `mobile`）；
+ * - 想喺窄屏固定睇某一套，用 `?layout=`（preview，同樣唔寫入）。
+ *   （第一次到訪仍然會寫入 default `'chat'`，同未加手機版之前完全一樣。）
+ */
+export function resolveLayout({ preview, pick, narrow, preferred }: LayoutInputs): LayoutId {
+  return preview ?? pick ?? (narrow ? 'mobile' : preferred)
+}
 
 /** 新結構 home／scene 之間嘅唯一導覽介面（唔好再逐個 callback 傳） */
 export interface ShellNav {

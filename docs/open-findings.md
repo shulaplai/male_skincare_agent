@@ -54,6 +54,7 @@
 - **真相 vision smoke test**：開 ☁️、用手機／真相 upload、確認 `vision_used: true` 同 badge 出。
 - **Branch protection**：`main` 而家冇 protection、冇 ruleset，而 CI 曾經紅住照上 main。呢個係 GitHub repo 設定，唔關 code 事。
 - **真-embedder eval**：要 download 0.22 GB model，而且 fastembed 版本之間 pooling 未 pin。
+- **手機版 UI 冇自動化回歸防線**：手機版（第 4 套 layout shell）**已經實作並實測過** —— 用 Chrome DevTools Protocol 對真瀏覽器（真 backend + `scripts/seed_demo.py` demo DB）量過 390／760／761／900／1140／1280px：窄屏自動入 `layout-mobile` 單欄、底部 tab bar 5×78px、`scrollWidth == innerWidth`、zero console error；闊屏三套同加手機版之前**逐 px 一樣**。**但**個 harness 係 ad-hoc 寫喺 `/tmp`、冇入 repo、CI 唔會重跑，`frontend/package.json` 仍然冇 `test` script。所以「手機版每次改動都唔會爆」**冇任何自動化保證** —— 呢個正係 [#12](https://github.com/shulaplai/male_skincare_agent/issues/12) 未決嘅問題。要補就係開 #12 個決定，唔應該由實作手機版嘅人順手塞個 harness 入去。
 
 ---
 
