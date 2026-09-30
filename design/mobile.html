@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SkinCoach — 揀手機版樣式</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  手機版樣式 chooser。
+  三個樣板係 390×844 嘅真 phone frame，用 iframe 縮到 0.6 睇縮圖；撳「全屏睇」入去可以撳。
+  樣板內容一律係假數據（每份都有「假數據 · 設計樣板」標示）。
+  語彙跟 design/index.html（桌面方向嗰個 chooser），但手機樣板用返出貨 app 嘅 token 而唔係
+  桌面 mockup 嗰套 Newsreader / cream-forest 語言 —— 因為呢幾套係要真係實作落 frontend 嘅。
+-->
+<style>
+  :root{
+    --bg:#12100c; --panel:#1c1813; --line:#2e2820; --text:#efe8da; --muted:#a29785;
+    --accent:#d99a4e;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Work Sans',sans-serif;min-height:100vh}
+  .wrap{max-width:1120px;margin:0 auto;padding:44px 26px 70px}
+  header{text-align:center;margin-bottom:34px}
+  header .tag{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+  header h1{font-family:'Fraunces',serif;font-weight:600;font-size:40px;letter-spacing:-.5px}
+  header p{color:var(--muted);margin-top:12px;max-width:600px;margin-left:auto;margin-right:auto;
+    line-height:1.65;font-size:14.5px}
+
+  .how{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;
+    margin:0 auto 34px;max-width:760px;font-size:13.5px;color:var(--muted);line-height:1.75;
+  }
+  .how b{color:var(--text)}
+  .how code{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);
+    background:rgba(217,154,78,.1);padding:1px 6px;border-radius:5px}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    display:flex;flex-direction:column}
+  .card .frame{
+    height:540px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+    display:flex;align-items:flex-start;justify-content:center;background:#0b0a08;
+  }
+  .card iframe{
+    width:420px;height:900px;border:0;flex:none;
+    transform:scale(.6);transform-origin:top center;pointer-events:none;
+  }
+  .card .body{padding:18px 20px 20px;display:flex;flex-direction:column;flex:1}
+  .card .body .n{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em;
+    color:var(--accent);text-transform:uppercase}
+  .card .body h2{font-family:'Fraunces',serif;font-weight:600;font-size:21px;margin:8px 0 7px}
+  .card .body p{color:var(--muted);font-size:13.5px;line-height:1.62}
+  .card .body dl{margin-top:13px;display:flex;flex-direction:column;gap:6px}
+  .card .body dl div{display:flex;gap:9px;font-size:12.5px;line-height:1.45}
+  .card .body dt{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);
+    flex:none;width:52px;padding-top:2px}
+  .card .body dd{color:var(--text)}
+  .card .body a{
+    display:inline-block;margin-top:auto;padding-top:16px;color:#1a1206;background:var(--accent);
+    padding:10px 18px;border-radius:9px;text-decoration:none;font-weight:600;font-size:13.5px;
+    align-self:flex-start;
+  }
+  .card .body a:hover{filter:brightness(1.08)}
+
+  footer{margin-top:38px;color:var(--muted);font-size:13px;line-height:1.7;text-align:center}
+  footer a{color:var(--accent)}
+  @media(max-width:900px){.cards{grid-template-columns:1fr}.card .frame{height:560px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">SkinCoach · 手機版樣式選擇</div>
+    <h1>揀一個手機版樣式</h1>
+    <p>
+      三個都係同一個手機版 app：同樣五個底部 tab、同樣真數據、同樣元件。分別係<b>主角</b>、
+      <b>色系</b>同<b>打卡入口</b>。下面係縮細預覽，撳「全屏睇」開獨立頁（可以撳、可以切日夜）。
+    </p>
+  </header>
+
+  <div class="how">
+    <b>點睇：</b>撳下面任何一張卡嘅「全屏睇」→ 獨立頁；頁面右下角有列可以即刻跳去另外兩個樣式。<br />
+    <b>開唔到／iframe 空白：</b>喺 <b>repo root</b> 行
+    <code>python3 -m http.server 8080 --bind 127.0.0.1 --directory design</code>，再開
+    <code>http://127.0.0.1:8080/mobile.html</code>。<br />
+    <span style="opacity:.8">（唔好就咁 <code>python3 -m http.server</code> 喺 repo root 行 —— 咁會連
+    <code>backend/.env</code> 都 serve 出去，而且默認 bind 晒所有 interface。上面條 command 只 serve
+    <code>design/</code>、只限本機。直接雙擊開 <code>file://</code> 一般都冇問題。）</span><br />
+    <b>真手機睇：</b>喺個 URL 後面加 <code>#noframe</code>（例如 <code>mobile-1-soft-cards.html#noframe</code>），
+    就會去掉機殼同假 status bar、全屏填滿。<br />
+    <b>要注意：</b>樣板入面所有數字同文字都係<b>假數據</b>（每份都有標示），用嚟比較視覺，唔代表 app 有呢啲內容。<br />
+    <b>唔關事：</b>呢三個樣式同出貨 app 三個桌面結構（教練對話／皮膚日記／進度儀表板）係兩件事 ——
+    桌面結構係「排法」，呢度係「手機上嗰個排法長咩樣」。
+  </div>
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="frame"><iframe src="mobile-1-soft-cards.html" scrolling="no"></iframe></div>
+      <div class="body">
+        <div class="n">手機樣式 01</div>
+        <h2>柔卡</h2>
+        <p>延續 SkinCoach 而家嘅樣：大 hero 卡、柔和陰影、serif 標題、玫瑰粉色系。最似「同一個 app 換細咗」，實作風險最低。</p>
+        <dl>
+          <div><dt>主角</dt><dd>一個大 hero 卡（今日膚況 2/3 ＋ 環形進度）</dd></div>
+          <div><dt>色系</dt><dd>玫瑰粉（＝而家出貨嘅 token，零新增）</dd></div>
+          <div><dt>打卡</dt><dd>滿寬大按鈕（頁面第二格）</dd></div>
+          <div><dt>Tab</dt><dd>active 只用 accent 文字色</dd></div>
+        </dl>
+        <a href="mobile-1-soft-cards.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="frame"><iframe src="mobile-2-journal-flow.html" scrolling="no"></iframe></div>
+      <div class="body">
+        <div class="n">手機樣式 02</div>
+        <h2>日記流</h2>
+        <p>相片主導嘅垂直時間軸 feed，似個人日記 app。冇 hero 卡、冇漸變，一開就係你嘅紀錄。苔綠色系。</p>
+        <dl>
+          <div><dt>主角</dt><dd>相（每日一張滿寬大相）</dd></div>
+          <div><dt>色系</dt><dd>苔綠（＝journal 結構嘅 token）</dd></div>
+          <div><dt>打卡</dt><dd>右下浮動 ＋ FAB</dd></div>
+          <div><dt>Tab</dt><dd>active 用淺綠 pill 底</dd></div>
+        </dl>
+        <a href="mobile-2-journal-flow.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="frame"><iframe src="mobile-3-dark-metrics.html" scrolling="no"></iframe></div>
+      <div class="body">
+        <div class="n">手機樣式 03</div>
+        <h2>儀表</h2>
+        <p>數字主導、深色優先。大 mono 數字 ＋ sparkline ＋ 2×2 metric tile。最似健康追蹤 app，demo／面試最「有數據」。</p>
+        <dl>
+          <div><dt>主角</dt><dd>數字（64px 膚況分數 ＋ 7 日 sparkline）</dd></div>
+          <div><dt>色系</dt><dd>藍（＝dash 結構嘅 token），深色優先</dd></div>
+          <div><dt>打卡</dt><dd>頂 bar 一個細 pill</dd></div>
+          <div><dt>Tab</dt><dd>active 用 accent 實心 pill</dd></div>
+        </dl>
+        <a href="mobile-3-dark-metrics.html" target="_blank">全屏睇 →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    揀好之後同我講一聲（例：「03」、「02 嘅底 + 01 嘅 tab」），我就照住實作落
+    <code style="font-family:'JetBrains Mono',monospace;color:var(--accent)">frontend/</code>，做第 4 套 layout
+    shell。<br />
+    桌面方向嗰個 chooser 喺 <a href="index.html">index.html</a>（方向 01 已選，即係而家出貨嘅結構）。
+  </footer>
+</div>
+</body>
+</html>

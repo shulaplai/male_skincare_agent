@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SkinCoach 手機樣式 02 — 日記流</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  手機樣式 02 ·「日記流」
+  主角 = 相。垂直時間軸 feed，似 Day One；苔綠 palette（沿用出貨 app 嘅 journal layout token）。
+  呢個檔係設計樣板，唔係 app：所有數字／文字都係假數據。
+  URL hash：
+    #noframe → 冇機殼、冇假 status bar，全屏填滿（真手機睇用）
+  喺 iframe 入面會自動收埋右下角控制列。
+-->
+<style>
+  :root{
+    --bg:#fbfaf6; --panel:#f6f5ef; --card:#ffffff; --line:#e6e3d8;
+    --text:#2f3229; --muted:#8b8f7f; --faint:#b3b7a6;
+    --accent:#7aa86f; --accent-soft:#cfdfc6; --accent-deep:#55844e;
+    --good:#5f9c78; --warn:#c98a5f;
+    --glow:rgba(122,168,111,.16);
+    --shadow:0 8px 28px -18px rgba(70,90,60,.34);
+    --serif:'Fraunces',serif; --sans:'Nunito Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+    --tray:#111014;
+  }
+  [data-theme='dark']{
+    --bg:#161a15; --panel:#1c211b; --card:#222823; --line:#333a31;
+    --text:#e9efe4; --muted:#9aa494; --faint:#6c7566;
+    --accent:#8fbe84; --accent-soft:#4c6b46; --accent-deep:#a9d29f;
+    --good:#7fbf9c; --warn:#dfa172;
+    --glow:rgba(143,190,132,.16);
+    --shadow:0 8px 28px -18px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--tray);display:grid;place-items:center;font-family:var(--sans);color:var(--text)}
+
+  .phone{
+    width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden;
+    background:var(--bg);position:relative;
+    outline:6px solid #1a1a1d;border-radius:42px;
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.06);
+    background-image:radial-gradient(520px 240px at 50% -14%,var(--glow),transparent 62%);
+  }
+  html.noframe body{background:var(--bg);display:block}
+  html.noframe .phone{width:100vw;height:100dvh;outline:none;border-radius:0;box-shadow:none;
+    padding-top:env(safe-area-inset-top,0px)}
+  html.noframe .iosbar{display:none}
+  html.noframe .tray{display:none}
+
+  .iosbar{
+    flex:none;height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:13px;font-weight:800;letter-spacing:.2px;
+  }
+  .iosbar .r{display:flex;align-items:center;gap:5px}
+  .sig{display:flex;align-items:flex-end;gap:1.5px;height:9px}
+  .sig b{width:2.5px;background:var(--text);border-radius:1px}
+  .sig b:nth-child(1){height:3px}.sig b:nth-child(2){height:5px}
+  .sig b:nth-child(3){height:7px}.sig b:nth-child(4){height:9px}
+  .wifi{width:12px;height:9px;border:2px solid var(--text);border-bottom:0;border-radius:12px 12px 0 0}
+  .bat{width:19px;height:9.5px;border:1.5px solid var(--text);border-radius:3px;position:relative}
+  .bat::after{content:'';position:absolute;right:-3.5px;top:2.5px;width:2px;height:4px;
+    background:var(--text);border-radius:0 1px 1px 0}
+  .bat i{position:absolute;inset:1.5px;width:62%;background:var(--text);border-radius:1.5px;display:block}
+
+  .tray{
+    position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:9;
+    font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8b8790;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+    padding:3px 9px;border-radius:999px;white-space:nowrap;
+  }
+
+  /* ---------- 頂 bar：透明融入底，冇 border ---------- */
+  .topbar{
+    flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:4px 16px 8px;
+  }
+  .topbar .brand{font-family:var(--serif);font-weight:600;font-size:23px;letter-spacing:-.2px}
+  .topbar .brand em{font-style:normal;color:var(--accent-deep)}
+  .right{display:flex;align-items:center;gap:7px;flex:none}
+  .part{
+    display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);
+    border-radius:999px;padding:5px 11px;font-family:var(--sans);font-size:12.5px;font-weight:700;
+    color:var(--text);cursor:pointer;max-width:44vw;
+  }
+  .part .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .part .cv{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+  .ic{
+    width:32px;height:32px;border-radius:999px;border:1px solid var(--line);background:var(--card);
+    color:var(--muted);font-size:14px;display:grid;place-items:center;cursor:pointer;flex:none;
+  }
+
+  /* ---------- feed ---------- */
+  .content{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 104px;scrollbar-width:none}
+  .content::-webkit-scrollbar{display:none}
+
+  .feed{position:relative;padding-left:22px}
+  .feed::before{content:'';position:absolute;left:4px;top:10px;bottom:14px;width:1.5px;
+    background:var(--line);border-radius:2px}
+
+  .day{position:relative;padding-bottom:26px}
+  .day .node{
+    position:absolute;left:-22px;top:5px;width:9px;height:9px;border-radius:50%;
+    background:var(--accent);box-shadow:0 0 0 3px var(--bg);
+  }
+  .day.today .node{box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--glow)}
+  .day .head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px}
+  .day .head .d{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em}
+  .day .head .sc{font-family:var(--mono);font-size:12px;color:var(--accent-deep);flex:none}
+
+  .photo{
+    width:100%;aspect-ratio:4/3;border-radius:15px;border:1px solid var(--line);
+    position:relative;overflow:hidden;
+    background:
+      radial-gradient(110% 85% at 32% 24%, rgba(255,255,255,.55), transparent 58%),
+      radial-gradient(85% 70% at 72% 78%, rgba(122,168,111,.26), transparent 66%),
+      linear-gradient(140deg,#f0e8d8,#e3cbb6 55%,#cfae9a);
+  }
+  [data-theme='dark'] .photo{
+    background:
+      radial-gradient(110% 85% at 32% 24%, rgba(255,255,255,.14), transparent 58%),
+      radial-gradient(85% 70% at 72% 78%, rgba(143,190,132,.2), transparent 66%),
+      linear-gradient(140deg,#4c4740,#3c3730 55%,#2f2b26);
+  }
+  .photo::after{
+    content:'樣板相片';position:absolute;left:9px;bottom:9px;
+    font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+    color:rgba(47,50,41,.62);background:rgba(255,255,255,.7);
+    padding:2px 7px;border-radius:999px;
+  }
+  [data-theme='dark'] .photo::after{color:rgba(233,239,228,.74);background:rgba(0,0,0,.45)}
+
+  .note{font-size:15px;line-height:1.68;margin-top:11px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .chip{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:999px;
+    padding:3px 8px;color:var(--muted);background:var(--card)}
+  .chip.up{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+  .chip.down{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent)}
+
+  .reply{
+    margin-top:12px;border-left:3px solid var(--accent-soft);background:var(--panel);
+    border-radius:0 13px 13px 0;padding:11px 14px;font-size:13.5px;line-height:1.6;
+  }
+  .reply .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:5px}
+
+  .more{
+    width:100%;border:1.5px dashed var(--line);background:transparent;border-radius:13px;
+    padding:11px;font-family:var(--sans);font-size:13px;font-weight:700;color:var(--muted);
+    cursor:pointer;
+  }
+
+  /* ---------- FAB ---------- */
+  .fab{
+    position:absolute;right:16px;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:4;
+    width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+    font-size:24px;line-height:1;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent-deep));
+    box-shadow:0 14px 30px -10px var(--accent);
+    display:grid;place-items:center;
+  }
+  .fab:active{transform:scale(.96)}
+
+  /* ---------- 底部 tab：active = soft pill ---------- */
+  .tabs{
+    flex:none;display:grid;grid-template-columns:repeat(5,1fr);gap:2px;
+    padding:6px 8px;background:var(--panel);border-top:1px solid var(--line);
+    padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+  }
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 5px;
+    text-decoration:none;color:var(--muted);font-size:9.5px;font-weight:700;border-radius:999px}
+  .tabs a .ti{font-size:19px;line-height:1}
+  .tabs a.on{background:var(--accent-soft);color:var(--accent-deep)}
+
+  /* ---------- 機殼外控制列 ---------- */
+  .controls{
+    position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9;
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;
+    font-family:var(--mono);font-size:10px;
+  }
+  .controls a,.controls span.tag{
+    color:#9a959e;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+    padding:5px 10px;border-radius:999px;text-decoration:none;white-space:nowrap;
+  }
+  .controls a.on{color:#12100c;background:#d99a4e;border-color:#d99a4e;font-weight:700}
+  .controls a:hover{border-color:#d99a4e;color:#d99a4e}
+  .controls a.on:hover{color:#12100c}
+  html.embedded .controls,html.noframe .controls{display:none}
+</style>
+</head>
+<body>
+
+<div class="tray">假數據 · 設計樣板 · 手機樣式 02 日記流</div>
+
+<div class="phone">
+  <div class="iosbar">
+    <span>9:41</span>
+    <span class="r">
+      <span class="sig"><b></b><b></b><b></b><b></b></span>
+      <span class="wifi"></span>
+      <span class="bat"><i></i></span>
+    </span>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">皮膚<em>日記</em></div>
+    <div class="right">
+      <button class="part"><span>🧔</span><span class="nm">面部皮膚</span><span class="cv">▾</span></button>
+      <button class="ic" title="雲分析已開（影相會送雲端 vision）">☁️</button>
+      <button class="ic" id="theme" title="切換日／夜模式">🌙</button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="feed">
+
+      <article class="day today">
+        <div class="node"></div>
+        <div class="head"><span class="d">2025-11-14 · 星期五</span><span class="sc">2/3</span></div>
+        <div class="photo"></div>
+        <p class="note">下巴兩粒細咗，冇咁紅。夜晚洗完面有少少乾。</p>
+        <div class="chips">
+          <span class="chip down">暗瘡 3→2 ↓</span>
+          <span class="chip down">油光 2→1 ↓</span>
+          <span class="chip">泛紅 2 →</span>
+        </div>
+        <blockquote class="reply">
+          <div class="k">教練回覆 · Agent</div>
+          連續三日暗瘡分數下降，同你 11-12 之後停咗辣嘢吻合。建議維持水楊酸隔日一次，唔好加頻率 —— 乾燥分數已經由 1 落到 0，再加會拉返上去。
+        </blockquote>
+      </article>
+
+      <article class="day">
+        <div class="node"></div>
+        <div class="head"><span class="d">2025-11-13 · 星期四</span><span class="sc">2/3</span></div>
+        <div class="photo"></div>
+        <p class="note">夜晚用咗水楊酸 toner，第二朝有啲乾。</p>
+        <div class="chips">
+          <span class="chip">暗瘡 3 →</span>
+          <span class="chip up">乾燥 0→1 ↑</span>
+        </div>
+        <blockquote class="reply">
+          <div class="k">教練回覆 · Agent</div>
+          水楊酸會帶走皮脂，初期乾燥係正常。隔日一次、之後補返清爽型保濕就夠。
+        </blockquote>
+      </article>
+
+      <article class="day">
+        <div class="node"></div>
+        <div class="head"><span class="d">2025-11-12 · 星期三</span><span class="sc">3/3</span></div>
+        <div class="photo"></div>
+        <p class="note">打邊爐之後即刻爆咗一粒，下巴又紅又痛。</p>
+        <div class="chips">
+          <span class="chip up">暗瘡 2→3 ↑</span>
+          <span class="chip up">泛紅 1→2 ↑</span>
+        </div>
+        <blockquote class="reply">
+          <div class="k">教練回覆 · Agent</div>
+          呢粒同 10-28 嗰次一樣，都係辛辣之後 1–2 日出現。我已經記低呢個模式，下次你打邊爐我會提前提你。
+        </blockquote>
+      </article>
+
+      <button class="more">更早 ↓</button>
+    </div>
+  </main>
+
+  <button class="fab" title="今日打卡／問教練">＋</button>
+
+  <nav class="tabs">
+    <a class="on" href="#"><span class="ti">☀️</span>今日</a>
+    <a href="#"><span class="ti">💬</span>對話</a>
+    <a href="#"><span class="ti">🗂️</span>記錄</a>
+    <a href="#"><span class="ti">📈</span>進度</a>
+    <a href="#"><span class="ti">⚙️</span>設定</a>
+  </nav>
+</div>
+
+<div class="controls">
+  <span class="tag">手機樣式</span>
+  <a href="mobile-1-soft-cards.html">01 柔卡</a>
+  <a class="on" href="mobile-2-journal-flow.html">02 日記流</a>
+  <a href="mobile-3-dark-metrics.html">03 儀表</a>
+  <a href="mobile.html">← 返 chooser</a>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement
+    if (location.hash === '#noframe') root.classList.add('noframe')
+    if (window.self !== window.top) root.classList.add('embedded')
+    var btn = document.getElementById('theme')
+    btn.addEventListener('click', function () {
+      var dark = root.getAttribute('data-theme') === 'dark'
+      root.setAttribute('data-theme', dark ? 'light' : 'dark')
+      btn.textContent = dark ? '🌙' : '☀️'
+    })
+  })()
+</script>
+</body>
+</html>

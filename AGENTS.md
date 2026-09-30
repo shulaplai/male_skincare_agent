@@ -43,6 +43,7 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `docs/` | architecture / roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims | 見 `docs/status-vs-claims.md` 對照 |
+| `design/` | 靜態 HTML 設計樣板：`index.html`（桌面方向 chooser，方向 01 已選）／`mobile.html`（手機樣式 chooser）＋ `mockup-*.html` / `mobile-*.html`（每個係 self-contained phone/laptop frame） | **唔喺 Vite build 範圍**（Vite root 係 `frontend/`）；**同出貨 app 係兩套視覺語言**（`mockup-*.html` 用 Newsreader + cream/forest，app 用 Fraunces + 玫瑰粉）—— 唔好當佢係 app 嘅前例；樣板內容係假數據；serve 嘅時候只 serve `design/`（唔好喺 repo root serve，會漏 `backend/.env`） |
 | `archive/skinfile/` | 上一代純前端 demo | 博物館，唔好改 |
 
 ## 設計約定（改 code 前先睇）

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SkinCoach 手機樣式 03 — 儀表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  手機樣式 03 ·「儀表」
+  主角 = 數字。深色優先嘅儀表，似 Apple Health / Bearable；藍色 palette（沿用出貨 app 嘅 dash layout token）。
+  呢個檔係設計樣板，唔係 app：所有數字／文字都係假數據。
+  URL hash：
+    #noframe → 冇機殼、冇假 status bar，全屏填滿（真手機睇用）
+  喺 iframe 入面會自動收埋右下角控制列。
+-->
+<style>
+  /* 深色優先：default 就係 dark */
+  :root,[data-theme='dark']{
+    --bg:#12161c; --panel:#161b23; --card:#1a2029; --line:#28313d;
+    --text:#e8eef6; --muted:#8a97a8; --faint:#5f6b7a;
+    --accent:#6d91c9; --accent-soft:#2b3f5c; --accent-deep:#9fc0f0;
+    --good:#5fbf9a; --warn:#e0956a;
+    --glow:rgba(109,145,201,.18);
+    --shadow:none;
+    --serif:'Fraunces',serif; --sans:'Nunito Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+    --tray:#08090b;
+    --onpill:#0f141a;
+  }
+  [data-theme='light']{
+    --bg:#f7f9fc; --panel:#f2f5fa; --card:#ffffff; --line:#dfe6f0;
+    --text:#1e2733; --muted:#6b7a8d; --faint:#9daab9;
+    --accent:#6d91c9; --accent-soft:#c7d6ef; --accent-deep:#4d6ea8;
+    --good:#3f9d78; --warn:#c97a4a;
+    --glow:rgba(109,145,201,.14);
+    --shadow:0 8px 28px -20px rgba(60,90,140,.4);
+    --tray:#0e1218;
+    --onpill:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--tray);display:grid;place-items:center;font-family:var(--sans);color:var(--text)}
+
+  .phone{
+    width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden;
+    background:var(--bg);position:relative;
+    outline:6px solid #05070a;border-radius:42px;
+    box-shadow:0 40px 90px -40px rgba(0,0,0,.95), 0 0 0 1px rgba(255,255,255,.07);
+    background-image:radial-gradient(560px 260px at 50% -16%,var(--glow),transparent 62%);
+  }
+  html.noframe body{background:var(--bg);display:block}
+  html.noframe .phone{width:100vw;height:100dvh;outline:none;border-radius:0;box-shadow:none;
+    padding-top:env(safe-area-inset-top,0px)}
+  html.noframe .iosbar{display:none}
+  html.noframe .tray{display:none}
+
+  .iosbar{
+    flex:none;height:44px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 26px;font-size:13px;font-weight:800;letter-spacing:.2px;
+  }
+  .iosbar .r{display:flex;align-items:center;gap:5px}
+  .sig{display:flex;align-items:flex-end;gap:1.5px;height:9px}
+  .sig b{width:2.5px;background:var(--text);border-radius:1px}
+  .sig b:nth-child(1){height:3px}.sig b:nth-child(2){height:5px}
+  .sig b:nth-child(3){height:7px}.sig b:nth-child(4){height:9px}
+  .wifi{width:12px;height:9px;border:2px solid var(--text);border-bottom:0;border-radius:12px 12px 0 0}
+  .bat{width:19px;height:9.5px;border:1.5px solid var(--text);border-radius:3px;position:relative}
+  .bat::after{content:'';position:absolute;right:-3.5px;top:2.5px;width:2px;height:4px;
+    background:var(--text);border-radius:0 1px 1px 0}
+  .bat i{position:absolute;inset:1.5px;width:62%;background:var(--text);border-radius:1.5px;display:block}
+
+  .tray{
+    position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:9;
+    font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+    color:#8b8790;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+    padding:3px 9px;border-radius:999px;white-space:nowrap;
+  }
+
+  /* ---------- 頂 bar：打卡 CTA 縮成細 pill ---------- */
+  .topbar{
+    flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:2px 14px 10px;
+  }
+  .part{
+    display:flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);
+    border-radius:11px;padding:6px 10px;font-family:var(--sans);font-size:12.5px;font-weight:700;
+    color:var(--text);cursor:pointer;max-width:40vw;
+  }
+  .part .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .part .cv{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
+  .acts{display:flex;align-items:center;gap:6px;flex:none}
+  .ic{
+    width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+    color:var(--muted);font-size:14px;display:grid;place-items:center;cursor:pointer;flex:none;
+  }
+  .pill{
+    display:flex;align-items:center;gap:5px;border:none;border-radius:999px;cursor:pointer;
+    padding:8px 13px;font-family:var(--sans);font-size:12.5px;font-weight:800;
+    background:var(--accent-deep);color:var(--onpill);white-space:nowrap;
+  }
+
+  /* ---------- 內容 ---------- */
+  .content{flex:1;min-height:0;overflow-y:auto;padding:0 14px 22px;
+    display:flex;flex-direction:column;gap:13px;scrollbar-width:none}
+  .content::-webkit-scrollbar{display:none}
+
+  /* hero：唔用卡，直接落底 */
+  .hero{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:6px 4px 2px}
+  .hero .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .hero .big{font-family:var(--mono);font-size:64px;font-weight:500;line-height:.94;
+    letter-spacing:-3px;margin-top:4px}
+  .hero .big small{font-size:22px;letter-spacing:0;color:var(--faint)}
+  .hero .sub{font-family:var(--mono);font-size:10.5px;color:var(--good);margin-top:7px;letter-spacing:.02em}
+  .spark{width:120px;height:46px;flex:none;overflow:visible}
+  .spark .area{fill:var(--glow)}
+  .spark .line{stroke:var(--accent);stroke-width:2;fill:none;stroke-linejoin:round;stroke-linecap:round}
+  .spark .dot{fill:var(--accent)}
+  .spark .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4}
+
+  /* 2×2 metric tiles：扁平、冇陰影 */
+  .tiles{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 13px}
+  .tile .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .tile .row{display:flex;align-items:baseline;gap:8px;margin-top:7px}
+  .tile .v{font-family:var(--mono);font-size:27px;font-weight:500;line-height:1;letter-spacing:-1px}
+  .tile .v small{font-size:12px;color:var(--faint);letter-spacing:0}
+  .tile .d{font-family:var(--mono);font-size:10px;margin-left:auto}
+  .tile .d.bad{color:var(--warn)}
+  .tile .d.good{color:var(--good)}
+  .tile .d.same{color:var(--faint)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px}
+  .card h3{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--faint);margin-bottom:11px}
+
+  /* 相關性 */
+  .corr{border-left:3px solid var(--warn);display:flex;align-items:center;gap:11px}
+  .corr .t{font-size:14px;font-weight:800}
+  .corr .m{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px}
+  .corr .dir{margin-left:auto;font-family:var(--mono);font-size:16px;color:var(--warn);flex:none}
+
+  /* AI 記得你：唔用卡，用分隔線 */
+  .mems{display:flex;flex-direction:column}
+  .mem{padding:11px 2px;border-bottom:1px solid var(--line)}
+  .mem:last-child{border-bottom:none;padding-bottom:2px}
+  .mem .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;
+    display:flex;align-items:center;gap:6px}
+  .mem .k.fact{color:var(--good)}
+  .mem .k.derived{color:var(--accent-deep)}
+  .mem .x{font-size:13px;line-height:1.5;margin-top:5px;font-weight:600}
+  .mem .cf{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:auto}
+
+  /* 最近記錄：緊湊 list */
+  .recent{display:flex;flex-direction:column;gap:10px}
+  .rrow{display:flex;align-items:center;gap:11px}
+  .rrow .photo{width:44px;height:44px;flex:none;border-radius:11px}
+  .rrow .t{min-width:0;flex:1}
+  .rrow .d{font-family:var(--mono);font-size:9.5px;color:var(--faint);letter-spacing:.04em}
+  .rrow .n{font-size:12.5px;line-height:1.4;margin-top:3px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rrow .sc{font-family:var(--mono);font-size:13px;color:var(--accent-deep);flex:none}
+
+  .photo{
+    border:1px solid var(--line);position:relative;overflow:hidden;
+    background:
+      radial-gradient(110% 85% at 32% 24%, rgba(255,255,255,.16), transparent 58%),
+      radial-gradient(85% 70% at 72% 78%, rgba(109,145,201,.3), transparent 66%),
+      linear-gradient(140deg,#3a4553,#2c3540 55%,#232a33);
+  }
+  [data-theme='light'] .photo{
+    background:
+      radial-gradient(110% 85% at 32% 24%, rgba(255,255,255,.6), transparent 58%),
+      radial-gradient(85% 70% at 72% 78%, rgba(109,145,201,.26), transparent 66%),
+      linear-gradient(140deg,#dfe7f2,#c9d6e6 55%,#b3c4d8);
+  }
+
+  /* ---------- 底部 tab：active = accent 實心 pill ---------- */
+  .tabs{
+    flex:none;display:grid;grid-template-columns:repeat(5,1fr);gap:3px;
+    padding:6px 8px;background:var(--panel);border-top:1px solid var(--line);
+    padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));
+  }
+  .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 5px;
+    text-decoration:none;color:var(--muted);font-size:9px;font-weight:700;border-radius:999px}
+  .tabs svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+  .tabs a.on{background:var(--accent-deep);color:var(--onpill)}
+
+  /* ---------- 機殼外控制列 ---------- */
+  .controls{
+    position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:9;
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;
+    font-family:var(--mono);font-size:10px;
+  }
+  .controls a,.controls span.tag{
+    color:#9a959e;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+    padding:5px 10px;border-radius:999px;text-decoration:none;white-space:nowrap;
+  }
+  .controls a.on{color:#12100c;background:#d99a4e;border-color:#d99a4e;font-weight:700}
+  .controls a:hover{border-color:#d99a4e;color:#d99a4e}
+  .controls a.on:hover{color:#12100c}
+  html.embedded .controls,html.noframe .controls{display:none}
+</style>
+</head>
+<body>
+
+<div class="tray">假數據 · 設計樣板 · 手機樣式 03 儀表</div>
+
+<div class="phone">
+  <div class="iosbar">
+    <span>9:41</span>
+    <span class="r">
+      <span class="sig"><b></b><b></b><b></b><b></b></span>
+      <span class="wifi"></span>
+      <span class="bat"><i></i></span>
+    </span>
+  </div>
+
+  <header class="topbar">
+    <button class="part"><span>🧔</span><span class="nm">面部皮膚</span><span class="cv">▾</span></button>
+    <div class="acts">
+      <button class="pill">✍️ 打卡</button>
+      <button class="ic" title="雲分析已開（影相會送雲端 vision）">☁️</button>
+      <button class="ic" id="theme" title="切換日／夜模式">☀️</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <section class="hero">
+      <div>
+        <div class="k">今日膚況 · 11/14</div>
+        <div class="big">2<small>/3</small></div>
+        <div class="sub">↓ 對比昨日 3/3</div>
+      </div>
+      <svg class="spark" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+        <path class="grid" d="M0 4 H120 M0 14 H120 M0 24 H120 M0 34 H120" />
+        <path class="area" d="M0 4 L20 4 L40 14 L60 4 L80 14 L100 14 L120 14 L120 40 L0 40 Z" />
+        <path class="line" d="M0 4 L20 4 L40 14 L60 4 L80 14 L100 14 L120 14" />
+        <circle class="dot" cx="0" cy="4" r="2.1" /><circle class="dot" cx="20" cy="4" r="2.1" />
+        <circle class="dot" cx="40" cy="14" r="2.1" /><circle class="dot" cx="60" cy="4" r="2.1" />
+        <circle class="dot" cx="80" cy="14" r="2.1" /><circle class="dot" cx="100" cy="14" r="2.1" />
+        <circle class="dot" cx="120" cy="14" r="2.6" />
+      </svg>
+    </section>
+
+    <div class="tiles">
+      <div class="tile"><div class="k">暗瘡</div><div class="row"><span class="v">2<small>/3</small></span><span class="d good">↓ 1</span></div></div>
+      <div class="tile"><div class="k">油光</div><div class="row"><span class="v">1<small>/3</small></span><span class="d good">↓ 1</span></div></div>
+      <div class="tile"><div class="k">泛紅</div><div class="row"><span class="v">2<small>/3</small></span><span class="d same">→ 0</span></div></div>
+      <div class="tile"><div class="k">乾燥</div><div class="row"><span class="v">0<small>/3</small></span><span class="d good">↓ 1</span></div></div>
+      <div class="tile"><div class="k">毛孔</div><div class="row"><span class="v">1<small>/3</small></span><span class="d same">→ 0</span></div></div>
+      <div class="tile"><div class="k">質感</div><div class="row"><span class="v">1<small>/3</small></span><span class="d same">→ 0</span></div></div>
+    </div>
+
+    <section class="card corr">
+      <div style="min-width:0">
+        <div class="t">🍜 辣 → 暗瘡 ↑</div>
+        <div class="m">3 次觀察 · 10-28 → 11-12</div>
+      </div>
+      <div class="dir">↑</div>
+    </section>
+
+    <section class="card">
+      <h3>AI 記得你</h3>
+      <div class="mems">
+        <div class="mem">
+          <div class="k fact">事實 <span class="cf">0.82</span></div>
+          <div class="x">用咗水楊酸 toner 第 3 日</div>
+        </div>
+        <div class="mem">
+          <div class="k derived">推導記憶 <span class="cf">0.71</span></div>
+          <div class="x">你嘅暗瘡通常喺辛辣飲食後 1–2 日加重</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>最近記錄</h3>
+      <div class="recent">
+        <div class="rrow">
+          <div class="photo"></div>
+          <div class="t"><div class="d">11-14 五</div><div class="n">下巴兩粒細咗，冇咁紅。</div></div>
+          <div class="sc">2/3</div>
+        </div>
+        <div class="rrow">
+          <div class="photo"></div>
+          <div class="t"><div class="d">11-13 四</div><div class="n">夜晚用咗水楊酸 toner，第二朝有啲乾。</div></div>
+          <div class="sc">2/3</div>
+        </div>
+        <div class="rrow">
+          <div class="photo"></div>
+          <div class="t"><div class="d">11-12 三</div><div class="n">打邊爐之後即刻爆咗一粒。</div></div>
+          <div class="sc">3/3</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tabs">
+    <a class="on" href="#">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+      今日
+    </a>
+    <a href="#">
+      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.5 8.5 0 0 1-8.5-8.5A8.5 8.5 0 0 1 12.5 3c.7 0 1.4.08 2 .24L17 5l-1.5 3 3.5 1-1 2.5z" /></svg>
+      對話
+    </a>
+    <a href="#">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M3 9h18M8 4v16" /></svg>
+      記錄
+    </a>
+    <a href="#">
+      <svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 7-7" /><path d="M14 7h7v7" /></svg>
+      進度
+    </a>
+    <a href="#">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.5-2.4 1A7 7 0 0 0 14 5.4L13.5 3h-3L10 5.4A7 7 0 0 0 7.6 6.6l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .14 1.4l-2 1.5 2 3.5 2.4-1A7 7 0 0 0 10 18.6l.5 2.4h3l.5-2.4a7 7 0 0 0 2.4-1.2l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z" /></svg>
+      設定
+    </a>
+  </nav>
+</div>
+
+<div class="controls">
+  <span class="tag">手機樣式</span>
+  <a href="mobile-1-soft-cards.html">01 柔卡</a>
+  <a href="mobile-2-journal-flow.html">02 日記流</a>
+  <a class="on" href="mobile-3-dark-metrics.html">03 儀表</a>
+  <a href="mobile.html">← 返 chooser</a>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement
+    if (location.hash === '#noframe') root.classList.add('noframe')
+    if (window.self !== window.top) root.classList.add('embedded')
+    var btn = document.getElementById('theme')
+    btn.addEventListener('click', function () {
+      var dark = root.getAttribute('data-theme') === 'dark'
+      root.setAttribute('data-theme', dark ? 'light' : 'dark')
+      btn.textContent = dark ? '☀️' : '🌙'
+    })
+  })()
+</script>
+</body>
+</html>
