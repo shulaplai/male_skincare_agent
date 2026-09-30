@@ -76,9 +76,19 @@ def run(sf, embedder, cid, *, tool_override=None, vision_llm=None, text="下巴�
 
 
 def test_tool_guide_lists_every_whitelisted_tool():
-    bullets = [line for line in TOOL_GUIDE.splitlines() if line.startswith("- `")]
-    documented = {m for line in bullets for m in re.findall(r"`([a-z_]+)`", line)}
-    assert documented == WHITELIST, f"prompt 講嘅 tool {documented} ≠ whitelist {WHITELIST}"
+    """TOOL_GUIDE 同 `tools.WHITELIST` 必須完全一致。
+
+    ⚠️ 呢個 test 以前靠 `line.startswith("- `")` 抽名，即係綁死咗 bullet 格式 ——
+    而 TOOL_GUIDE 嘅**措辭本身係 load-bearing**（講成「你可以 call 呢啲工具」會令
+    DeepSeek 真嘅 emit 一個叫 `search_knowledge` 嘅 function call，搞到
+    `OutputParserException` 而成個 consult 500）。所以抽名要格式無關，
+    否則下次改措辭又會被一個格式假象擋住。
+    """
+    names = set(re.findall(r"`([a-z_]+)`", TOOL_GUIDE)) - {"tool_calls"}
+    assert names == WHITELIST, f"prompt 講嘅 tool {names} ≠ whitelist {WHITELIST}"
+    assert "唔可以 call" in TOOL_GUIDE, (
+        "TOOL_GUIDE 必須明確講明唔可以 call function —— 否則 model 會當呢啲名係可 call 嘅工具"
+    )
 
 
 def test_analyze_system_prompt_includes_tool_guide():

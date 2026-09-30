@@ -105,7 +105,29 @@ def test_structured_retries_once_on_parse_failure():
 
     flaky = Flaky(fail_times=1)
     assert invoke(object(), flaky, [("human", "hi")]) == "parsed"
-    assert flaky.calls == 2, "a single parse failure should be retried once"
+    assert flaky.calls == 2, "a single parse failure should be retried"
+
+    # Retrying the SAME messages was not enough on the live path (two failures in a
+    # row observed), so the retry must also say what was wrong. Assert the correction
+    # actually reaches the model — that is the whole point of the change.
+    seen: list[list] = []
+
+    class Recorder:
+        def __init__(self):
+            self.calls = 0
+
+        def invoke(self, messages):
+            self.calls += 1
+            seen.append(list(messages))
+            if self.calls == 1:
+                raise OutputParserException("Unknown tool type: 'search_knowledge'.")
+            return "parsed"
+
+    rec = Recorder()
+    assert invoke(object(), rec, [("human", "hi")]) == "parsed"
+    assert seen[0] == [("human", "hi")], "first attempt sends the original messages"
+    assert len(seen[1]) == 2, "retry appends a message"
+    assert "唔可以 call" in seen[1][-1][1], "retry must tell the model it cannot call tools"
 
     always = Flaky(fail_times=99)
     try:
@@ -114,4 +136,4 @@ def test_structured_retries_once_on_parse_failure():
         pass
     else:
         raise AssertionError("a persistent parse failure must propagate, not be swallowed")
-    assert always.calls == 2, "retry once, not forever"
+    assert always.calls == 3, "bounded attempts — retry, not forever"

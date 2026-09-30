@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 77 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 226 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -29,20 +29,23 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 | 路徑 | 內容 | 注意 |
 |---|---|---|
 | `backend/app/main.py` | FastAPI routes | 所有 API 都喺度；DB session 用 `get_session` |
-| `backend/app/agent/` | LangGraph agent：`graph.py`（5 nodes）、`llm.py`（adapters + get_llm）、`prompts.py`（純函數）、`schemas.py`（Pydantic 合約）、`attributes.py`（固定 attribute schema + change detect）、`tools.py`（whitelist）、`guardrails.py`（deterministic） | 核心邏輯 |
+| `backend/app/agent/` | LangGraph agent：`graph.py`（5 nodes）、`llm.py`（adapters + get_llm）、`prompts.py`（純函數）、`schemas.py`（Pydantic 合約）、`attributes.py`（固定 attribute schema + change detect）、`tools.py`（whitelist）、`guardrails.py`（deterministic）、**`ingredients.py`**（成份正規化 + 有引文嘅 seed 字典）、**`recommend.py`**（規則表：主選／次選，商品評估同指南共用）、**`product_eval.py`**（coverage matching + verdict）；全部純函數 | 核心邏輯 |
+| `backend/app/agent/product_context.py` | 商品評估嘅 **DB 膠水**：`profile_inputs()` / `evaluate_for_conversation()` / `summarise_evaluation()`。`product_eval.py` 係純函數所以唔可以自己讀 profile | **兩個 caller 共用**（`/products/evaluate` route ＋ `graph.tools`）；分開寫就一定會分岔（見下面陷阱） |
 | `backend/app/memory.py` | Memory 規則（decay / reconcile，tag+direction 語義 Q47） | pure functions；persist 喺 graph.py call |
 | `backend/app/preferences.py` | 偏好低頻抽取（Q48）：diet trigger ≥3 日 / 產品 ≥3 日 → preference insight | deterministic；apply_events 後 call |
 | `backend/app/correlation.py` | 相關性偵測（Q30）：cause episodes → attribute deltas，repeated = strong | deterministic；`/correlations` endpoint 用 |
 | `backend/app/self_report.py` | 確認自報事件 → Entry/timeline/products/facts | diet 寫 **global** timeline（Q31）；product fact hook |
 | `backend/app/rag/` | chunking / embeddings / vectorstore / hybrid / ingest | `hybrid.py` 已接線（`tools.search_knowledge` 用 `search_hybrid`） |
-| `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / **products** / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER） |
+| `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / **products** / **videos** / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER）；**新表**唔使，`create_all` 會建 |
+| `backend/app/guide.py` | In-app「男士護膚基本資料」內容（Pydantic 樹 + 每句 `citations`）；「應該用咩產品」由 `recommend.RULES` **生成**，所以指南同 agent 唔可能唔一致 | 純函數；`tests/test_guide.py` 對真 DB 逐條驗引文（CI skip） |
+| `backend/app/video.py` | 影片 → 抽格：`video_path` / `probe` / `extract_frames` / `compress_video` / `save_video` / `video_file` / `delete_video`。**≤20 秒**、上限 **100MB**（`MAX_BYTES`，串流途中驗）、最多 **6 格**、去重（32×32 灰階平均差 <6.0）。>40MB（`COMPRESS_OVER_BYTES`）自動重編碼（縮到 1280px、CRF 26、**丟音軌**）。原始片**本機儲**（`data/videos/<32hex>`）＋ `Video` row | ⚠️ **imageio 個 ffmpeg plugin 唔收 `BytesIO`**，所以一定要先寫落 disk 再解碼。⚠️ **`compress_video` 會將條片改名做 `<id>.c.mp4`** —— 搵／刪片一定要經 `video_file()`／`delete_video()`（兩個 spelling 都認），自己砌 `data_dir / v.path` 就會漏（見 `backend-flow.md` §7） |
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 77 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 226 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
-| `docs/` | architecture / roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims | 見 `docs/status-vs-claims.md` 對照 |
+| `docs/` | architecture / **backend-flow**（由請求到 DB 嘅完整流程 + 真/Fake LLM 分別）/ roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims / product-eval-plan / open-findings | 見 `docs/status-vs-claims.md` 對照；**改 pipeline 要同步 `backend-flow.md`**（佢引 `file:line`） |
 | `design/` | 靜態 HTML 設計樣板：`index.html`（桌面方向 chooser，方向 01 已選）／`mobile.html`（手機樣式 chooser）＋ `mockup-*.html` / `mobile-*.html`（每個係 self-contained phone/laptop frame） | **唔喺 Vite build 範圍**（Vite root 係 `frontend/`）；**同出貨 app 係兩套視覺語言**（`mockup-*.html` 用 Newsreader + cream/forest，app 用 Fraunces + 玫瑰粉）—— 唔好當佢係 app 嘅前例；樣板內容係假數據；serve 嘅時候只 serve `design/`（唔好喺 repo root serve，會漏 `backend/.env`） |
 | `archive/skinfile/` | 上一代純前端 demo | 博物館，唔好改 |
 
@@ -97,10 +100,38 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **`useLayout()` 只可以喺 `LayoutProvider` 嘅 child 讀**：App 本身 render provider，所以 layout 要喺 `LayoutHost`（provider 內）讀；喺 App body 讀 = 永遠 default `chat`（真實撞過，layout 切換會靜靜失效）。
 - **App wrapper class 係 `app layout-<id>`**，唔好改做 `shell-<id>` —— `.shell-chat` 係 shell 內部 chat 場景 grid container，同名會撞壞成個 app grid（chat 佈局變兩欄）。
 - **新結構嘅 data／動作一律用 hooks**：`hooks/useSummary`、`useCorrelations`、`useEntryActions`、`useInsightActions`（`refreshKey` 一 bump 就 re-fetch）；顯示 block 一律 `components/blocks.tsx`。改 API 只應該改一處。
+- **`View` 有 `guide`**：`GuideView`（男士護膚基本資料）係一個 scene，唔係第 5 套 layout —— 由 Settings「指南」入口入，四個 shell 都要 render 佢（`ChatShell`/`StandardShell`/`MobileShell` 已經有）。所以加 scene 唔會改任何 tab 數。內容來自 `GET /api/guide`；`**粗體**` 係 `RichText` 手寫嘅極簡渲染（內容係我哋自己寫，唔係用戶輸入）；圖片係 CSS 佔位方塊，`figcaption` 有「未加圖片」標示，唔可以扮真圖。
 - **`?layout=chat|journal|dash|mobile`**：URL preview override（唔會寫入偏好），demo／smoke 用。preview 生效期間喺 Settings 揀結構會**解除 preview**（`clearPreview()` 用 `replaceState` 清走參數）—— 唔做嘅話個 picker 會似壞咗。
 - **新 home 畫面食真數據**：`JournalHome`／`DashHome`／`MobileHome` 用 `getSummary`／`getCorrelations`／`p.messages`（App 已載）；空態全部係「未有…」，唔可以放 demo 數。
+- **guardrail 一定要掃 `Advice.reply`，唔止 `items`**：`reply` 係用戶真係睇到嘅 bubble（`frontend/src/App.tsx`：`res.advice.reply || res.analysis.summary`）。以前 `apply_guardrails` 同 `eval/safety.py` 都只掃 `items` —— 兩邊**同一個盲點**，所以互相照唔到。實測：同一句「每日口服抗生素 50mg」放 `items` 會被換成轉介訊息，放 `reply` 就原封不動送到用戶。改動集中在 `guardrails.advice_text()`／`contains_medical_advice()`，兩個 caller 共用，唔好再各自寫一次。
+- **`MEDICAL_TERMS` 唔可以有 bare `"mg"`**：`contains_any` 係 substring，`"mg"` 會喺任何 ASCII 字中間命中；而修好 `reply` 之後掃描範圍由兩條 bullet 變成 2–5 句，false positive 面積大增。劑量改用 `DOSE_RE`（`\d+\s*(mg|mcg|µg|ug|iu)`，要有數字前綴）。**`g`／`ml` 故意唔收** —— 佢哋係包裝容量（「呢支 30g」），唔係劑量，商品評估會成日講。
+- **eval scenario 一定要各自一個新 conversation**：`graph` 最後一定 `persist`，共用 conversation 會令 scenario 次序依賴（實測：第 2／3 個 scenario 永遠 `first_checkin=False`、memory confidence 0.60→0.65→0.70、`get_skin_profile` 回嘅 rows 係上一個 scenario 寫落嘅）。加／刪／重排一個 scenario 會改動其他。要覆蓋「已有記憶」嗰條路就用 `seed_days`，唔好靠洩漏。
+- **`ingredients.py` 個字典係 SEED，唔係完成品**：目標係 ≥200 個、來源 IECIC（`docs/product-eval-plan.md` D4），而 corpus 只有 8 個成份撐得起。**唔好手寫成份名**（連中文名）—— 咁就係憑空造事實。每個有功效主張嘅 entry 都要有 `corpus="source :: title"` 引文，`tests/test_ingredients.py` 會對真 DB 逐條驗（CI 冇 `data/` 就 skip）。**引文一定要抄到完全一樣**（連尾句號）。
 - **`MobileHome` 個環形進度係「今日記低咗幾個指標」（0–6），唔係膚況分數**：app **冇**「整體膚況分數」呢個概念（`index.css` 有 `.score` 嘅死 CSS，但 `RightPanel` 從來冇 render 過）。設計樣板 `design/mobile-1-soft-cards.html` 嗰個「膚況 2/3」係樣板自己發明 —— **唔可以照搬**（約定 #2／#10）。
 - **`LayoutPicker` 用 `Record<LayoutId, JSX.Element>` 而唔係 `if`／`switch` chain**：以前用 chain，加第 4 個 id 會**靜靜** render dash 嗰個縮圖。用 Record 漏咗就編譯唔過。
+- **test 唔可以打真 LLM**：`backend/.env` 有真 key，所以 `get_llm()` 會回真 adapter。`tests/conftest.py` 有個 autouse fixture patch **`OpenAICompatLLM._client` / `AnthropicLLM._client`** —— 唔 patch `get_llm`，因為幾個 module 用 `from … import get_llm` 各自持有 reference。呢個 guard 係撞過嘅：一個新 API test 令 suite 花咗 6 次真 API call（10.36s → 修好 0.30s）。要真 provider 一定要加 `@pytest.mark.no_real_llm_opt_out`。
+- **引文比對要 normalize 空白**：corpus 嘅 `title` 含 non-breaking space（U+00A0，例如一條 PMC title 係 `Application\xa0of`）。`test_guide.py` / `test_ingredients.py` 用 `replace(title, char(160), ' ')` 再比對 —— 唔做就會為咗一個隱形字元而查唔到。
+- **`app/guide.py` 嘅「應該用咩產品」係生成嘅，唔係手寫**：佢讀 `recommend.RULES`，所以指南同 agent 推薦唔可能唔一致。加／改規則要記住兩邊都會變。冇 corpus 來源嘅建議（例如「一次只加一樣新產品」）要**明確標明係 app 建議**，唔可以當文獻結論。
+- **`TOOL_GUIDE` 嘅措辭係 load-bearing，唔可以寫成「你可以 call 呢啲工具」**：model 會當 `search_knowledge` 係可 call 嘅 function，DeepSeek 就真嘅 emit 一個咁名嘅 tool call → `OutputParserException: Unknown tool type` → consult 掛。**特別打中產品／成份問題**（model 最想用 `search_knowledge`）。現行寫法係「你唔可以 call 任何 function，只可以喺 `tool_calls` 欄位填字串」，`tests/test_observability.py` 有斷言封住。改措辭要保留「唔可以 call」同三個名。
+- **`llm._invoke` 個 retry 一定要帶糾正訊息**：只重試同一組 messages 唔夠（實測連續兩次都失敗）。retry 時 append `FORMAT_CORRECTION`；最多 3 次；仍然失敗就拋俾 `service.run_consult` 轉成 **HTTP 503 可讀訊息**（唔好裸 500、唔好造假分析）。
+- **macOS 冇 `timeout`**：要 `gtimeout`（coreutils）。我試過用 `timeout 120 python …` 做真-LLM 測試，三次都「失敗」—— 其實 exit 127 command not found，測試根本冇跑過。做 shell 測試要檢查 exit code，唔好只信「失敗/成功」字眼。
+- **`Entry` 只喺個 turn 有皮膚證據時才寫**：閘係 `SkinAnalysis.observes_skin`（LLM 判）`or vision_used`。以前每條訊息都當打卡，而 `ANALYZE_SYSTEM` 話「未提及就畀 0」→ 問一句產品問題就會用**全 0** 覆蓋當日讀數，而且因為「一日只准一個 agent event」而將假「改善」**永久凍結**（真打卡之後都改唔返）。`persist` 唔過閘就只寫 `ChatMessage`，`entry_written: false` 會入 trace。
+- **`observes_skin` 唔可以漏入 `advise` 嘅 prompt**：真 LLM 會將欄位名照讀返俾用戶（「分析顯示 observes_skin=false」），而且將「唔係打卡」誤讀成「睇唔到皮膚」→ 叫用戶補相、**完全冇答佢問嘅問題**。`build_advise_prompt` 一定要 `pop` 走佢，並用廣東話描述情況。同埋 onboarding 引導塊**只喺 `observed` 時**才出。
+- **`imageio` 個 ffmpeg reader 只收真檔案路徑，唔收 `BytesIO`**（拆唔到，佢係 spawn 一個 ffmpeg subprocess 去讀檔）。而且 **writer 都唔收 BytesIO** —— 寫測試片一定要用 temp file。所以 `video.extract_frames()` 個簽名係 `(path)`，caller 要先 `save_video()` 落 disk。「本機儲片」呢個產品要求啱好同解碼器要求一致。
+- **抽格一定要平均分佈，唔可以 `[:max_frames]`**：實測過 3 秒片出 0.0–1.3s（全部偏喺片頭）。用戶橫掃塊面，後面嘅格先係唔同部位。而家係喺 survivors 之中等距揀。
+- **影片 endpoint 一定要串流寫落 disk**：唔可以用 `await file.read()` —— 20 秒 4K 可以 200MB+，一次過讀入 RAM 就 OOM。（上限係 100MB 而唔係無限，但仍然遠遠大過一個安全嘅 `read()`。）用 `while chunk := await file.read(1MB): out.write(chunk)`。超過 `COMPRESS_OVER_BYTES` 就 `compress_video()`（縮 1280px、CRF 26、`-an` 丟音軌）；**壓縮失敗唔可以令功能失敗**（保留原檔 + log + response 報 `compress_error`）。
+- **`video.MAX_SECONDS = 20`、`MAX_FRAMES = 6`**：實測 30 秒 → 5.2 秒一格、20 秒 → 約 3.3 秒一格。⚠️ 覆蓋範圍取決於**鏡頭有冇移動**：一條 20 秒定鏡片只出 **1 張相**（全被當重複），一條 10 秒橫掃片出足 6 張。UI 一定要提示「鏡頭慢慢掃過成塊肌」。
+- **商品評估有兩條入口，但只可以有一個定義**：`POST /api/conversations/{cid}/products/evaluate`（程式化）同 chat 入面貼成份表（`graph.tools` 偵測到就自動跑）。兩邊都要經 `app/agent/product_context.py`——分開砌 inputs 就會對「用邊個 profile 比對」有分歧，同 `guardrails` 以前掃 `items`／`reply` 兩個位係同一類 bug。`tests/test_product_eval_api.py::test_the_route_and_the_chat_path_agree` 封住。
+- **貼成份表係「一條 chat turn」，唔係第二個 UI**：用戶決定唔要獨立商品評估畫面。所以 `graph.tools` node 會用 `ingredients.looks_like_ingredient_list()` 判斷，命中就跑 `evaluate_product`，`advise` 只負責覆述。`persist` 唔會寫 `Entry`（成份表唔算皮膚觀察），所以問產品永遠唔會變成「一日皮膚數據」。
+- **`looks_like_ingredient_list()` 唔可以靠字典**：真 INCI 表有 20–40 項而 seed 字典得 31 個，靠「認得幾多個」判斷就會**漏掉所有真產品**。判斷要用結構（≥5 個逗號分隔嘅拉丁字 token、總字數 ≥40），`成份`／`INCI` marker 會降低門檻。**寧願漏（照平常答），唔好誤中（會用用戶冇貼過嘅成份嚟比對）**。實測 12 句廣東話口語 0 false positive。
+- **`成份：Aqua, …` 個標籤會黐落第一個成份**：`parse_ingredients` 之前唔剝標籤，所以 `成份：Aqua` 變成唔認得 → 真 LLM 回覆「我認唔到第一個字『Aqua』…其實係水嚟嘅」。`ingredients.strip_list_marker()` 喺 `parse_ingredients` 入面做（所以兩條入口一齊修好），`Water (Aqua)` / `Aqua (Water)` 亦加咗做 `aqua` 嘅 alias。
+- **`evaluate_product` 撞到處方成份時，`recognised` 都要清**：本來只清 `matched`／`missing`，但 `recognised` 會 render 成「產品嘅其他認得嘅功效成份」，喺 `avoid` 隔籬列一排保濕劑一樣係「大致冇事，得一粒唔得」嘅讀法（實測 `tretinoin` 嗰條 case 出 `('甘油','泛醇','尿囊素')`）。`unknown` **故意保留**——佢係老實嘅「我認唔到」，而硬停成份名本身就喺度報。
+- **`graph.guardrail` 會用 `product_eval.escalate` 覆寫 `reply`**：模型可以照寫一句「呢支好溫和，早晚用得」。處方成份係 deterministic 硬停，所以 reply 會被換成程式算出嘅嗰句（會指名成份——安全，而且係用戶自己貼嘅，講出嚟更有用）。`trace.guardrail.forced_by_product_eval` 會記錄。
+- **`MEDICAL_TERMS` 要同時有 `tretinoin` 同 `isotretinoin`**：`isotretinoin` 唔包含 `tretinoin`（反過來才對），只寫後者就會漏咗 topical tretinoin 產品。
+- **`compress_video` 會改條片個名**：寫 `<id>.c.mp4` 而唔係 `<id>.mp4`。`video_file()` / `delete_video()` 兩個 spelling 都認；**唔好自己砌 `data_dir / v.path`**，否則壓縮過嘅片既搵唔到亦刪唔到（`DELETE` 會靜靜報「冇嘢刪」）。
+- **大細上限係 100MB（`video.MAX_BYTES`），唔係「無限」**：文檔寫過「冇上限」係錯嘅。<40MB 原檔留、40–100MB 自動重編碼、>100MB 回 **413** 加可讀訊息。`check_size()` 係喺串流途中逐 1MB 驗，唔會先寫滿成個檔。
+- **`export_zip()` 用 `rglob`，所以片一直在 zip 入面**：文檔寫過「匯出唔包含片」係錯嘅（`tests/test_export.py::test_export_includes_stored_clips` 封住）。
+- **`delete_conversation` 一定要喺 cascade 之前收集檔案路徑**：`db.delete(c)` cascade 一行之後就冇嘢可以查。實測過冇呢步：上載一張相 → 刪 conversation → `.jpg` 仍然喺 disk（route docstring 寫住 "permanently delete … all its records"）。另外 `Video.frames` 入面嘅格係**未 attach 都可能存在**（用戶淨係上載冇問），所以 frame id 都要當檔案路徑刪。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。
 
 ## 現況（見 `docs/status-vs-claims.md` 最新狀態）

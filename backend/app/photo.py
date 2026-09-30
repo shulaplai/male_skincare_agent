@@ -9,7 +9,7 @@ import re
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .config import settings
 
@@ -21,8 +21,38 @@ QUALITY = 78
 _PHOTO_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
+class UnreadableImage(Exception):
+    """The uploaded bytes are not an image Pillow can open.
+
+    Raised instead of letting `PIL.UnidentifiedImageError` escape: the upload route
+    turns it into a readable 415, because the raw Pillow error reached the user as
+    「✗ 上傳失敗：HTTP 500」(measured in-browser). The commonest real case is an iPhone
+    HEIC file — Pillow without `pillow-heif` cannot open it, and HEIC is the *default*
+    iPhone camera format, so "500 Internal Server Error" was the normal experience for
+    an iPhone user uploading straight from the camera roll.
+    """
+
+    def __init__(self, detail: str):
+        super().__init__(detail)
+        self.detail = detail
+
+
 def compress_image(data: bytes, max_dim: int = MAX_DIM, quality: int = QUALITY) -> bytes:
-    img = Image.open(BytesIO(data))
+    """Decode → apply EXIF orientation → downscale → JPEG bytes.
+
+    `ImageOps.exif_transpose` is load-bearing. A phone photo whose pixels are stored
+    sideways with an EXIF orientation tag (the normal camera-roll case) used to be saved
+    **unrotated with the tag dropped** — so the user's own preview *and* whatever the
+    vision model received showed the face lying on its side. Measured with an
+    orientation=6 fixture: 2048×1536 in → 1024×768 out, subject rotated ~90° (confirmed
+    by reading the stored file back).
+    """
+    try:
+        img = Image.open(BytesIO(data))
+        img.load()
+    except Exception as e:  # UnidentifiedImageError / truncated bytes / not an image
+        raise UnreadableImage(f"{type(e).__name__}: {e}") from e
+    img = ImageOps.exif_transpose(img) or img
     img = img.convert("RGB")
     img.thumbnail((max_dim, max_dim))
     out = BytesIO()

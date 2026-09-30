@@ -3,7 +3,7 @@
 > 用途：一次審計（`docs/status-vs-claims.md` 全部 27 行逐行驗證）之後嘅**交收清單**。
 > 分三類：**已經修好**、**要你決定先可以改**、**環境／人手先做得到**。
 > 決策嗰啲唔喺呢份文件重複 —— 佢哋住喺 GitHub issues（見 `docs/agents/issue-tracker.md`，搵 `wayfinder:map` label）。
-> 最後更新：第一次修復 pass（audit 之後）。
+> 最後更新：第二輪（商品評估／指南／影片，見 §6）。
 
 ---
 
@@ -78,11 +78,55 @@
 
 ---
 
-## 六、點自己驗返
+## 六、第二輪（商品評估／指南／影片）—— 2026-09
+
+第一輪（上面）係「逐條驗證 claims 表」。第二輪做三件新功能，順便再撞出幾個真 bug。
+以下每一項都係**今次實測過**，唔係「應該冇問題」。
+
+### 6.1 已經做咗而且驗過
+
+| 做咗咩 | 點證明 |
+|---|---|
+| **T1–T5：一條訊息唔再等於一次打卡**（假 Entry 覆蓋當日讀數、假「改善」永久凍結、假 note、假「暗瘡：正常」記憶、`first_checkin` 被問題消耗） | 閘＝`SkinAnalysis.observes_skin`（LLM 判）`or vision_used`。真 LLM 實測：問產品 → `entry_written: false, timeline_lines: 0, insights_created: 0`；描述皮膚 → `true, true, 6 attributes`。`tests/test_persist_evidence.py` 8 個 |
+| **`TOOL_GUIDE` 令真 LLM 撞死**（產品問題 5/7 次 `OutputParserException: Unknown tool type`） | 改措辭（唔可以寫「你可以 call 呢啲工具」）＋`llm._invoke` 帶 `FORMAT_CORRECTION` 重試＋`service` 轉 HTTP 503。改後 3/3 成功、0 parse failure（改前 2 次入面 1 次爆） |
+| **guardrail 睇唔到 `Advice.reply`**（用戶真係睇到嘅 bubble 完全冇掃） | 掃描範圍加 `reply`；`"mg"` 由 substring 改成 `DOSE_RE`（要有數字前綴）。`tests/test_guardrails.py` |
+| **`DELETE /api/conversations/{cid}` 冇刪檔** | 實測：上載一張相 → 刪 conversation → `.jpg` 仍然喺 disk。修法係喺 cascade **之前**收集路徑。再實測：7 張相 + 2 條片 → `files_removed: 9`，data dir 乾淨 |
+| **`video_file()` 搵唔到壓縮過嘅片**（`compress_video` 寫 `<id>.c.mp4`） | 條片既搵唔到亦刪唔到，`DELETE` 會靜靜報「冇嘢刪」。修法：兩個 spelling 都認。`tests/test_video.py` 封住 |
+| **影片上載**（≤20 秒、≤6 格、>40MB 自動重編碼、串流寫 disk、`Video` row） | 真瀏覽器 CDP 實測：20 秒橫掃片 → 6 張相（全部 200 `image/jpeg`）、20 秒定鏡片 → **1 張**＋警告、相機 tooltip 有「鏡頭慢慢掃過成塊肌」。真 LLM 睇咗 6 張之後照實講「睇唔到皮膚紋理」而唔係亂評 |
+| **商品評估（chat 內）** | 兩條入口共用 `product_context.py`；`looks_like_ingredient_list()` 結構判斷（12 句口語 0 false positive）；真 LLM 實測貼 `成份：…` → `unknown: 0`、`matched: [菸鹼醯胺, 水楊酸]`、reply 完全跟程式算出嚟嘅事實、**當日真打卡 Entry 冇被改** |
+| **指南（男士護膚基本資料）** | 「應該用咩產品」由 `recommend.RULES` **生成**，所以指南同 agent 推薦唔可能唔一致；10 條引文對真 DB 逐條驗 |
+| **文件事實修正**（我自己寫錯嘅） | ① 「影片冇大細上限」係錯，上限係 `video.MAX_BYTES` = 100MB（>100MB 回 413）② 「匯出唔包含片」係錯，`export_zip()` 用 `rglob` 所以一直在內（`test_export_includes_stored_clips` 封住）③ `backend-flow.md` §3.4 寫住 `Entry` 係「無條件」寫入 —— 嗰個係修好**之前**嘅行為 |
+
+### 6.2 剩低未做
+
+| 項目 | 狀態 | 要咩 |
+|---|---|---|
+| **成份字典 31 / 目標 ≥200** | 種子都係 IECIC 真名 + 逐條 `corpus=` 引文（`tests/test_ingredients.py` 對真 DB 驗） | 要你批一個 IECIC 來源／授權，唔可以由我手寫成份名（= 憑空造事實）。見 `docs/product-eval-plan.md` D4 |
+| **`Product.ingredients` / `Product.category` 從來冇被寫過** | 靜態欄位，冇任何 code path 填 | 要決定：係咪真係要儲成份表？儲咗就有「用戶產品庫」同過期問題 |
+| **`/products/evaluate` endpoint 前端未用** | 程式化入口；chat 已經覆蓋同一個功能（而且係用戶揀嘅做法） | 睇你要唔要一個「產品庫」畫面；唔要就當佢係 integration surface |
+| **前端完全冇自動化測試** | 手機版同影片 UI 都係我用 ad-hoc CDP script（喺 `/tmp`，冇入 repo）量過 | 要開 [#12](https://github.com/shulaplai/male_skincare_agent/issues/12) 個決定：要唔要真 harness |
+| **真 vision smoke test（真臉相）** | FakeLLM 永遠唔行 vision，所以 `--fake` 完全冇覆蓋 | 要真人用手機拍一張 |
+| **壓縮率未實測真手機片** | 合成片內容太平淡，達唔到 40MB 門檻 | 要一條真 4K 片。壓縮**路徑**已有確定性測試 |
+
+### 6.3 第二輪學到嘅（同類 bug 嘅形狀）
+
+三次都係同一個形狀：**同一個概念有兩個實作，中間有盲點**。
+
+1. `guardrails` 掃 `items`、`eval/safety` 又掃 `items` → 互相照唔到，`reply` 冇人掃。
+2. 商品評估 route 同 graph 各自砌 inputs → 遲早對「用邊個 profile」有分歧。
+   所以收埋喺 `product_context.py`，`test_the_route_and_the_chat_path_agree` 逐 field 比對。
+3. 影片檔名：`video_file()` 認 `<id>.mp4`，`compress_video()` 寫 `<id>.c.mp4` → 刪唔到。
+
+**推論**：呢個 repo 每次「同一個概念寫兩次」都出事。加新功能時先問「呢個概念已經有冇
+一個定義？」，有就一定要經過佢。
+
+---
+
+## 七、點自己驗返
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 77 passed
+./.venv/bin/python -m pytest -q                    # 226 passed
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 md5 -q data/skincoach.db                           # 應該係 40823465d6041edf11c05a44f07d88b9
 
@@ -98,3 +142,26 @@ cd ../frontend && npm run typecheck && npm run build
 
 > **⚠️ 一個要留意嘅副作用**：`init_db()` 嘅 rebuild 會 `DROP TABLE` 再 rename。實測行數、index、內容都保留，但呢類操作永遠值得先備份：
 > `cp backend/data/skincoach.db backend/data/skincoach.db.bak`
+
+---
+
+## 八、第三輪：真用戶試用（2026-09-30）—— 見 `docs/user-trial-findings.md`
+
+前兩輪係**審計 code 同 claim**（由上而下）。第三輪相反：唔睇 code，用真瀏覽器＋真 LLM 由零行一次
+完整流程（14 次 consult），逐格量度。詳情、數字同證據路徑全部喺 **`docs/user-trial-findings.md`**。
+
+最重要嗰三條（**全部已修**，附 test 同瀏覽器量度）：
+
+1. **桌面對話一長（≈5 條訊息）輸入框跌出畫面 ~10,000px** —— `.app` grid child 冇 `min-height: 0`
+   （實測 26 條訊息 → `scrollHeight 10771 / innerHeight 900`；修好後 900、thread 內部 scroll）。
+   **唔係工作樹 regression**，HEAD 嘅 `.app` 一樣。
+2. **iPhone 預設 HEIC 相上載 → HTTP 500**（Pillow 冇 `pillow-heif`，冇人接 exception）→ 改回 415 ＋
+   可讀廣東話指示。
+3. **首次純文字打卡會講「呢張相已經幫你建立咗 baseline」**（無相）—— `prompts` 嘅 `first_checkin`
+   分支無條件寫「呢張相」；呢個係 #15 嘅鏡像（一個講有相、一個講冇相）。
+
+**未修、要你決定**（已開 issue，見 `docs/agents/issue-tracker.md`）：同日 Entry 覆蓋政策、
+偵測到嘅事件 chip 保存、上載完冇送出嘅相檔案殘留、HEIC 原生支援（#21–#24）。
+
+> 你自己試用時撞到嘅嘢 → 寫入 **`docs/user-notes.md`**（空白模板 ＋ 已知未修問題嘅重現步驟）。
+

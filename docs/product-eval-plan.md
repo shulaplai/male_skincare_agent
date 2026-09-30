@@ -1,6 +1,9 @@
 # 商品推介／商品評估 —— 預備文件（**未執行**）
 
-> 狀態：**設計已定，一行 code 都未改**。呢份文件係「預備定要解決」，等你想落手嗰陣可以照住做。
+> 狀態：**階段 1／2／3a 已實作並驗證（2026-09）**；階段 3b／4／5 未做。
+> 已落嘅：S1＋S8（guardrail 掃 `reply`、劑量改 regex）、S2（eval scenario isolation＋`seed_days`）、
+> `app/agent/ingredients.py`、`recommend.py`（規則表）、`product_eval.py`，同 `POST /api/conversations/{cid}/products/evaluate`。
+> 另外 `GET /api/guide`（男士護膚基本資料）已做。test 數 77 → **226**。
 > 寫喺度嘅每個「現況」都係實際 grep／跑過，唔係估。冇改過嘅行會寫明「未改」。
 > 相關 open items：`docs/open-findings.md`（S1／S2 出處）、status-vs-claims #25（UI 結構，同本文件無關）。
 
@@ -98,6 +101,37 @@ products rows: 0        with ingredients: 0
 `correlation.py:218` 同 `preferences.py:117` 都只認「被 `Entry.products` 引用過」嘅 product，所以評估結果就算落入 `products` 都唔會變 cause；但為免日後有人改咗嗰個條件，**v1 索性唔寫 `products`**（見 §3.4）。
 
 ---
+
+### 2.5 ⚠️ 任何 chat 訊息都會覆蓋當日 `Entry` 嘅 attributes（**現有 bug，產品比較嘅前置 blocker**）
+
+`graph.persist` 無條件覆寫：
+
+```python
+entry.note = state["user_text"]
+entry.metrics = [m.model_dump() for m in analysis.metrics]
+entry.attributes = [a.model_dump() for a in analysis.attributes]   # ← 覆蓋
+```
+
+**實測**（真 graph、FakeLLM、同一日先打卡後問產品）：
+
+```
+打卡之後：  note='今朝影相打卡'                 attributes=[acne 3, oiliness 3]
+問產品問題之後：note='呢支精華有 2% 水楊酸…'   attributes=[acne 2, oiliness 2, redness 1]   ← 被覆蓋
+```
+
+而 `ANALYZE_SYSTEM` 明文叫 model「睇唔到或未提及就畀 **0**」，而 analyze 收到嘅只有
+`用戶訊息：{text}`（文字、冇相）→ 真 LLM 對「呢支精華得唔得」會回**全 0**。
+
+**後果**：用戶問一句產品問題，當日時間線就會顯示「全部好返晒」——
+`build_change_lines`（同上次/1M/3M 比）、`/summary.anchors`、memory `direction_for`
+全部跟住錯，而**冇 log、冇 trace、冇 error**。呢個係 app 核心賣點（6-attribute 縱向時間線）嘅污染。
+
+**唔係本文件引入**：而家打「唔唔」都一樣。但商品比較**本質上係純文字**，會頻密觸發，
+所以係「放喺 chat」嘅前置條件。
+
+**建議修法**（要你決定）：`persist` 只喺個 turn **帶有皮膚證據**時才寫 `Entry` ——
+即有相，或者文字明確描述皮膚狀態。否則只寫 `ChatMessage`（display truth），唔寫
+`Entry`（data truth）。呢個符合 doctrine #5：`Entry` = 每日結構化摘要，冇摘要就唔應該有。
 
 ## 3. Feature 設計
 
@@ -367,7 +401,7 @@ def is_recognised(key: str) -> bool
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 77 → 81 passed
+./.venv/bin/python -m pytest -q                    # 226 passed
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 # mutation check：把 :56 改返只掃 items，上面 test 1/2 必須 FAIL（唔係綠）
 ```
@@ -462,7 +496,7 @@ cd backend
 
 | 檢查 | 方法 | 期望 |
 |---|---|---|
-| 後端冇回歸 | `./.venv/bin/python -m pytest -q` | 77 → 81+ passed |
+| 後端冇回歸 | `./.venv/bin/python -m pytest -q` | 226 passed |
 | eval gate 冇回歸 | `./.venv/bin/python -m eval.run_eval --fake` | exit 0 |
 | **商品評估唔寫 Entry** | 呼叫 `/products/evaluate` 前後 `SELECT COUNT(*) FROM entries` | **一樣**（呢個係最重要嘅一條） |
 | 商品評估唔寫 products | 前後 `SELECT COUNT(*) FROM products` | 一樣 |
@@ -481,12 +515,15 @@ cd backend
 
 | 階段 | 內容 | 為何咁排 | 幾時可以做 |
 |---|---|---|---|
-| **1** | **S1 + S8 一個 PR** | 商品評價嘅安全前置。唔做就係喺一個已知漏嘅 guardrail 上面加一個高風險介面 | ✅ **即刻可以** — §4 已寫到「精確行號 ＋ 4 個 test ＋ mutation 驗證法」 |
-| **2** | **S2 兩步**（新 conversation ＋ 加一個 seed 記憶嘅 scenario） | eval 有效性；唔做就冇辦法證明階段 4／5 冇壞。單做第一步 = 少測一條路（§5.4） | ✅ **即刻可以** — 修法已實測「gate 3/3 PASS 不變」 |
-| **3a** | `ingredients.py` **解析框架** ＋ `display_zh()` ＋ unit test（清單留空） | 純函數、零副作用、最易驗 | ✅ 即刻可以 |
+| **1** | ~~S1 + S8 一個 PR~~ | 商品評價嘅安全前置 | ✅ **已完成** — mutation 實測：改返「只掃 items」→ 2 個 test FAIL。新 test：`tests/test_guardrails.py`（9 個）＋ `tests/test_eval.py` 3 個 safety test |
+| **2** | ~~S2 兩步~~（新 conversation ＋ `seed_days` scenario） | eval 有效性 | ✅ **已完成** — eval 而家 4 個 scenario、`first_checkin` 三個 `True` 一個 `False`、`get_skin_profile` 0/0/0/2。mutation 實測：改返共用 conversation → isolation test FAIL |
+| **3a** | `ingredients.py` 解析框架 ＋ `display_zh()` ＋ seed 字典 | 純函數、零副作用、最易驗 | ✅ **已完成** — 25 個 test（含一個對真 DB 逐條驗引文嘅，CI 會 skip）。**唔係清單留空**：seed 咗 **31 個**（12 個 `active` + 3 個 barrier/humectant 有引文，16 個只標 role 嘅基質）＋ `PRESCRIPTION_ONLY` 5 個 |
 | **3b** | 填 **≥200 個 IECIC 成份** ＋ 中文名 | **D4 資料未到手** | ⚠️ **要你先提供／批核 IECIC 來源** |
-| **4** | F2 `/products/evaluate` endpoint ＋ 前端輸入框 | 用戶可見價值最大 | 依賴 1＋2＋3a |
-| **5** | F1 成份／類別推介（`advise` prompt ＋ 主選／次選） | 依賴 3 | 依賴 1＋2＋3a |
+| **4a** | ~~F2 `/products/evaluate` endpoint~~ | 零寫入（有 test 斷言 6 張表不變） | ✅ **已完成** |
+| ~~**4b**~~ | ~~F2 前端（輸入框 + verdict 顯示）~~ | **用戶決定唔要另開 UI**：商品比較係**對話嘅延續** —— 用戶喺 chat 貼產品／成份表，教練喺同一段對話回覆比較結果。所以 4b 唔係「未做」，係**被取代** | ❌ **已取消**（改為喺 `advise` 接線，見 §3.3a） |
+| **5** | F1 成份／類別推介（`advise` prompt ＋ 主選／次選） | 依賴 3 | ⬜ **未做** |
+| **6** | 男士護膚基本資料頁 | `app/guide.py` ＋ `GET /api/guide` ＋ `GuideView.tsx`（左目錄右正文）＋ Settings「指南」入口 | ✅ **已完成**（CDP 實測：1400px 兩欄 `210px 849px`、390px 單欄、TOC 變橫向 chips、zero console error） |
+| **7** | **商品比較搬入 chat** | 需要先修 §2.5（`persist` 覆蓋當日 Entry）—— 見該節 | ⚠️ **被你嘅設計改動觸發，未做** |
 
 **階段 4 唔一定要等 3b**：`parse_ingredients` 認唔到嘅成份一律入 `unknown[]` 並誠實講「唔認識」——
 即係成份清單由 8 個擴到 200 個，只係令覆蓋率上升，**唔會令功能唔成立**。所以 3a 完成就可以開 4。

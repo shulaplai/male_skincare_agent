@@ -8,7 +8,7 @@
 
 - **定位**：見工 portfolio + showcase；自己係 daily user（single-user）。
 - **真數據路徑 100% 真；面試敘事可以 stretch 但唔可以喺真路徑扮真。**
-- Backend tests **77/77 綠**；frontend typecheck + build 綠；eval（--fake）semantic recall 100% / MRR 0.90（baseline）＋ hybrid recall 100% / MRR 1.00（runtime path）＋ 3 agent scenarios PASS（**3 個之中 2 個**有 `expect_tool` gate —— `red_flag` 只有 `expect_escalate`）；CI 有 pytest + eval + frontend jobs。
+- Backend tests **226/226 綠**；frontend typecheck + build 綠；eval（--fake）semantic recall 100% / MRR 0.90（baseline）＋ hybrid recall 100% / MRR 1.00（runtime path）＋ **4** agent scenarios PASS（**4 個之中 3 個**有 `expect_tool` gate —— `red_flag` 只有 `expect_escalate`；`returning_user` 用 `seed_days` 主動 seed 過去紀錄去覆蓋「已有記憶」嗰條路）。每個 scenario 行自己一個新 conversation，所以加／刪／重排 scenario 唔會改動其他 scenario 嘅結果（見 `eval/agent_eval.py` docstring）；CI 有 pytest + eval + frontend jobs。
 
 ## 對照表
 
@@ -38,7 +38,7 @@
 | 22 | Preferences 低頻抽取（Q48） | ✅ `app/preferences.py`：diet tag ≥3 日／產品 ≥3 日 → preference；text 冇變唔 rewrite | (b) | ✅ Layer 2 **完成** |
 | 23 | Memory-correction UI（delete/edit） | ✅ 改 entry note、刪 entry（連相 + 同日 conv events）、刪單相、刪 insight（清 superseded_by 指針） | (b) | ✅ Layer 3 **完成** |
 | 24 | Demo environment + seed（Q10/Q19） | ✅ `scripts/seed_demo.py` → 獨立 `data/demo.db`（90 日 synthetic + global diet events 令 correlation 有得睇）；唔掂真 data | (b) | ✅ Layer 3 **完成** |
-| 25 | 四套 UI 結構俾 User 揀（介面結構） | ✅ `layouts/` registry（`defs.ts` 定義 chat/journal/dash/**mobile**）＋ Settings「介面結構」揀選（CSS wireframe 縮圖、即時切換、`localStorage skc-layout` persist）；`?layout=` preview override；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + `blocks.tsx`），feature parity。窄屏（≤760px）自動用 `mobile`，判斷邏輯係純函數 `defs.resolveLayout`（**唔會將 `mobile` 寫入 localStorage**）。**證據（2026-09 更新）**：`npm run typecheck` + `npm run build` 綠；另外用 **Chrome DevTools Protocol 對真瀏覽器做過量測**（真 backend + `scripts/seed_demo.py` demo DB，390／760／761／900／1140／1280px）—— 窄屏係 `app layout-mobile` 單欄、底部 tab bar `repeat(5,1fr)` = 5 個 78px、`documentElement.scrollWidth == innerWidth`（無橫向 overflow）、zero console error；闊屏 `240px 710px 330px`（chat）同 `220px …`（journal/dash）**同加手機版之前一模一樣**。⚠️ 但呢啲量測係**一次過手動跑嘅 ad-hoc harness（喺 `/tmp`，冇入 repo，CI 唔會重跑）** —— `frontend/package.json` 仍然冇 `test` script、冇 jsdom/vitest/playwright，所以仍然冇任何**自動化** UI 回歸防線（呢個就係 #12 未決嘅問題）。 | (b) | ✅ **真**：純 presentation layer，食同一批 `/summary` 等 API |
+| 25 | 四套 UI 結構俾 User 揀（介面結構） | ✅ `layouts/` registry（`defs.ts` 定義 chat/journal/dash/**mobile**）＋ Settings「介面結構」揀選（CSS wireframe 縮圖、即時切換、`localStorage skc-layout` persist）；`?layout=` preview override；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView / **GuideView** + `blocks.tsx`），feature parity。窄屏（≤760px）自動用 `mobile`，判斷邏輯係純函數 `defs.resolveLayout`（**唔會將 `mobile` 寫入 localStorage**）。**證據（2026-09 更新）**：`npm run typecheck` + `npm run build` 綠；另外用 **Chrome DevTools Protocol 對真瀏覽器做過量測**（真 backend + `scripts/seed_demo.py` demo DB，390／760／761／900／1140／1280px）—— 窄屏係 `app layout-mobile` 單欄、底部 tab bar `repeat(5,1fr)` = 5 個 78px、`documentElement.scrollWidth == innerWidth`（無橫向 overflow）、zero console error；闊屏 `240px 710px 330px`（chat）同 `220px …`（journal/dash）**同加手機版之前一模一樣**。另外 `View` 另有 `guide`（男士護膚基本資料，由 `GET /api/guide` 提供，Settings「指南」入口入）—— 佢係一個 scene 唔係第 5 套 layout，所以唔影響 tab 數；CDP 實測 1400px = 兩欄 `210px 849px`、390px（同 mobile shell）= 單欄 + TOC 轉橫向 chips、zero console error。⚠️ 但呢啲量測係**一次過手動跑嘅 ad-hoc harness（喺 `/tmp`，冇入 repo，CI 唔會重跑）** —— `frontend/package.json` 仍然冇 `test` script、冇 jsdom/vitest/playwright，所以仍然冇任何**自動化** UI 回歸防線（呢個就係 #12 未決嘅問題）。 | (b) | ✅ **真**：純 presentation layer，食同一批 `/summary` 等 API |
 
 | 26 | 「AI 會用工具／RAG 檢索」（architecture §2、README feature list） | ⚠️ **曾經係真 bug**：prompt 從來冇提過任何 tool 名，schema `tool_calls` 又冇 description → 實測真 DeepSeek 回 `tool_calls: []`，RAG 同長期記憶**完全冇跑**；因為 FakeLLM 硬編碼 tool 名，pytest 60 綠 + eval --fake PASS 都 detect 唔到。修法：`prompts.TOOL_GUIDE` + schema description + `expect_tool` eval gate；修完實測真 LLM 回齊三個 tool | (b) | ✅ 已修＋有 test／eval gate |
 | 27 | 「AI agent 可以 debug」（我自己嘅開發流程） | ✅ node trace（`state["trace"]`：node／ms／摘要）、`graph.stream()` live delta、`/api/consult` 回最終 trace、run log writer（`app/agent/service.py` → `settings.run_log_path` = `./data/runs.jsonl`，**只有 `POST /api/consult` 會寫**；`scripts/trace_consult.py` 直接行 graph，唔會寫）—— 呢個 working tree 至今**未產生過** `runs.jsonl`；`scripts/trace_consult.py` CLI（temp DB + FakeLLM 預設）；vision／tool 失敗同 embedder fallback 由「靜靜吞」改為 log + trace；embedding 維度 384/128 混用會 raise 而唔係靜靜比前綴 | (b) | ✅ **真**（#26 就係靠呢套工具查出嚟） |
@@ -54,7 +54,7 @@
 - [ ] 真 vision smoke test（開 ☁️、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding 回覆（baseline 解釋）
 - [ ] Reload 頁面 → thread 仲喺度（#15）
-- [ ] `python -m pytest -q` 77 綠 + `npm run typecheck` + `npm run build`
+- [ ] `python -m pytest -q` 226 綠 + `npm run typecheck` + `npm run build`
 - [ ] `python -m eval.run_eval --fake` PASS（#12）
 - [ ] `scripts/seed_demo.py` 起 DEMO DB → 開 UI 展示 90 日數據（#24）
 - [ ] Debug 路線試一次（#27）：`scripts/trace_consult.py --text "…"`（fake，安全）＋ `--real` 對照；行一次 UI consult 後 `backend/data/runs.jsonl` 有紀錄（trace_consult 唔會寫）

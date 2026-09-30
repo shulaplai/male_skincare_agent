@@ -53,6 +53,11 @@ class Conversation(Base):
     entries: Mapped[list[Entry]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
     )
+    # Clips cascade too, so the DB rows go with the conversation. The *files* are
+    # removed by `delete_conversation` before the cascade — see the note there.
+    videos: Mapped[list[Video]] = relationship(
+        back_populates="conversation", cascade="all, delete-orphan"
+    )
     insights: Mapped[list[Insight]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
     )
@@ -175,6 +180,29 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(60), default="其他")  # toner/潔面/精華/防曬…
     ingredients: Mapped[list] = mapped_column(JSON, default=list)  # ["水楊酸", ...]
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Video(Base):
+    """A clip the user uploaded, kept locally (local-first).
+
+    The extracted frames are ordinary `Photo` rows attached to the day's `Entry`; this
+    table exists so the *original clip* is not an orphan file — without it, deleting a
+    conversation would leave the clip on disk and export would have no way to know what
+    belongs where.
+
+    New table, so `create_all` builds it; no `_COLUMN_MIGRATIONS` entry is needed.
+    """
+
+    __tablename__ = "videos"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
+    path: Mapped[str] = mapped_column(String(300))  # videos/<id>.mp4 (data-dir relative)
+    duration: Mapped[float] = mapped_column(Float, default=0.0)
+    frames: Mapped[list] = mapped_column(JSON, default=list)  # photo ids extracted
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+
+    conversation: Mapped[Conversation] = relationship(back_populates="videos")
 
 
 class Chunk(Base):

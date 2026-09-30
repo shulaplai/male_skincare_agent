@@ -14,6 +14,7 @@ import json
 import logging
 from pathlib import Path
 
+from langchain_core.exceptions import OutputParserException
 from fastapi import HTTPException
 
 from ..config import settings
@@ -83,15 +84,29 @@ def run_consult(conversation_id: str, text: str, photo_paths: list[str] | None =
         session_factory=SessionLocal,
         embedder=_get_embedder(),
     )
-    result = graph.invoke(
-        {
-            "conversation_id": conversation_id,
-            "user_text": text,
-            "photo_paths": photo_paths or [],
-            "cloud_analysis": cloud_analysis,
-            "trace": [],
-        }
-    )
+    try:
+        result = graph.invoke(
+            {
+                "conversation_id": conversation_id,
+                "user_text": text,
+                "photo_paths": photo_paths or [],
+                "cloud_analysis": cloud_analysis,
+                "trace": [],
+            }
+        )
+    except OutputParserException as e:
+        # The model kept answering in the wrong shape even after the corrective retry.
+        # Refusing loudly is the honest move: a made-up analysis would be persisted as the
+        # user's skin record. The detail is readable, unlike a bare 500 — and it promises
+        # only what is true (nothing was written; `persist` never ran).
+        logger.error("consult failed: model output could not be parsed: %s", e)
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "我今次分析唔到（模型回覆格式唔啱，試過糾正都唔成功）。"
+                "你嘅紀錄冇被改動 —— 請再試一次，或者換個講法。"
+            ),
+        ) from e
     result["vision_used"] = bool(result.get("vision_used"))
     write_run_log(conversation_id, text, result)
     return result

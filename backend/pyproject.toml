@@ -19,6 +19,12 @@ dependencies = [
     "pypdf>=4.0",
     "fastembed>=0.4",
     "python-multipart>=0.0.9",
+    # Video → frames. `imageio-ffmpeg` ships a static ffmpeg binary in the wheel, so
+    # there is no system ffmpeg to install (this machine has none). Chosen over
+    # opencv-python-headless because frames are all we need — OpenCV's ~50MB wheel
+    # would buy face detection we deliberately do not use yet.
+    "imageio>=2.34",
+    "imageio-ffmpeg>=0.5",
 ]
 
 [project.optional-dependencies]

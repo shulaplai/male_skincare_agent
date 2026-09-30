@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as api from '../api'
-import type { Conversation, DetectedEvent, Message } from '../types'
+import type { Conversation, DetectedEvent, Message, VideoUpload } from '../types'
 import { useTheme } from '../theme'
 
 interface Props {
@@ -130,6 +130,9 @@ export function Chat({
   const [attached, setAttached] = useState<{ id: string; path: string }[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
+  /* What the backend did with the last clip: how many photos it produced, and whether
+     the file was re-encoded. Kept so the user is told rather than silently resized. */
+  const [videoNote, setVideoNote] = useState<VideoUpload | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [quickOpen, setQuickOpen] = useState(false)
   const [quickDiet, setQuickDiet] = useState('')
@@ -143,6 +146,7 @@ export function Chat({
     setAttached([])
     setUploading(false)
     setUploadErr(null)
+    setVideoNote(null)
     setMenuOpen(false)
     setQuickOpen(false)
     setQuickDiet('')
@@ -153,9 +157,15 @@ export function Chat({
     const t = draft.trim()
     if (!t && attached.length === 0) return
     if (sending || uploading) return
-    onSend(t || '（已上傳皮膚相）', attached)
+    // The frames are already `attached`; say where they came from so the reply is not
+    // read as "here are N separate photos you took".
+    const fallback = videoNote
+      ? `（已上傳皮膚影片，抽出 ${videoNote.frames.length} 張相）`
+      : '（已上傳皮膚相）'
+    onSend(t || fallback, attached)
     setDraft('')
     setAttached([])
+    setVideoNote(null)
   }
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,11 +173,26 @@ export function Chat({
     if (!f) return
     setUploading(true)
     setUploadErr(null)
-    api
-      .uploadPhoto(f)
-      .then((p) => setAttached((prev) => [...prev, p]))
-      .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
-      .finally(() => setUploading(false))
+    setVideoNote(null)
+    // A clip is not an attachment by itself — the backend samples it into ≤ 6 photos and
+    // those photos are what the agent sees. `video/quicktime` (iPhone) has no extension
+    // match for `accept`, so the MIME type is the check, not the filename.
+    if (f.type.startsWith('video/')) {
+      api
+        .uploadVideo(conversation.id, f)
+        .then((v) => {
+          setAttached((prev) => [...prev, ...v.frames])
+          setVideoNote(v)
+        })
+        .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
+        .finally(() => setUploading(false))
+    } else {
+      api
+        .uploadPhoto(f)
+        .then((p) => setAttached((prev) => [...prev, p]))
+        .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
+        .finally(() => setUploading(false))
+    }
     e.target.value = ''
   }
 
@@ -269,7 +294,13 @@ export function Chat({
 
       <div className="compose">
         <div className="tools">
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPick} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*"
+            style={{ display: 'none' }}
+            onChange={onPick}
+          />
           <span className="iconbtn" title="加相" onClick={() => fileRef.current?.click()}>
             <svg viewBox="0 0 24 24">
               <rect x="3" y="5" width="18" height="14" rx="3" />
@@ -277,7 +308,14 @@ export function Chat({
               <path d="M21 15l-5-5-9 9" />
             </svg>
           </span>
-          <span className="iconbtn" title="影相" onClick={() => fileRef.current?.click()}>
+          {/* Measured: coverage comes from camera *movement*, not clip length — a 20 s
+              static clip de-duplicates down to a single frame, a 10 s pan yields all 6.
+              The hint has to reach the user before they film, so it rides the button. */}
+          <span
+            className="iconbtn"
+            title="影相／錄片（片最多 20 秒；錄嗰陣鏡頭慢慢掃過成塊肌）"
+            onClick={() => fileRef.current?.click()}
+          >
             <svg viewBox="0 0 24 24">
               <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
               <circle cx="12" cy="13" r="4" />
@@ -290,7 +328,7 @@ export function Chat({
             </svg>
           </span>
         </div>
-        {uploading && <span className="chip uploading">⏳ 上傳緊張相…</span>}
+        {uploading && <span className="chip uploading">⏳ 上傳中…（片要抽格，可能要幾秒）</span>}
         {attached.map((a) => (
           <span key={a.id} className="attach ok">
             <img src={`/api/photos/${a.id}`} alt="預覽" />
@@ -300,6 +338,18 @@ export function Chat({
             </i>
           </span>
         ))}
+        {videoNote && (
+          <span className="chip video-note">
+            🎬 {videoNote.duration.toFixed(0)} 秒片 → 抽咗 {videoNote.frames.length} 張相
+            {videoNote.compressed &&
+              ` · 已壓縮 ${(videoNote.original_bytes / 1048576).toFixed(0)}MB → ${(
+                videoNote.stored_bytes / 1048576
+              ).toFixed(0)}MB`}
+            {videoNote.frames.length < 2 &&
+              ' · ⚠️ 格與格之間太似，所以只抽到一張：下次錄嗰陣鏡頭慢慢掃過成塊肌'}
+            {videoNote.compress_error && ' · ⚠️ 壓縮失敗，保留原檔'}
+          </span>
+        )}
         {uploadErr && <span className="chip upload-err">✗ 上傳失敗：{uploadErr}</span>}
         {attached.length > 0 && !cloudOn && (
           <span className="warn-chip">⚠️ 本地模式：張相唔會俾 AI 睇（撳 ☁️ 開雲分析先會睇相）</span>

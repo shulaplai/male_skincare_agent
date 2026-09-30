@@ -78,9 +78,21 @@ def main() -> None:
         n_chunks = ingest_golden(session, embedder)
         from app import crud  # noqa: E402
 
-        conv = crud.create_conversation(session, "面部皮膚", "🧔")
-        cid = conv.id
         session.close()
+
+        def make_conversation() -> str:
+            """A fresh conversation per scenario.
+
+            The graph persists, so a shared conversation made scenarios
+            order-dependent (see `eval/agent_eval.py` docstring). Each scenario
+            now starts from a clean slate; `seed_days` opts back into history
+            deliberately.
+            """
+            s = Session()
+            try:
+                return crud.create_conversation(s, "面部皮膚", "🧔").id
+            finally:
+                s.close()
 
         # 1) RAG recall@3 + MRR over the committed golden corpus.
         #    Baseline = pure semantic `retrieve()` (stable CI gate). Runtime uses
@@ -92,7 +104,7 @@ def main() -> None:
         session.close()
 
         # 2) Agent golden scenarios through the real graph (deterministic gates).
-        agent_results = run_agent_eval(scenarios, Session, embedder, llm, cid)
+        agent_results = run_agent_eval(scenarios, Session, embedder, llm, make_conversation)
 
         # 3) LLM-as-judge (Q17): only with a real key configured.
         judge_scores = None
@@ -125,12 +137,20 @@ def main() -> None:
             lines.append(f"- {r['id']}: {'PASS' if r['hit'] else 'FAIL'} (rank={r['rank']})")
         lines.append("")
         lines.append("## Agent scenarios")
+        lines.append("")
+        lines.append(
+            "（每個 scenario 行自己一個新 conversation —— 唔係就次序依賴。"
+            "`first_checkin` 應該反映嗰個 scenario 自己：冇 seed 嘅 = True，`seed_days` 嘅 = False。）"
+        )
         for r in agent_results:
             mark = "PASS" if r["passed"] else "FAIL"
             tools = r.get("tools") or {}
             tool_note = " · ".join(f"{k}={v}" for k, v in tools.items()) or "冇 tool 跑過"
+            seed = f", seed_days={r['seed_days']}" if r.get("seed_days") else ""
             lines.append(
-                f"- {r['id']}: {mark} (escalate={r['escalate']}, violations={r['violations']}, tools: {tool_note})"
+                f"- {r['id']}: {mark} (escalate={r['escalate']}, "
+                f"first_checkin={r['first_checkin']}{seed}, "
+                f"violations={r['violations']}, tools: {tool_note})"
             )
 
         if judge_scores is not None:

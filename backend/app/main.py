@@ -14,11 +14,17 @@ from sqlalchemy.orm import Session
 
 from app import correlation, crud
 from app.agent.attributes import anchor_comparisons, severity_map
-from app.agent.schemas import DetectedEvent
+from app.agent.llm import FakeLLM, get_llm
+from app.agent.product_eval import guard_narrative
+from app.agent.product_context import profile_inputs, summarise_evaluation
+from app.agent.product_eval import evaluate_product
+from app.agent.prompts import PRODUCT_EVAL_SYSTEM, build_product_eval_prompt
+from app.agent.schemas import DetectedEvent, ProductNarrative
 from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import export_zip, import_zip
+from app.guide import build_guide
 from app.models import (
     ChatMessage,
     Conversation,
@@ -27,9 +33,22 @@ from app.models import (
     Photo,
     Product,
     TimelineEvent,
+    Video,
     utcnow,
 )
-from app.photo import save_photo
+from app.photo import UnreadableImage, save_photo
+from app.video import (
+    COMPRESS_OVER_BYTES,
+    VideoCompressError,
+    VideoError,
+    VideoTooLarge,
+    check_size,
+    compress_video,
+    delete_video,
+    extract_frames,
+    video_file,
+    video_path,
+)
 from app.self_report import apply_events
 
 
@@ -64,6 +83,20 @@ class EventsRequest(BaseModel):
     events: list[DetectedEvent]
 
 
+class ProductEvalRequest(BaseModel):
+    """A product the user pasted for evaluation.
+
+    `ingredients_text` is the INCI list the user copies off the packaging — the app
+    never fetches it (architecture.md: no arbitrary external URL). `pigmentation`
+    is D7 option 2: an explicit override of the note-keyword detection.
+    """
+
+    ingredients_text: str
+    name: str = ""
+    category: str = ""
+    pigmentation: bool | None = None
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # App-module logs (vision failures, tool errors, embedder fallback) must be
@@ -76,6 +109,8 @@ async def lifespan(_: FastAPI):
     init_db()
     yield
 
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
@@ -100,6 +135,17 @@ async def import_data(file: UploadFile = File(...)) -> dict:
     """Restore a previously exported zip."""
     import_zip(await file.read())
     return {"status": "ok"}
+
+
+@app.get("/api/guide")
+def guide() -> dict:
+    """男士護膚基本資料 (reference content).
+
+    Rebuilt per request rather than cached: the 「應該用咩產品」 section is generated
+    from `agent.recommend.RULES`, so the guide physically cannot drift from what the
+    agent recommends. Cheap (pure Python, no DB).
+    """
+    return build_guide().model_dump()
 
 
 @app.get("/api/conversations")
@@ -155,11 +201,40 @@ def delete_conversation(cid: str, db: Session = Depends(get_session)) -> dict:
     c = db.query(Conversation).filter_by(id=cid).first()
     if c is None:
         raise HTTPException(status_code=404, detail="conversation not found")
+    # Collect the on-disk files FIRST. `db.delete(c)` cascades the rows, and a cascade
+    # never touches the filesystem — so before this, "permanently delete a conversation
+    # and all its records" deleted the rows and left every photo (and clip) sitting in
+    # the data dir. Measured: upload one photo, delete the conversation, the .jpg is
+    # still there. The route promised deletion it did not perform.
+    photo_paths = [
+        p.path
+        for p in db.query(Photo).join(Entry, Photo.entry_id == Entry.id).filter(
+            Entry.conversation_id == cid
+        )
+    ]
+    clips = db.query(Video).filter_by(conversation_id=cid).all()
+    video_ids = [v.id for v in clips]
+    # An upload writes its frames to data/photos/ *before* any Entry exists, so a
+    # conversation deleted without ever consulting would leave those JPEGs behind with
+    # nothing left pointing at them (the Video row carrying the ids is about to cascade
+    # away). Frame ids are only ever produced by us, so turning them into paths is safe.
+    frame_paths = [
+        f"photos/{fid}.jpg" for v in clips for fid in (v.frames or []) if isinstance(fid, str)
+    ]
+
     db.query(ChatMessage).filter_by(conversation_id=cid).delete()
     db.query(Product).filter_by(conversation_id=cid).delete()
-    db.delete(c)  # cascades entries -> photos, insights, timeline_events
+    db.delete(c)  # cascades entries -> photos, insights, timeline_events, videos
     db.commit()
-    return {"status": "ok", "deleted": cid}
+
+    # …now the files, best-effort: a row already gone is worse than a stray file.
+    # Set-dedup because a frame the user actually consulted appears in both lists.
+    wanted = set(photo_paths) | set(frame_paths)
+    for path in wanted:
+        _delete_photo_file(path)
+    removed_clips = sum(1 for vid in video_ids if delete_video(vid))
+
+    return {"status": "ok", "deleted": cid, "files_removed": len(wanted) + removed_clips}
 
 
 @app.post("/api/conversations/{cid}/facts")
@@ -197,6 +272,59 @@ def confirm_events(cid: str, req: EventsRequest, db: Session = Depends(get_sessi
     return {"written": stats["diet"] + stats["product"], **stats}
 
 
+@app.post("/api/conversations/{cid}/products/evaluate")
+def evaluate_product_route(
+    cid: str, req: ProductEvalRequest, db: Session = Depends(get_session)
+) -> dict:
+    """Evaluate a product the user pasted. **Persists nothing.**
+
+    Deliberately NOT part of the `/api/consult` graph: that pipeline always ends in
+    `persist`, which upserts today's `Entry`. `Entry` is the daily skin state and
+    change detection / timeline / anchors all diff it, so answering "is this serum
+    any good?" through the graph would silently turn a question into a day of skin
+    data (docs/product-eval-plan.md §2.4).
+    """
+    conv = db.query(Conversation).filter_by(id=cid).first()
+    if conv is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+
+    # Inputs come from `product_context` — the same helper the consult graph uses, so the
+    # explicit endpoint and a pasted list in chat can never disagree about whose profile
+    # is being matched.
+    inputs = profile_inputs(db, cid, pigmentation=req.pigmentation)
+    result = evaluate_product(
+        req.ingredients_text,
+        attributes=inputs["attributes"],
+        pigmentation=inputs["pigmentation"],
+        in_use=inputs["in_use"],
+    )
+
+    payload = {
+        **summarise_evaluation(result),
+        "name": req.name,
+        "category": req.category,
+        "pigmentation_source": inputs["pigmentation_source"],
+        "narrative": None,
+    }
+
+    # Narrative is presentation only. A prescription hit already returns the
+    # escalation text, and FakeLLM must NOT invent product advice, so both skip it.
+    if not result.escalate:
+        llm = get_llm("text")
+        if not isinstance(llm, FakeLLM):
+            try:
+                narrative = llm.structured(
+                    PRODUCT_EVAL_SYSTEM,
+                    build_product_eval_prompt(payload),
+                    ProductNarrative,
+                )
+                payload["narrative"] = guard_narrative(narrative.summary, result)
+            except Exception as e:  # never silently swallow (AGENTS.md)
+                logger.warning("product narrative failed: %s: %s", type(e).__name__, e)
+
+    return payload
+
+
 @app.post("/api/consult")
 def consult(req: ConsultRequest) -> dict:
     """Run the LangGraph agent: analyze -> tools -> advise -> guardrail -> persist."""
@@ -205,10 +333,136 @@ def consult(req: ConsultRequest) -> dict:
 
 @app.post("/api/photos")
 async def upload_photo(file: UploadFile = File(...)) -> dict:
-    """Store a photo locally (compressed) and return its id/path."""
+    """Store a photo locally (compressed) and return its id/path.
+
+    Unreadable payloads become a **readable 415**, not a 500 (measured in-browser before
+    this: uploading a HEIC — the iPhone default — showed the user 「✗ 上傳失敗：HTTP 500」,
+    which says nothing and cannot be acted on).
+    """
     photo_id = uuid.uuid4().hex
-    path = save_photo(photo_id, await file.read())
+    try:
+        path = save_photo(photo_id, await file.read())
+    except UnreadableImage as e:
+        logger.warning("photo upload rejected (%s): %s", file.filename, e.detail)
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                "呢個檔案唔係我讀得到嘅圖片格式。如果係 iPhone 相簿嘅 HEIC／HEIF，"
+                "可以先喺「設定 → 相機 → 格式」揀「最相容」（會存成 JPG），"
+                "或者分享張相做 JPG 再上載。"
+            ),
+        ) from e
     return {"id": photo_id, "path": path}
+
+
+@app.post("/api/videos")
+async def upload_video(cid: str, file: UploadFile = File(...), db: Session = Depends(get_session)) -> dict:
+    """Store a clip locally and turn it into frames the agent can look at.
+
+    A couple of stills are not enough to see a whole area, so a clip is sampled into
+    <= 6 de-duplicated frames — and **those frames are ordinary photos**. The client
+    sends their ids as `photo_paths` to `/api/consult`, so the cloud-consent gate, photo
+    dedupe, `entry.photos` and the `observes_skin or vision_used` gate all apply with no
+    special cases. The agent never learns it was a video.
+
+    **No *practical* size limit** (a user decision): a phone produces what it produces, so
+    the ceiling is `video.MAX_BYTES` (100 MB) — far beyond a normal 20-second clip — rather
+    than a tighter round number. The upload is streamed straight to disk rather than
+    buffered in memory, and a clip over `COMPRESS_OVER_BYTES` (40 MB) is re-encoded down
+    (smaller frame, no audio) before it is kept. The response reports what happened so the
+    UI can tell the user.
+    """
+    video_id = uuid.uuid4().hex
+    suffix = Path(file.filename or "").suffix or ".mp4"
+    # Check the owner first: a clip with no conversation has nowhere to belong, and
+    # rejecting it up front means nothing is written, decoded, or cleaned up afterwards.
+    if db.query(Conversation).filter_by(id=cid).first() is None:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    stored = video_path(video_id, suffix)
+    stored.parent.mkdir(parents=True, exist_ok=True)
+
+    # Stream to disk. `await file.read()` would hold the whole clip in RAM, which is
+    # exactly what "no size limit" must not do.
+    original_bytes = 0
+    try:
+        with stored.open("wb") as out:
+            while chunk := await file.read(1024 * 1024):
+                original_bytes += len(chunk)
+                try:
+                    # Checked as we stream, so an oversized upload is cut off part-way
+                    # instead of being written to disk in full first.
+                    check_size(original_bytes)
+                except VideoTooLarge as e:
+                    out.close()
+                    stored.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail=str(e)) from e
+                out.write(chunk)
+    except OSError as e:  # disk full / permissions
+        stored.unlink(missing_ok=True)
+        raise HTTPException(status_code=507, detail=f"寫唔入 disk：{e}") from e
+
+    if original_bytes == 0:
+        stored.unlink(missing_ok=True)
+        raise HTTPException(status_code=422, detail="空檔案")
+
+    rel = str(stored.relative_to(settings.data_dir))
+
+    # Duration cap first: no point re-encoding a clip we will refuse.
+    try:
+        ex = extract_frames(stored)
+    except VideoError as e:
+        delete_video(video_id)
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    compressed, stored_bytes, compress_error = False, original_bytes, None
+    if original_bytes > COMPRESS_OVER_BYTES:
+        try:
+            new_path, before, after = compress_video(stored)
+            if after < before:
+                stored = new_path
+                stored_bytes = after
+                compressed = True
+                rel = str(stored.relative_to(settings.data_dir))
+                # Frames came from the original; the picture is the same, just smaller.
+        except VideoCompressError as e:
+            # Never fatal: the clip is usable, it is only bigger than we would like.
+            compress_error = str(e)
+            logger.warning("video compression failed, keeping the original: %s", e)
+
+    frames = []
+    for jpeg in ex.frames:
+        pid = uuid.uuid4().hex
+        frames.append({"id": pid, "path": save_photo(pid, jpeg)})
+
+    # Record the clip so it is not an orphan file: without this row, deleting the
+    # conversation could not know the clip exists and would leave it on disk.
+    db.add(
+        Video(
+            id=video_id,
+            conversation_id=cid,
+            path=rel,
+            duration=ex.duration,
+            frames=[f["id"] for f in frames],
+        )
+    )
+    db.commit()
+
+    return {
+        "video_id": video_id,
+        "path": rel,
+        "duration": round(ex.duration, 2),
+        "fps": round(ex.fps, 1),
+        "width": ex.width,
+        "height": ex.height,
+        "sampled": ex.sampled,
+        "dropped": ex.dropped,
+        "timestamps": ex.timestamps,
+        "frames": frames,
+        "original_bytes": original_bytes,
+        "stored_bytes": stored_bytes,
+        "compressed": compressed,
+        "compress_error": compress_error,
+    }
 
 
 @app.get("/api/conversations/{cid}/messages")

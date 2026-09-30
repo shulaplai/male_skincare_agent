@@ -45,6 +45,18 @@ const NAV: { key: View; label: string; icon: JSX.Element }[] = [
     ),
   },
   {
+    key: 'guide',
+    label: '護膚指南',
+    icon: (
+      // 打開嘅書：同其他 NAV icon 一樣係 stroke-only SVG（唔用 emoji，令線條一致）
+      <svg viewBox="0 0 24 24">
+        <path d="M12 6.5C10.5 5 8.6 4.3 6 4.3H3.5v13.4H6c2.6 0 4.5.7 6 2.2" />
+        <path d="M12 6.5c1.5-1.5 3.4-2.2 6-2.2h2.5v13.4H18c-2.6 0-4.5.7-6 2.2" />
+        <path d="M12 6.5V20" />
+      </svg>
+    ),
+  },
+  {
     key: 'settings',
     label: '設定',
     icon: (

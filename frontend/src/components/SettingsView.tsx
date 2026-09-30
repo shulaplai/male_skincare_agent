@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import * as api from '../api'
 import { LayoutPicker } from '../layouts/LayoutPicker'
 import { useTheme } from '../theme'
-import type { Conversation } from '../types'
+import type { Conversation, View } from '../types'
 
 type Conn = 'checking' | 'ok' | 'fail'
 
@@ -15,10 +15,12 @@ interface Props {
   onAddConversation?: () => void
   onRenameConversation?: (c: Conversation) => void
   onDeleteConversation?: (c: Conversation) => void
+  /** 去其他 scene（而家只有「指南」用）。四套 shell 都會傳。 */
+  onNavigate?: (v: View) => void
 }
 
 export function SettingsView(props: Props) {
-  const { conversations, activeId, online, onSelectConversation, onAddConversation, onRenameConversation, onDeleteConversation } = props
+  const { conversations, activeId, online, onSelectConversation, onAddConversation, onRenameConversation, onDeleteConversation, onNavigate } = props
   const { theme, toggle } = useTheme()
   const [settings, setSettings] = useState<api.Settings | null>(null)
   const [settingsErr, setSettingsErr] = useState<string | null>(null)
@@ -61,6 +63,26 @@ export function SettingsView(props: Props) {
         <br />
         窄屏（≤ 760px）會<b>自動</b>用手機版；喺呢度揀邊套即時蓋過（今次開頁有效）—— 闊屏就會用你揀嗰套。
         想喺窄屏固定睇某一套，用 URL 加 <code>?layout=chat|journal|dash|mobile</code>（preview，唔會寫入偏好）。
+      </p>
+
+      <h3 className="block-title">指南</h3>
+      <div className="guide-entry" style={{ maxWidth: 560 }}>
+        <button className="guide-entry-btn" onClick={() => onNavigate?.('guide')}>
+          <span className="ic" aria-hidden>
+            📖
+          </span>
+          <span className="t">
+            <b>男士護膚基本資料</b>
+            <em>一日點護膚 · 先後次序 · 咩皮膚用咩成份 · 有咩要注意</em>
+          </span>
+          <span className="go" aria-hidden>
+            →
+          </span>
+        </button>
+      </div>
+      <p className="hint">
+        「應該用咩產品」嗰節同 app 推薦你嘅成份用同一份資料（backend <code>recommend.RULES</code>），
+        所以指南同教練唔會講兩套。
       </p>
 
       <h3 className="block-title">Agent 連線</h3>

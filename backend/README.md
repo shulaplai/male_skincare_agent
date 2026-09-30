@@ -97,8 +97,9 @@ FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval   # 真 emb
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest -q     # 77 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
+./.venv/bin/python -m pytest -q     # 226 個：memory / rag / hybrid / agent / guardrails / eval / export / attributes /
                                     #        vision-consent / messages / self-report / correlation / preferences / API layers
+                                    #        ingredients / product-eval / guide / video
 ```
 
 ## 常用 scripts

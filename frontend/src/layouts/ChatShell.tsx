@@ -5,6 +5,7 @@ import { RightPanel } from '../components/RightPanel'
 import { RecordsView } from '../components/RecordsView'
 import { ProgressView } from '../components/ProgressView'
 import { SettingsView } from '../components/SettingsView'
+import { GuideView } from '../components/GuideView'
 import type { View } from '../types'
 import type { ShellProps } from './defs'
 
@@ -49,6 +50,7 @@ export function ChatShell(p: ShellProps) {
       )}
       {view === 'records' && <RecordsView conversation={active} />}
       {view === 'progress' && <ProgressView conversation={active} />}
+      {view === 'guide' && <GuideView onBack={() => setView('settings')} />}
       {view === 'settings' && (
         <SettingsView
           conversations={p.conversations}
@@ -58,6 +60,7 @@ export function ChatShell(p: ShellProps) {
           onAddConversation={p.onAddConversation}
           onRenameConversation={p.onRenameConversation}
           onDeleteConversation={p.onDeleteConversation}
+          onNavigate={setView}
         />
       )}
     </>

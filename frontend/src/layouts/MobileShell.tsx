@@ -3,6 +3,7 @@ import { Chat } from '../components/Chat'
 import { ProgressView } from '../components/ProgressView'
 import { RecordsView } from '../components/RecordsView'
 import { SettingsView } from '../components/SettingsView'
+import { GuideView } from '../components/GuideView'
 import type { SceneTab, ShellNav, ShellProps, ShellScene } from './defs'
 import { MobileHome } from './MobileHome'
 import { ShellTop } from './ShellTop'
@@ -65,6 +66,7 @@ export function MobileShell({ p, tabs }: Props) {
         )}
         {scene === 'records' && <RecordsView conversation={active} />}
         {scene === 'progress' && <ProgressView conversation={active} />}
+        {scene === 'guide' && <GuideView onBack={() => setScene('settings')} />}
         {scene === 'settings' && (
           <SettingsView
             conversations={p.conversations}
@@ -74,6 +76,7 @@ export function MobileShell({ p, tabs }: Props) {
             onAddConversation={p.onAddConversation}
             onRenameConversation={p.onRenameConversation}
             onDeleteConversation={p.onDeleteConversation}
+            onNavigate={setScene}
           />
         )}
       </div>

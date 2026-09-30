@@ -22,11 +22,23 @@ T = TypeVar("T", bound=BaseModel)
 
 logger = logging.getLogger(__name__)
 
+#: Appended as a second system message when the model produced an unparseable reply.
+#: Kept explicit about *why* it failed, so the model can correct the shape rather than
+#: guess again. Measured: this is what makes the retry actually work.
+FORMAT_CORRECTION = (
+    "⚠️ 你上一次回覆冇跟格式。你只可以輸出 schema 定義嘅結構化物件；"
+    "**唔可以 call 任何 function**。要要求工具，就將工具名放入 `tool_calls` "
+    "欄位嘅**字串陣列**（例如 [\"search_knowledge\"]），唔係當佢係一個 function 嚟 call。"
+)
+
 
 class FakeLLM:
     def structured(self, system: str, user: str, schema: type[T]) -> T:
         if schema is SkinAnalysis:
             return SkinAnalysis(
+                # FakeLLM 模擬「用戶描述咗皮膚」嘅情況 → True，令 test／eval 行為同真打卡一致。
+                # 要試「唔應該寫紀錄」嘅路徑，test 會自己砌一個 observes_skin=False 嘅 model。
+                observes_skin=True,
                 summary="下巴有新暗瘡，T 字位偏油，兩頰中性",
                 metrics=[
                     Metric(key="新暗瘡", value="+2", dir="bad"),
@@ -123,24 +135,35 @@ class OpenAICompatLLM:
         # `response_format: json_schema`, so force tool-based extraction.
         return self._client().with_structured_output(schema, method="function_calling")
 
-    def _invoke(self, runnable, messages):
-        """Invoke the structured runnable, retrying once on a parse failure.
+    def _invoke(self, runnable, messages, attempts: int = 3):
+        """Invoke the structured runnable, retrying with an explicit correction.
 
-        The provider occasionally returns a *tool call* named after one of the RAG
-        tools advertised in `prompts.TOOL_GUIDE` (e.g. `get_skin_profile`) instead of
-        the schema's own tool. langchain's `PydanticToolsParser(first_tool_only=True)`
-        takes `tool_calls[0]` without checking its name, so that surfaces as
-        `OutputParserException: Unknown tool type: ...` — measured on 5 of 7 real calls,
-        on the production `/api/consult` path and in the real eval gate. One retry turns
-        a frequently-fatal consult into a rare one. A second failure is left to
-        propagate on purpose: there is no honest fallback analysis, and inventing one
-        would persist fabricated data as the user's record.
+        The provider occasionally emits a *tool call* named after one of the tools
+        advertised in `prompts.TOOL_GUIDE` (e.g. `search_knowledge`) instead of filling
+        the schema. langchain's `PydanticToolsParser(first_tool_only=True)` takes
+        `tool_calls[0]` without checking its name, so that surfaces as
+        `OutputParserException: Unknown tool type: ...`.
+
+        Measured on the live path: it hits hardest on **product/ingredient questions** —
+        exactly when the model most wants `search_knowledge`. And a bare retry of the
+        *same* messages was not enough (two failures in a row observed). So the retry
+        appends an explicit correction saying that only the schema may be produced.
+
+        That is not a fabricated fallback: we ask the model to answer the same question
+        in the right shape. A final failure is left to propagate on purpose — there is no
+        honest fallback analysis, and inventing one would persist fabricated data as the
+        user's record. `service.run_consult` turns it into a readable 503, not a bare 500.
         """
-        try:
-            return runnable.invoke(messages)
-        except OutputParserException as e:
-            logger.warning("structured output parse failed (%s) — retrying once", e)
-            return runnable.invoke(messages)
+        for attempt in range(1, attempts + 1):
+            try:
+                return runnable.invoke(messages)
+            except OutputParserException as e:
+                logger.warning(
+                    "structured output parse failed (attempt %d/%d): %s", attempt, attempts, e
+                )
+                if attempt == attempts:
+                    raise
+                messages = [*messages, ("system", FORMAT_CORRECTION)]
 
     def structured(self, system: str, user: str, schema: type[T]) -> T:
         return self._invoke(self._runnable(schema), [("system", system), ("human", user)])

@@ -48,7 +48,9 @@ from .attributes import (
     severity_map,
 )
 from .guardrails import apply_guardrails
+from .ingredients import looks_like_ingredient_list
 from .llm import FakeLLM
+from .product_context import evaluate_for_conversation, summarise_evaluation
 from .prompts import ADVISE_SYSTEM, ANALYZE_SYSTEM, build_advise_prompt, build_analyze_prompt
 from .schemas import Advice, SkinAnalysis
 from .state import AgentState, TraceStep
@@ -181,6 +183,24 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                 r["ms"] = round((time.perf_counter() - t0) * 1000, 1)
                 results.append(r)
 
+            # A pasted ingredient list → run the deterministic coverage check here rather
+            # than letting the model reason about ingredients. The LLM writes the
+            # comparison; the *facts* in it (which actives are present, which of the
+            # user's recommendations are missing) come from `product_eval`.
+            #
+            # This is why the product path lives in the graph instead of a separate UI:
+            # the reply is an ordinary chat bubble. `persist` will not write an Entry for
+            # it, because `observes_skin` is false for a list of ingredients.
+            product_eval = None
+            if looks_like_ingredient_list(state["user_text"]):
+                try:
+                    ev = evaluate_for_conversation(
+                        session, state["conversation_id"], state["user_text"]
+                    )
+                    product_eval = summarise_evaluation(ev)
+                except Exception as e:  # evaluation must never kill the consult
+                    logger.warning("product evaluation failed: %s: %s", type(e).__name__, e)
+
             # Recent chat turns become context for this advice (Q39: stateless
             # consult + recent-messages context, so "我頭先講嘅嘢" still works).
             recent = (
@@ -202,6 +222,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             )
             return {
                 "tool_results": results,
+                "product_eval": product_eval,
                 "recent_messages": recent_messages,
                 "first_checkin": has_entries is None,
                 "trace": [
@@ -220,6 +241,18 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                             ],
                             "recent_messages": len(recent_messages),
                             "first_checkin": has_entries is None,
+                            "product_eval": (
+                                None
+                                if product_eval is None
+                                else {
+                                    "verdict": product_eval["verdict"],
+                                    "recognised": len(product_eval["recognised"]),
+                                    "unknown": len(product_eval["unknown"]),
+                                    "matched": product_eval["matched"],
+                                    "missing": product_eval["missing"],
+                                    "conflicts": len(product_eval["conflicts"]),
+                                }
+                            ),
                         },
                     )
                 ],
@@ -256,6 +289,22 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
         started = time.perf_counter()
         advice = Advice(**state["advice"])
         final, escalate = apply_guardrails(advice, state["user_text"])
+
+        # A prescription ingredient in a pasted product is a deterministic hard stop, so
+        # the reply is replaced with the computed text rather than left to whatever the
+        # model phrased. `evaluate_product` deliberately suppresses coverage in this case
+        # (showing "matched: 水楊酸" next to a drug reads as "mostly fine, just one bad
+        # ingredient"), and the standalone route skips its narrative for the same reason.
+        # Naming the ingredient is safe *and* more useful than the generic escalation,
+        # because the user is the one who pasted it.
+        forced: list[str] = []
+        evaluation = state.get("product_eval") or {}
+        if evaluation.get("escalate"):
+            forced = [c["text"] for c in evaluation.get("conflicts", []) if c.get("kind") == "prescription"]
+            if forced:
+                escalate = True
+                final = final.model_copy(update={"reply": forced[0], "items": forced})
+
         replaced = [i for i in advice.items if i not in final.items]
         return {
             "advice": final.model_dump(),
@@ -268,6 +317,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         "escalate": escalate,
                         "items_replaced": len(replaced),
                         "disclaimer_added": not advice.disclaimer and bool(final.disclaimer),
+                        "forced_by_product_eval": bool(forced),
                     },
                 )
             ],
@@ -282,22 +332,56 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             today = datetime.date.today()
             now = utcnow()
 
+            # Does this turn actually carry skin evidence? A question is not a check-in.
+            #
+            # `Entry` is the daily *structured summary* (doctrine #5): data truth for
+            # change detection, the timeline and memory. Writing one from a message that
+            # merely asked about a product replaced the day's real readings with the
+            # "未提及就畀 0" analysis — and because only one agent timeline event per day
+            # is allowed (`:316`), the resulting fake "改善" was frozen permanently: a
+            # later real check-in could restore the attributes but never the event.
+            # Measured on the live path: the model returns all six attributes as 0 for
+            # 「呢支精華得唔得？」 and says so itself in the reply.
+            #
+            # A photo the vision model actually read is evidence by definition, so it
+            # short-circuits the flag.
+            observes_skin = bool(analysis.observes_skin) or bool(state.get("vision_used"))
+
             entry = session.query(Entry).filter_by(conversation_id=conv_id, date=today).first()
             entry_reused = entry is not None
-            if entry is None:
-                entry = Entry(conversation_id=conv_id, date=today)
-                session.add(entry)
-                session.flush()  # assign entry.id before attaching photos
-            entry.note = state["user_text"]
-            entry.metrics = [m.model_dump() for m in analysis.metrics]
-            entry.attributes = [a.model_dump() for a in analysis.attributes]
+            photos_added = 0
+            timeline_lines: list[str] = []
+            insights_created = 0
+            insights_strengthened = 0
+            insights_superseded = 0
+
+            if not observes_skin:
+                # Skip the whole Entry block — including the timeline — but still write
+                # the chat turns below (display truth). An existing Entry for today is
+                # left completely untouched, so a question can never rewrite the day.
+                pass
+            else:
+                if entry is None:
+                    entry = Entry(conversation_id=conv_id, date=today)
+                    session.add(entry)
+                    session.flush()  # assign entry.id before attaching photos
+                entry.note = state["user_text"]
+                entry.metrics = [m.model_dump() for m in analysis.metrics]
+                entry.attributes = [a.model_dump() for a in analysis.attributes]
 
             # Photos attach to the day's entry once (dedupe by file name); only
             # photos that actually exist on disk are linked (no dangling rows).
-            existing_photo_names = {p.path for p in entry.photos}
-            photos_added = 0
+            existing_photo_names = {p.path for p in entry.photos} if entry is not None else set()
             for pid in state.get("photo_paths", []):
                 if not photo_exists(pid):
+                    continue
+                if entry is None:
+                    # No entry to attach to: a photo turn always has evidence, so this
+                    # only happens if the model wrongly reported observes_skin=False
+                    # while vision was off. Log it rather than drop the photo silently.
+                    logger.warning(
+                        "persist: 有相但唔寫 Entry（observes_skin=False、vision 冇行）pid=%s", pid
+                    )
                     continue
                 if f"photos/{pid}.jpg" not in existing_photo_names:
                     session.add(Photo(entry_id=entry.id, path=f"photos/{pid}.jpg"))
@@ -307,13 +391,12 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
 
             # Timeline: deterministic change detection (Q24 — sparse, notable
             # changes only; one agent event per conversation per day at most).
-            timeline_lines: list[str] = []
             existing_agent_event = (
                 session.query(TimelineEvent)
                 .filter_by(conversation_id=conv_id, date=today, source="agent")
                 .first()
             )
-            if existing_agent_event is None:
+            if observes_skin and existing_agent_event is None:
                 history = (
                     session.query(Entry)
                     .filter(Entry.conversation_id == conv_id, Entry.date < today)
@@ -335,10 +418,10 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             # keyed by tag (attribute) + direction (problem/normal). Same
             # tag+direction strengthens (confidence up, expiry extended); a
             # direction flip supersedes and version-bumps, keeping history.
-            insights_created = 0
-            insights_strengthened = 0
-            insights_superseded = 0
-            for attr in analysis.attributes:
+            #
+            # Gated on `observes_skin` too: without it, asking about a product produced
+            # a permanent「暗瘡：正常」memory for a user who never reported any skin state.
+            for attr in analysis.attributes if observes_skin else []:
                 direction = direction_for(attr.severity)
                 candidate = make_derived(
                     new_id(),
@@ -432,8 +515,11 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         "persist",
                         started,
                         {
+                            # Visible evidence that a question did NOT become a day of data.
+                            "observes_skin": observes_skin,
+                            "entry_written": observes_skin,
                             "entry_reused": entry_reused,
-                            "attributes": len(analysis.attributes),
+                            "attributes": len(analysis.attributes) if observes_skin else 0,
                             "photos_added": photos_added,
                             "timeline_lines": len(timeline_lines),
                             "insights_created": insights_created,

@@ -1,4 +1,11 @@
-import type { CorrelationResult, DetectedEvent, ServerMessage, Summary } from './types'
+import type {
+  CorrelationResult,
+  DetectedEvent,
+  Guide,
+  ServerMessage,
+  Summary,
+  VideoUpload,
+} from './types'
 
 export interface ApiConversation {
   id: string
@@ -106,6 +113,25 @@ export async function uploadPhoto(file: File): Promise<{ id: string; path: strin
   )
 }
 
+/**
+ * Upload a clip and get back the frames sampled from it.
+ *
+ * The frames are **ordinary photos**: the caller attaches their ids and sends them as
+ * `photo_paths` to `/api/consult`, so nothing downstream needs to know it was a video.
+ * `compressed` / `original_bytes` / `stored_bytes` are reported so the UI can tell the
+ * user what happened to their file rather than silently shrinking it.
+ */
+export async function uploadVideo(conversationId: string, file: File): Promise<VideoUpload> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return parse(
+    await fetch(`/api/videos?cid=${encodeURIComponent(conversationId)}`, {
+      method: 'POST',
+      body: fd,
+    }),
+  )
+}
+
 export async function getSummary(conversationId: string): Promise<Summary> {
   return parse(await fetch(`/api/conversations/${conversationId}/summary`))
 }
@@ -156,6 +182,10 @@ export async function deleteEntryPhoto(entryId: string, photoId: string): Promis
 
 export async function deleteInsight(cid: string, insightId: string): Promise<{ status: string }> {
   return parse(await fetch(`/api/conversations/${cid}/insights/${insightId}`, { method: 'DELETE' }))
+}
+
+export async function getGuide(): Promise<Guide> {
+  return parse(await fetch('/api/guide'))
 }
 
 export async function health(): Promise<{ status: string; llm_provider: string }> {

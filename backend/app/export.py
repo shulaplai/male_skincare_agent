@@ -1,8 +1,8 @@
 """Data export/import — the local-first "keep it on your own machine" guarantee.
 
-Export bundles the entire data dir (SQLite + photos) into a single zip, so a user
-can back up / move their whole record off-cloud. Import restores it, with a path
-traversal guard.
+Export bundles the entire data dir (SQLite + photos + uploaded clips) into a single
+zip, so a user can back up / move their whole record off-cloud. Import restores it,
+with a path traversal guard.
 """
 import io
 import zipfile

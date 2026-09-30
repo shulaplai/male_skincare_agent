@@ -5,6 +5,7 @@ import { ProgressView } from '../components/ProgressView'
 import { RecordsView } from '../components/RecordsView'
 import { RightPanel } from '../components/RightPanel'
 import { SettingsView } from '../components/SettingsView'
+import { GuideView } from '../components/GuideView'
 import { Sidebar } from '../components/Sidebar'
 import type { View } from '../types'
 import type { HomeProps, SceneTab, ShellNav, ShellProps, ShellScene } from './defs'
@@ -77,6 +78,7 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
           )}
           {scene === 'records' && <RecordsView conversation={active} />}
           {scene === 'progress' && <ProgressView conversation={active} />}
+          {scene === 'guide' && <GuideView onBack={() => setScene('settings')} />}
           {scene === 'settings' && (
             <SettingsView
               conversations={p.conversations}
@@ -86,6 +88,7 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
               onAddConversation={p.onAddConversation}
               onRenameConversation={p.onRenameConversation}
               onDeleteConversation={p.onDeleteConversation}
+              onNavigate={setScene}
             />
           )}
         </div>

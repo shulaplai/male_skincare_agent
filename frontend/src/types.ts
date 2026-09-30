@@ -1,6 +1,6 @@
 export type Theme = 'light' | 'dark'
 
-export type View = 'chat' | 'records' | 'progress' | 'settings'
+export type View = 'chat' | 'records' | 'progress' | 'settings' | 'guide'
 
 /** 四套可揀嘅 UI「結構」（Q: 介面結構）—— 唔同場景主導嘅排法，食同一批 API。 */
 export type LayoutId = 'chat' | 'journal' | 'dash' | 'mobile'
@@ -151,4 +151,64 @@ export interface ServerMessage {
     vision_used?: boolean
   }
   created_at: string
+}
+
+/* ---------- 男士護膚基本資料（app/guide.py 出嘅內容）---------- */
+
+export type GuideBlockType = 'para' | 'list' | 'steps' | 'callout' | 'image' | 'sources' | 'actives'
+
+export interface GuideBlock {
+  type: GuideBlockType
+  text: string
+  items: string[]
+  tone: 'info' | 'warn' | 'tip' | string
+  image_id: string
+  citations: string[]
+}
+
+export interface GuideSection {
+  id: string
+  title: string
+  icon: string
+  summary: string
+  blocks: GuideBlock[]
+}
+
+export interface Guide {
+  title: string
+  subtitle: string
+  sections: GuideSection[]
+  /* 所有引用資料嘅匯總（source :: title），對應 backend corpus chunks */
+  sources: string[]
+}
+
+/** A frame sampled out of an uploaded clip. It **is** a photo (`/api/photos/<id>`). */
+export interface VideoFrame {
+  id: string
+  path: string
+}
+
+/**
+ * Response of `POST /api/videos`.
+ *
+ * `sampled` / `dropped` are candidate counts (the sampler proposes up to 24 points and
+ * de-duplicates them down to at most 6), not the frame count — that is `frames.length`.
+ */
+export interface VideoUpload {
+  video_id: string
+  path: string
+  duration: number
+  fps: number
+  width: number
+  height: number
+  sampled: number
+  dropped: number
+  timestamps: number[]
+  frames: VideoFrame[]
+  original_bytes: number
+  stored_bytes: number
+  compressed: boolean
+  /* Non-null when re-encoding was attempted and failed. The clip is still usable and
+     still stored — compression is never allowed to fail the upload. */
+  compress_error: string | null
 }

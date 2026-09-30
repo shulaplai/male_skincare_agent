@@ -28,6 +28,10 @@ class AgentState(TypedDict, total=False):
     vision_used: bool
     analysis: dict | None
     tool_results: list[dict]
+    # A pasted ingredient list is a *question*, not a check-in — and the deterministic
+    # core already knows how to score coverage. When the user's message looks like an
+    # INCI list the `tools` node fills this in, and `advise` only writes the comparison.
+    product_eval: dict | None
     recent_messages: list[str]
     first_checkin: bool
     advice: dict | None
