@@ -96,3 +96,15 @@ SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn ap
 
 - 點解咁揀 + 面試談資：`docs/architecture.md`
 - 邊啲 claim 做咗、邊啲未做：`docs/status-vs-claims.md`
+
+## 🎓 想學 AI agent？
+
+呢個 repo 同時係一份教材：**[`learn/`](learn/README.md)** —— 9 章課程 ＋ 10 個可執行實驗
+（全部用 FakeLLM ＋ 臨時 DB，零 API 費用、零真 data 風險）。
+由「LLM 喺 code 邊度」講到「5 個 node 嘅思考過程」、「harness engineering」
+同「點樣寫自己嘅 eval」。
+
+```bash
+./backend/.venv/bin/python learn/labs/lab03_agent_loop.py   # 5 個 node 嘅真 trace
+./backend/.venv/bin/python learn/labs/lab10_own_eval.py     # 自己寫一個 eval
+```
