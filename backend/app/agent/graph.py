@@ -113,7 +113,9 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                 try:
                     analysis = vllm.structured_vision(
                         ANALYZE_SYSTEM,
-                        build_analyze_prompt(state["user_text"], True, photo_viewed=True),
+                        build_analyze_prompt(
+                            state["user_text"], True, photo_viewed=True, clip=state.get("clip")
+                        ),
                         SkinAnalysis,
                         images,
                     )
@@ -488,7 +490,12 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     conversation_id=conv_id,
                     role="user",
                     text=state["user_text"],
-                    payload={"photos": state.get("photo_paths", [])},
+                    payload={
+                        "photos": state.get("photo_paths", []),
+                        # 用戶睇到嘅係「一條片」：UI 靠呢個 flag 出影片 chip 而唔係相
+                        # （唔可以 leak「抽咗 6 張相」呢件事）。
+                        "clip": state.get("clip"),
+                    },
                 )
             )
             session.add(
@@ -505,6 +512,10 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         "disclaimer": advice.get("disclaimer", ""),
                         "escalate": bool(state.get("escalate")),
                         "vision_used": bool(state.get("vision_used")),
+                        # Persisted so the「我留意到…✅ 記低」chips survive a reload
+                        # (Q51 / issue #22). `events_applied` 之後由 confirm 嗰條 route
+                        # 寫入 → reload 唔會再出已經記低咗嘅 chip。
+                        "detected_events": list(advice.get("detected_events") or []),
                     },
                 )
             )

@@ -1,4 +1,6 @@
 import type { CorrelationResult, MemoryItem, RecordEntry, TimelineEvent } from '../types'
+import { Icon } from '../components/Icon'
+import { EmptyState } from './ui/EmptyState'
 
 /**
  * 純 display blocks：食 props、唔自己 fetch（新結構 home 共用）。
@@ -59,14 +61,14 @@ export function LevelDots({ severity }: { severity: number }) {
 }
 
 export function MemoryList({ items, onDelete }: { items: MemoryItem[]; onDelete?: (m: MemoryItem) => void }) {
-  if (items.length === 0) return <p className="empty small">未有記憶。多打卡幾次，agent 會建立推導記憶。</p>
+  if (items.length === 0) return <EmptyState small icon="sparkles">未有記憶。多打卡幾次，agent 會建立推導記憶。</EmptyState>
   return (
     <div className="mem-group">
       {items.map((m, i) => (
         <div className="mem" key={m.id ?? i}>
           <div className={`t ${m.kind}`}>
             {kindLabel[m.kind] ?? m.kind}
-            {m.scope === 'global' && <span className="scope-badge">🌐 全局</span>}
+            {m.scope === 'global' && <span className="scope-badge"><Icon name="globe" size={12} /> 全局</span>}
             {onDelete && m.id && (
               <i className="mem-x" title="刪除呢條記憶（修正）" onClick={() => onDelete(m)}>
                 ×
@@ -89,7 +91,7 @@ export function MemoryList({ items, onDelete }: { items: MemoryItem[]; onDelete?
 }
 
 export function TimelineList({ events }: { events: TimelineEvent[] }) {
-  if (events.length === 0) return <p className="empty small">未有事件。自報嘅飲食／產品同明顯皮膚變化會喺度累積。</p>
+  if (events.length === 0) return <EmptyState small icon="clipboard-list">未有事件。自報嘅飲食／產品同明顯皮膚變化會喺度累積。</EmptyState>
   return (
     <div className="tl">
       {events.map((e, i) => (
@@ -97,7 +99,7 @@ export function TimelineList({ events }: { events: TimelineEvent[] }) {
           <div className="d">
             {e.date}
             <span className={`src ${e.source ?? 'user'}`}>
-              {e.source === 'agent' ? 'AI 偵測' : e.scope === 'global' ? '🌐 飲食（全局）' : '你'}
+              {e.source === 'agent' ? (<><Icon name="sparkles" size={12} /> AI 偵測</>) : e.scope === 'global' ? (<><Icon name="globe" size={12} /> 飲食（全局）</>) : '你'}
             </span>
           </div>
           <div className="x">{e.text}</div>

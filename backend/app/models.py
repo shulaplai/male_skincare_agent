@@ -30,6 +30,12 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(120), default="")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
+    # One-time photo consent (2026-10-01 decision: the app is cloud-only, so the
+    # consent lives on the user, not on each conversation). While this is False no
+    # image bytes are ever sent to a cloud vision model — the analyze gate checks
+    # it in `service.run_consult`, so the guarantee does not depend on the UI.
+    photo_cloud_consent: Mapped[bool] = mapped_column(default=False)
+    consent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     conversations: Mapped[list[Conversation]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -43,9 +49,11 @@ class Conversation(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     body_part: Mapped[str] = mapped_column(String(120))
     icon: Mapped[str] = mapped_column(String(16), default="🧴")
-    # Privacy consent: when False, photos are stored locally but never sent to
-    # a cloud vision model (text-only analysis). Defaults to the env setting
-    # SKINCOACH_CLOUD_ANALYSIS_DEFAULT at creation time.
+    # Privacy consent: kept for backwards compatibility with existing rows, but the
+    # app is cloud-only since 2026-10-01 — `crud.create_conversation` always writes
+    # True and `init_db` normalises legacy 0s. The real gate is the *user-level*
+    # `User.photo_cloud_consent` (one-time consent screen). Do not build new
+    # per-conversation behaviour on this column.
     cloud_analysis: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 

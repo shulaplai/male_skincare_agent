@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as api from '../api'
-import type { Conversation, DetectedEvent, Message, VideoUpload } from '../types'
+import { BlurPhoto } from './BlurPhoto'
+import type { Conversation, DetectedEvent, Message } from '../types'
 import { useTheme } from '../theme'
+import { Icon } from './Icon'
+import { Skeleton } from './ui/Skeleton'
 
 interface Props {
   conversation: Conversation
@@ -9,12 +12,10 @@ interface Props {
   messages: Message[]
   loading: boolean
   sending: boolean
-  onSend: (text: string, photos: { id: string; path: string }[]) => void
+  onSend: (text: string, photos: { id: string; path: string }[], video?: { duration: number; frames: number }) => void
   online: boolean
   onSelectConversation: (id: string) => void
-  onToggleCloud: (id: string, enabled: boolean) => void
   onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
-  onQuickRecord: (conversationId: string, diet: string, product: string) => void
 }
 
 function splitAdvice(a: string): { lead: string; rest: string } {
@@ -40,14 +41,14 @@ function EventChips({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, 
       <span className="ev-label">我留意到：</span>
       {m.events.map((e, i) => (
         <span key={i} className={`event-chip t-${e.type}`}>
-          {e.type === 'diet' ? '🍜' : e.type === 'product_start' ? '🧴' : '✋'}{' '}
+          <Icon name={e.type === 'diet' ? 'utensils' : e.type === 'product_start' ? 'droplet' : 'hand'} size={13} />{' '}
           {e.text || e.product_name}
         </span>
       ))}
       {onConfirm && (
         <span className="ev-actions">
           <button className="ev-yes" onClick={() => onConfirm(m.id, m.events!)}>
-            ✅ 記低
+            <Icon name="check" size={13} /> 記低
           </button>
         </span>
       )}
@@ -55,27 +56,44 @@ function EventChips({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, 
   )
 }
 
-function Bubble({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, evs: DetectedEvent[]) => void }) {
+function Bubble({
+  m,
+  onConfirm,
+  onMediaLoad,
+}: {
+  m: Message
+  onConfirm?: (msgId: string, evs: DetectedEvent[]) => void
+  onMediaLoad?: () => void
+}) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
+  /* ⚠️ class 名唔可以照抄 role：CSS 嘅左右分邊係寫 `.msg.me`（`row-reverse` +
+     `margin-left: auto`）＋ `.a.me`，而 role 係 `user` —— 直接寫 `msg user` 就
+     永遠 match 唔到，用戶自己嗰句會同 AI 一樣靠左（實測 390px：兩邊 bubble 都由
+     x=57 開始）。呢度做一次 mapping，兩邊（class 同 CSS）先真正見面。 */
+  const who = m.role === 'user' ? 'me' : 'coach'
   return (
-    <div className={`msg ${m.role}${m.error ? ' err' : ''}`}>
-      <div className={`a ${m.role}`} />
+    <div className={`msg ${who}${m.error ? ' err' : ''}`}>
+      <div className={`a ${who}`} />
       <div className="bubble">
         <div className="meta">
           {label} · {m.time}
           {m.pending && <span className="pending-dot">傳送緊…</span>}
         </div>
-        {m.escalate && <div className="escalate-banner">⚠️ 呢個情況建議轉介皮膚科醫生</div>}
+        {m.escalate && <div className="escalate-banner">
+          <Icon name="triangle-alert" size={15} /> 呢個情況建議轉介皮膚科醫生
+        </div>}
         {m.text}
-        {m.photo && (
-          <span className="photo">
-            <img src={m.photo} alt="皮膚相" />
+        {m.clip && (
+          <span className="clip-bubble" title="已上傳嘅皮膚影片">
+            <Icon name="play" size={13} /> 皮膚影片{m.clip.duration ? ` · ${m.clip.duration.toFixed(0)} 秒` : ''}
           </span>
         )}
+        {!m.clip && m.photo && <BlurPhoto src={m.photo} onLoad={onMediaLoad} />}
         {m.role === 'coach' && m.analysis && (
           <>
             <div className={`vision-badge ${m.vision_used ? 'seen' : 'text'}`}>
-              {m.vision_used ? '👁 已睇相分析（雲端）' : '✍️ 文字分析（未睇相）'}
+              <Icon name={m.vision_used ? 'eye' : 'pencil'} size={13} />
+              {m.vision_used ? '已睇相分析（雲端）' : '文字分析（未睇相）'}
             </div>
             <div className="card">
               <h4>{m.analysis.title}</h4>
@@ -121,23 +139,63 @@ export function Chat({
   onSend,
   online,
   onSelectConversation,
-  onToggleCloud,
   onConfirmEvents,
-  onQuickRecord,
 }: Props) {
   const { toggle } = useTheme()
   const [draft, setDraft] = useState('')
   const [attached, setAttached] = useState<{ id: string; path: string }[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
-  /* What the backend did with the last clip: how many photos it produced, and whether
-     the file was re-encoded. Kept so the user is told rather than silently resized. */
-  const [videoNote, setVideoNote] = useState<VideoUpload | null>(null)
+  /* 用戶上傳嘅片：UI 上係「一條片 + 上載進度」。⛔️ 唔會顯示「抽咗 6 張相」、
+     壓縮、格數呢啲內部實作（2026-10-01 決定）。`frames` 只用嚟內部送出。 */
+  const [clip, setClip] = useState<{
+    url: string
+    name: string
+    duration: number
+    frames: { id: string; path: string }[]
+    /** `uploading` 期間可能未有進度數字（瀏覽器未報之前）→ 顯示不確定動畫 */
+    state: 'uploading' | 'ready'
+    pct: number | null
+    /** 瀏覽器播唔到（例如冇 H.264 授權嘅 Chromium build）→ 出 SVG 佔位而唔係黑格。
+     *  防守性：本機 Chromium 實測**播得到**（`readyState 4`、`duration 2`），
+     *  之前見到 media error 其實係我自己嘅測試檔係 0 byte（見 AGENTS.md）。 */
+    previewFailed: boolean
+  } | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [quickOpen, setQuickOpen] = useState(false)
-  const [quickDiet, setQuickDiet] = useState('')
-  const [quickProduct, setQuickProduct] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const threadRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  /* 用戶係唔係「跟住最新一句」？一向上拉睇歷史就 false，唔好再搶佢個位置。 */
+  const pinnedRef = useRef(true)
+
+  const pinToBottom = () => {
+    const el = threadRef.current
+    if (!el || !pinnedRef.current) return
+    el.scrollTop = el.scrollHeight
+  }
+
+  /* 輸入框自適應：`scrollHeight` 量完要即刻覆寫返 height（`auto` 先量得到真實內容
+     高度）。上限 132px 之後自己 scroll，唔會食晒成個對話區。 */
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 132)}px`
+  }, [draft])
+
+  /* 本地預覽嘅 blob URL：由 effect 回收 —— React 已經換走 `<video>` 之後才 revoke，
+     即場 revoke 會令媒體元素報 ERR_REQUEST_RANGE_NOT_SATISFIABLE（實測）。 */
+  useEffect(() => {
+    const url = clip?.url
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [clip?.url])
+
+  const onThreadScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    pinnedRef.current = el.scrollHeight - el.clientHeight - el.scrollTop <= 24
+  }
 
   // Reset per-conversation composer state when switching body part (fix D1:
   // a half-typed message must not leak into another conversation).
@@ -146,26 +204,46 @@ export function Chat({
     setAttached([])
     setUploading(false)
     setUploadErr(null)
-    setVideoNote(null)
+    setClip(null)
     setMenuOpen(false)
-    setQuickOpen(false)
-    setQuickDiet('')
-    setQuickProduct('')
   }, [conversation.id])
+
+  /* 對話一入嚟就要見到最新嗰句：`.thread` 係內部 scroll 容器（唔係 window scroll），
+     reload／轉部位／手機版由其他 tab 返嚟之後永遠停喺最舊一條，用戶要自己拉幾千 px。
+     用 layout effect 喺 paint 前定位，避免「先閃一下頂部再跳到底」。
+     只喺換對話、有新訊息、開始送嗰陣強制跳；用戶自己向上睇歷史時唔會被打斷
+     （`onScroll` 會更新 pinned）。 */
+  useLayoutEffect(() => {
+    pinnedRef.current = true
+    pinToBottom()
+  }, [conversation.id, messages.length, sending])
+
+  /* 相係 async 載入：`<img>` 一 load 完 thread 就高咗，scrollTop 就唔再係底部
+     （實測 1280×900：load 前 max 2429、load 後 3147）。所以要喺「仍然 pinned」
+     嘅情況下重覆 pin。 */
+  useEffect(() => {
+    window.addEventListener('resize', pinToBottom)
+    return () => window.removeEventListener('resize', pinToBottom)
+  }, [])
+
+  /* Webfont 載入完（`font-display: swap` → 先用 fallback 畫，之後換字型）文字高度會變，
+     條 thread 就唔再係「貼住最新一句」。相有 `onLoad`，字型都要有。
+     唔做呢步：真用戶見到 reload 之後條 thread 唔貼底（而且 snapshot 會 flaky）。 */
+  useEffect(() => {
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts
+    fonts?.ready.then(() => pinToBottom()).catch(() => {})
+  }, [])
 
   const submit = () => {
     const t = draft.trim()
     if (!t && attached.length === 0) return
     if (sending || uploading) return
-    // The frames are already `attached`; say where they came from so the reply is not
-    // read as "here are N separate photos you took".
-    const fallback = videoNote
-      ? `（已上傳皮膚影片，抽出 ${videoNote.frames.length} 張相）`
-      : '（已上傳皮膚相）'
-    onSend(t || fallback, attached)
+    // 片：用戶睇到嘅係一條片，所以文字同 UI 都唔會提「抽咗幾多張相」
+    const fallback = clip ? '（已上傳皮膚影片）' : '（已上傳皮膚相）'
+    onSend(t || fallback, attached, clip ? { duration: clip.duration, frames: clip.frames.length } : undefined)
     setDraft('')
     setAttached([])
-    setVideoNote(null)
+    setClip(null)
   }
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -173,18 +251,22 @@ export function Chat({
     if (!f) return
     setUploading(true)
     setUploadErr(null)
-    setVideoNote(null)
     // A clip is not an attachment by itself — the backend samples it into ≤ 6 photos and
     // those photos are what the agent sees. `video/quicktime` (iPhone) has no extension
     // match for `accept`, so the MIME type is the check, not the filename.
     if (f.type.startsWith('video/')) {
+      // 本地預覽：上載期間用戶見到自己嗰條片同進度，唔會只係呆等（用戶回報）。
+      const url = URL.createObjectURL(f)
+      setClip({ url, name: f.name, duration: 0, frames: [], state: 'uploading', pct: null, previewFailed: false })
       api
-        .uploadVideo(conversation.id, f)
-        .then((v) => {
-          setAttached((prev) => [...prev, ...v.frames])
-          setVideoNote(v)
+        .uploadVideo(conversation.id, f, (pct) => setClip((c) => (c ? { ...c, pct } : c)))
+        .then((v) =>
+          setClip((c) => (c ? { ...c, duration: v.duration, frames: v.frames, state: 'ready', pct: null } : c)),
+        )
+        .catch((err: Error) => {
+          setUploadErr(err.message || '上傳失敗')
+          setClip(null)
         })
-        .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
         .finally(() => setUploading(false))
     } else {
       api
@@ -196,10 +278,6 @@ export function Chat({
     e.target.value = ''
   }
 
-  const cloudOn = conversation.cloudAnalysis
-  const cloudLabel = cloudOn
-    ? '雲分析已開：影相會送雲端 vision 分析'
-    : '本地模式：相唔會上雲分析（純文字）'
   const busy = sending || uploading
 
   return (
@@ -231,66 +309,47 @@ export function Chat({
           </div>
         </div>
         <div className="head-actions">
-          <div className={`status${online ? '' : ' offline'}`}>
-            <span className="pulse" /> {online ? 'Agent 在線' : '離線模式'}
+          <div className={`status${online ? '' : ' offline'}`} title={online ? 'Agent 在線' : '離線模式'}>
+            <span className="pulse" />
+            <span className="sb">{online ? 'Agent 在線' : '離線模式'}</span>
           </div>
           <button className="theme" onClick={toggle} title="切換日/夜模式">
-            <span className="sun">☀️</span>
-            <span className="moon">🌙</span>
+            <span className="sun"><Icon name="sun" size={17} /></span>
+            <span className="moon"><Icon name="moon" size={17} /></span>
           </button>
         </div>
       </header>
 
-      <div className="thread">
+      <div className="thread" ref={threadRef} onScroll={onThreadScroll}>
         <div className="hello">
-          早晨呀 ☀️ 今日{conversation.bodyPart}感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會
+          <Icon name="sun" size={16} /> 早晨呀，今日{conversation.bodyPart}感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會
           <b>一路記住</b>幫你追蹤。
         </div>
-        {loading && messages.length === 0 && <p className="empty small">載入緊對話歷史…</p>}
+        {loading && messages.length === 0 && <Skeleton lines={3} />}
         {messages.map((m, i) => {
           const prevDate = i > 0 ? messages[i - 1].date : null
           return (
             <div key={m.id}>
               {m.date !== prevDate && <div className="day">{dayChip(m.date)}</div>}
-              <Bubble m={m} onConfirm={(mid, evs) => onConfirmEvents(conversation.id, mid, evs)} />
+              <Bubble
+                m={m}
+                onConfirm={(mid, evs) => onConfirmEvents(conversation.id, mid, evs)}
+                onMediaLoad={pinToBottom}
+              />
             </div>
           )
         })}
         {sending && (
           <div className="msg coach">
             <div className="a coach" />
-            <div className="bubble typing">
-              <span className="pulse" /> 教練諗緊…（睇相＋分析＋建議，約 5–10 秒）
+            {/* `role="status"` + `aria-live="polite"`：screen reader 會讀出「教練諗緊…」，
+                但唔會搶焦點（以前係完全冇提示，用戶以為壞咗）。 */}
+            <div className="bubble typing" role="status" aria-live="polite">
+              <span className="pulse" aria-hidden /> 教練諗緊…（睇相＋分析＋建議，約 5–10 秒）
             </div>
           </div>
         )}
       </div>
-
-      {quickOpen && (
-        <div className="quickbar">
-          <input
-            value={quickDiet}
-            onChange={(e) => setQuickDiet(e.target.value)}
-            placeholder="飲食特別嘢（例：打邊爐·辣底）— 可空"
-          />
-          <input
-            value={quickProduct}
-            onChange={(e) => setQuickProduct(e.target.value)}
-            placeholder="開始用產品（例：水楊酸 toner）— 可空"
-          />
-          <button
-            className="btn ghost small"
-            onClick={() => {
-              onQuickRecord(conversation.id, quickDiet, quickProduct)
-              setQuickDiet('')
-              setQuickProduct('')
-              setQuickOpen(false)
-            }}
-          >
-            記低
-          </button>
-        </div>
-      )}
 
       <div className="compose">
         <div className="tools">
@@ -301,14 +360,9 @@ export function Chat({
             style={{ display: 'none' }}
             onChange={onPick}
           />
-          <span className="iconbtn" title="加相" onClick={() => fileRef.current?.click()}>
-            <svg viewBox="0 0 24 24">
-              <rect x="3" y="5" width="18" height="14" rx="3" />
-              <circle cx="8.5" cy="10" r="1.5" />
-              <path d="M21 15l-5-5-9 9" />
-            </svg>
-          </span>
-          {/* Measured: coverage comes from camera *movement*, not clip length — a 20 s
+          {/* 2026-10-01：composer 只留一個掣。相簿／相機本來係同一個 file input
+              （iOS 個 picker 自己會問「相片圖庫／拍照」），所以收起相簿掣冇功能損失。
+              Measured: coverage comes from camera *movement*, not clip length — a 20 s
               static clip de-duplicates down to a single frame, a 10 s pan yields all 6.
               The hint has to reach the user before they film, so it rides the button. */}
           <span
@@ -316,59 +370,91 @@ export function Chat({
             title="影相／錄片（片最多 20 秒；錄嗰陣鏡頭慢慢掃過成塊肌）"
             onClick={() => fileRef.current?.click()}
           >
-            <svg viewBox="0 0 24 24">
-              <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
-              <circle cx="12" cy="13" r="4" />
-            </svg>
-          </span>
-          <span className={`iconbtn ${quickOpen ? 'on' : ''}`} title="今日記錄（飲食／產品）" onClick={() => setQuickOpen((v) => !v)}>
-            <svg viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
+            <Icon name="camera" size={20} />
           </span>
         </div>
-        {uploading && <span className="chip uploading">⏳ 上傳中…（片要抽格，可能要幾秒）</span>}
+        {clip && (
+          <span className={`clip-chip${clip.state === 'uploading' ? ' uploading' : ''}`}>
+            {clip.previewFailed ? (
+              <span className="clip-thumb placeholder" aria-hidden>
+                <svg viewBox="0 0 24 24">
+                  <rect x="3" y="5" width="18" height="14" rx="3" />
+                  <path d="M10 9.5l5 2.5-5 2.5z" />
+                </svg>
+              </span>
+            ) : (
+              <video
+                src={clip.url}
+                className="clip-thumb"
+                muted
+                playsInline
+                preload="metadata"
+                onError={() => setClip((c) => (c ? { ...c, previewFailed: true } : c))}
+              />
+            )}
+            <span className="clip-meta">
+              <b><Icon name="play" size={13} /> 皮膚影片{clip.duration ? ` · ${clip.duration.toFixed(0)} 秒` : ''}</b>
+              {clip.state === 'uploading' ? (
+                <>
+                  <span
+                    className={`clip-bar${clip.pct === null ? ' unknown' : ''}`}
+                    role="progressbar"
+                    aria-valuenow={clip.pct ?? undefined}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <i style={{ width: clip.pct === null ? '100%' : `${clip.pct}%` }} />
+                  </span>
+                  <em>上載緊…{clip.pct !== null ? ` ${clip.pct}%` : ''}（唔使等，可以繼續打字）</em>
+                </>
+              ) : (
+                <em>已加入，撳「發送」交俾教練分析</em>
+              )}
+            </span>
+            <i
+              className="x"
+              title="移除"
+              onClick={() => setClip(null)}
+            >
+              ×
+            </i>
+          </span>
+        )}
         {attached.map((a) => (
           <span key={a.id} className="attach ok">
-            <img src={`/api/photos/${a.id}`} alt="預覽" />
-            <i className="ok-mark">✓</i>
+            <BlurPhoto src={`/api/photos/${a.id}`} alt="預覽" variant="thumb" />
+            <i className="ok-mark"><Icon name="check" size={12} /></i>
             <i className="x" onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}>
               ×
             </i>
           </span>
         ))}
-        {videoNote && (
-          <span className="chip video-note">
-            🎬 {videoNote.duration.toFixed(0)} 秒片 → 抽咗 {videoNote.frames.length} 張相
-            {videoNote.compressed &&
-              ` · 已壓縮 ${(videoNote.original_bytes / 1048576).toFixed(0)}MB → ${(
-                videoNote.stored_bytes / 1048576
-              ).toFixed(0)}MB`}
-            {videoNote.frames.length < 2 &&
-              ' · ⚠️ 格與格之間太似，所以只抽到一張：下次錄嗰陣鏡頭慢慢掃過成塊肌'}
-            {videoNote.compress_error && ' · ⚠️ 壓縮失敗，保留原檔'}
-          </span>
-        )}
-        {uploadErr && <span className="chip upload-err">✗ 上傳失敗：{uploadErr}</span>}
-        {attached.length > 0 && !cloudOn && (
-          <span className="warn-chip">⚠️ 本地模式：張相唔會俾 AI 睇（撳 ☁️ 開雲分析先會睇相）</span>
-        )}
-        <input
+        {uploadErr && <span className="chip upload-err">
+            <Icon name="circle-alert" size={13} /> 上傳失敗：{uploadErr}
+          </span>}
+        <textarea
+          ref={inputRef}
+          rows={1}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder={`問${conversation.bodyPart}教練任何嘢…（食咗咩／用咗咩／反應）`}
+          onKeyDown={(e) => {
+            // 中文輸入法：確認候選字都會 fire Enter，`isComposing` 唔擋就會誤送
+            if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+            e.preventDefault()
+            submit()
+          }}
+          /* 短 placeholder：長版喺手機（16px 字）會自己 wrap 成兩行，令輸入框一開
+             就 72px 高、白白食咗 11% 螢幕。提示已經喺上面個 welcome bubble 講咗。 */
+          placeholder={`問${conversation.bodyPart}教練任何嘢…`}
         />
-        <span
-          className={`mode ${cloudOn ? 'cloud' : 'local'}`}
-          title={cloudLabel}
-          onClick={() => online && onToggleCloud(conversation.id, !cloudOn)}
-        >
-          {cloudOn ? '☁️ 雲' : '🔒 本地'}
-        </span>
-        <button className="send" onClick={submit} disabled={busy}>
-          {sending ? '處理中…' : '發送'}
+        <button className="send" onClick={submit} disabled={busy} aria-label="發送" title="發送（Enter）">
+          {sending ? (
+            <svg className="spin" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+            </svg>
+          ) : (
+            <Icon name="arrow-up" size={20} />
+          )}
         </button>
       </div>
     </main>

@@ -150,7 +150,7 @@ cd ../frontend && npm run typecheck && npm run build
 前兩輪係**審計 code 同 claim**（由上而下）。第三輪相反：唔睇 code，用真瀏覽器＋真 LLM 由零行一次
 完整流程（14 次 consult），逐格量度。詳情、數字同證據路徑全部喺 **`docs/user-trial-findings.md`**。
 
-最重要嗰三條（**全部已修**，附 test 同瀏覽器量度）：
+最重要嗰四條（**全部已修**，附 test 同瀏覽器量度）：
 
 1. **桌面對話一長（≈5 條訊息）輸入框跌出畫面 ~10,000px** —— `.app` grid child 冇 `min-height: 0`
    （實測 26 條訊息 → `scrollHeight 10771 / innerHeight 900`；修好後 900、thread 內部 scroll）。
@@ -159,9 +159,69 @@ cd ../frontend && npm run typecheck && npm run build
    可讀廣東話指示。
 3. **首次純文字打卡會講「呢張相已經幫你建立咗 baseline」**（無相）—— `prompts` 嘅 `first_checkin`
    分支無條件寫「呢張相」；呢個係 #15 嘅鏡像（一個講有相、一個講冇相）。
+4. **手機版對話完全 scroll 唔到、輸入框唔喺畫面**（**用戶喺真手機上撞到，即場修**）——
+   `.chat` 冇 `min-height: 0`，flex（`.shell-scene`）同 grid（`.shell-chat`）兩邊都撐到內容高度
+   （390×844 實測 `.chat` 4237px、`.thread` scrollable 0、`.compose` top 4221，而
+   `.app.layout-mobile` 係 `overflow: hidden` → 冇任何方法 scroll）。**同第 1 條同一個 family，
+   只係喺再落一層。** 順手加「跟住最新一句」（`.thread` 係內部 scroll 容器，reload 之後原本永遠
+   停喺最舊一條；`<img onLoad>` 都要重新 pin，因為相係 async 載入）。
+
+> **方法論教訓（值得記住）**：第三輪「窄屏實測通過」係**假綠**——只量咗 page 層
+> （`scrollWidth == innerWidth`、tab bar 齊），而 thread 當時只有 2 條訊息。**長內容 ＋
+> 量到「composer 喺唔喺 viewport 內」** 才會抓到。第四條係用戶自己用手機用出嚟嘅。
 
 **未修、要你決定**（已開 issue，見 `docs/agents/issue-tracker.md`）：同日 Entry 覆蓋政策、
 偵測到嘅事件 chip 保存、上載完冇送出嘅相檔案殘留、HEIC 原生支援（#21–#24）。
 
 > 你自己試用時撞到嘅嘢 → 寫入 **`docs/user-notes.md`**（空白模板 ＋ 已知未修問題嘅重現步驟）。
 
+
+---
+
+## 九、第四輪：手機 UI/UX（2026-10-01，用戶逐項指令）
+
+用戶喺手機上實際用（Tailscale `100.120.154.43:5174`）之後逐項指出 8 個問題。今次**唔係審計**，
+係產品 owner 直接下指令，全部已實作＋量度驗證。詳情／數字見下面；每個改動都有「點解」（唔係純口味）。
+
+| # | 用戶要求 | 做咗咩 | 證據 |
+|---|---|---|---|
+| 1 | 以後永遠雲端、唔好再顯示雲／本地，但用戶一定要畀 consent | 新增 `User.photo_cloud_consent` + `consent_at`（`_COLUMN_MIGRATIONS`）；`GET/POST /api/consent`；`ConsentGate` 一次性同意畫面（要打勾＋撳掣）；**刪走** conversation 級 toggle（route 冇埋）、ShellTop 嘅「雲分析」掣、composer 嘅 `☁️/🔒` chip、側欄／Settings 嘅模式標示。Gate 喺 `service.run_consult`（server-side） | `tests/test_consent.py`（6 個）；apps 未同意時 `/api/consult` 有相 → `cloud_analysis: False` |
+| 2 | Tab 要真係跳 page，reload 唔應該跌返第一頁 | `hooks/useSceneRoute.ts`：scene 寫 URL（`?scene=chat`，home 唔寫）＋`pushState`＋`popstate`；`MobileShell`／`StandardShell` 都改用 | 撳「對話」→ `/?scene=chat`；reload 後仍然 `對話` active、6 條訊息；上一頁 → `/?`＋`今日` |
+| 3 | 相上載完要模糊，撳「顯示」先睇；size 再細 | `components/BlurPhoto.tsx`（每次 render 由模糊開始，唔記「睇過」；`alt` 跟狀態）；對話相 168×224（3:4）／手機 132、composer 預覽 46–48px | 量到 `blurred 2 → 撳一次 → blurred 1 / shown 1`；手機相闊 132（blur 時視覺 145 = ×1.1 防邊） |
+| 4 | composer 三個 icon 只留一個（相機） | 刪相簿掣（同相機本來係同一個 file input，冇功能損失）、刪「＋ 今日記錄」quickbar | `.compose .iconbtn` = **1** |
+| 5 | 底部 5 個 icon 用返正常 nav UI icon、同文字對齊 | 新增 `layouts/navIcons.tsx`（inline SVG：屋／氣泡／清單／柱狀圖／滑桿，`stroke: currentColor`），`TabScene` 收窄＋`Record` 逼編譯期齊全 | 5 個 tab `iconTop`/`labelTop` 完全一樣（800.1／825.1），pitch 78px |
+| 6 | chat 捲到最底，bar 下面有空位 | 高度鏈改 `html, body, #root, .app { height: 100% }`＋`body { overflow: hidden }`（唔用 `100dvh`：dvh 跟 URL bar 動態變，喺 nested scroller 捲動時 re-layout 落後） | `tabBar.bottom = 844 = innerH`；`docScrollable = 0` |
+| 7 | 發送掣用箭嘴 icon | `.send` 變 44px 圓形箭嘴 SVG；送緊時換轉圈（`@keyframes spin`），冇文字 | `sendSvg: true`、`sendText: ""` |
+| 8 | 輸入框要識得撐大 | `<input>` → auto-grow `<textarea>`（量 `scrollHeight`，上限 132px 之後自己 scroll）；`.compose { align-items: flex-end }`；**Enter 送、Shift+Enter 換行、擋 `isComposing`**（中文輸入法確認候選字會 fire Enter） | 桌面 45→87→45；手機 72→132（cap）→送完 72；Shift+Enter 只加行（`msgs` 不變） |
+
+**順手修好嘅真 bug（唔喺用戶清單，但係佢第 1 項講嘅現象嘅根因）**：
+`Chat.tsx` render `msg ${m.role}` = `msg user`，而 CSS 分邊係 `.msg.me`（`row-reverse` + `margin-left: auto`）
+—— **由頭到尾冇 match 過**，所以用戶自己講嘅嘢同 AI 一樣靠左（390px 實測兩邊都由 x=57 開始、`.a.user` 冇色）。
+加 `role → me/coach` mapping 之後：`me` = `row-reverse`、右邊內縮 57px（同教練嗰邊左內縮對稱）。
+
+**刻意未做／要你決定**：
+1. 「今日記錄（飲食／產品）」嘅手動入口隨住 #4 消失（`POST /api/conversations/{cid}/events` 同
+   `applyEvents` 都仍然在，AI 偵測到嘅「我留意到…✅ 記低」chip 亦照用）。要唔要搬入「記錄」tab？
+2. 撤回同意：API 有（`POST /api/consent {granted:false}`），但 UI 冇入口。
+3. 手機底部空位：Chromium 量到完全貼底。如果實機 **Android** 見到嘅空位係 system bar inset
+   （`viewport-fit=cover` 之下 `env(safe-area-inset-bottom)`），要唔要照樣畫落去？要實機再影一張對照。
+
+### 九之二、同日追加（用戶第二輪指令）
+
+| 要求 | 做咗咩 | 證據 |
+|---|---|---|
+| Consent 預設 `true`（「基本上都係得我用」） | `settings.require_photo_consent=False` 為預設 → `get_or_create_default_user` 直接寫 `photo_cloud_consent=True`，`init_db._normalise_consent_policy()` 補返舊 row（**只補 `consent_at IS NULL`**，撤回過嘅唔會自動開返）。`SKINCOACH_REQUIRE_PHOTO_CONSENT=true` 就變返多用戶模式（同一條 code path，gate 照樣 server-side） | `tests/test_consent.py` 9 個（含「撤回之後重啟唔可以自動開返」）；`GET /api/consent` → `{"granted":true,"at":"2026-10-01T09:47:42","required":false}` |
+| 飲食／產品要由 AI 喺對話抽取出嚟 | 機制本身係 `Advice.detected_events` +「我留意到…✅ 記低」，但**以前只存在 browser live state，reload 就消失**（issue [#22](https://github.com/shulaplai/male_skincare_agent/issues/22)）→ 已修：`persist` 寫入 coach payload、`format.ts` restore、確認後標 `events_applied`（有 message id 用 id，session 內新訊息用事件內容配對）。Prompt 亦由「明確講到」放寬到「**順口講都要抽**」，一句講幾樣就出幾個事件 | `tests/test_detected_events.py` 5 個；浏览器：mock payload 出 2 個 chip → 撳 ✅ 記低 → POST 帶 `message_id: 6` → reload 後 chips 唔再出 |
+| 用 app 嘅指南 + AI 要教「每日點記錄」 | ① 新 prompt 常數 `RECORDING_GUIDE`（20 秒片、鏡頭要動、影相、打幾隻字、**聲唔會記錄**）注入 first check-in 兩個分支；② 純文字打卡（非首次）再加**一句**輕提（deterministic：`vision_reason == "no_photo"`）；③ app 內指南新增「點樣記錄最準確」一節（標明係 app 建議，唔係文獻） | `tests/test_prompt_recording_guide.py` 7 個；`GET /api/guide` sections 加 `logging`；`?scene=guide` 直接 deep-link 都 render 到 |
+
+**順手修好**：`useSceneRoute` 之前只認 tab 名，所以 `?scene=guide` reload 會靜靜跌返第一頁 → 改用 `defs.SHELL_SCENES`（所有 scene）。實測：Settings → 指南 → reload 仍然停喺指南。
+
+### 九之三、同日追加（第三批用戶指令）
+
+| 要求 | 做咗咩 | 證據 |
+|---|---|---|
+| 上載影片時唔好「停喺一格格縮圖」、要見到條片同上載進度；**唔好俾用戶知抽格／壓縮** | composer 改成「🎬 皮膚影片 ＋ 本地預覽 ＋ 真進度條」（`fetch` 冇 upload progress → 改用 XHR）；刪走「抽咗 6 張相／已壓縮 62MB→5MB／格太似」全部文案；送出後對話只出中性 chip。後端加 `video:{duration,frames}` → `state["clip"]` → 寫入 user payload，reload 都唔會出抽格相；prompt 明文禁止講「幾張相／格數／抽格」，`frames<2` 改為一句「鏡頭慢慢掃過成塊面」 | `tests/test_clip_prompt.py`（7 個）；瀏覽器：上載中 `.clip-chip.uploading` ＋ `.clip-bar`、`frameThumbs = 0`、`mentionsFrames = false`、送出 POST 帶 `video:{duration:12.4,frames:6}`、對話出 `.clip-bubble` |
+| 底部 icon 下面嘅文字仲係冇對齊 | **量到真原因**：唔係盒模型（五個 item 完全一樣），係 **icon 自己嘅 ink** —— emoji 字形來源唔同；換咗自己手畫 SVG 之後仍然係 17／17／16.5／**14**／**12** CSS px、中心差 1.25px。改用 **vendored Lucide** path（ISC）＋ 0.4 unit 校正 → 五個 icon ink 中心一致 | `w1_tabbar_ink.py`：icon ink `cy` 43.0／43.5×4、`cx` 全部 43.5、label ink 完全一致 |
+| 「睇吓有咩 skill／工具可以裝，方便執手機版 UI」 | 交咗 **`docs/ui-plan.md`**：量度式審計（tap target <44 共 8 類、<12px 文字 12 個／scene、對比度最低 **1.0:1**、911 個 raw px、0 `:focus-visible`、0 `prefers-reduced-motion`）＋ 四階段計劃 ＋ skill／工具清單 ＋ 驗收門檻 | 今次**冇**改 UI（等用戶逐項批） |
+
+**未做（誠實列出）**：條片／語音**冇做轉文字**（DeepSeek 冇 audio，HK 直連 OpenAI Whisper 係 403，local whisper 要新依賴）→ 所以指南寫明「講出嚟冇用，要打字（可以用鍵盤語音輸入）」。要真正「講就得」就要開一個新 issue 做 STT。

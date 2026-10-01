@@ -2,8 +2,8 @@
 
 Keeps a cached embedder (model load is expensive) and picks the LLM by config
 (real adapter if a key is set, FakeLLM otherwise). Reads the conversation's
-cloud-analysis consent flag so `analyze` knows whether photos may leave the
-machine.
+cloud-analysis flag **and** the user's one-time photo consent, so `analyze` knows
+whether photos may leave the machine (both are required).
 
 Every consult also appends one JSON line to `settings.run_log_path` (local file,
 no photos/keys) containing the per-node trace — that is the post-hoc debug trail
@@ -68,13 +68,32 @@ def write_run_log(conversation_id: str, text: str, result: dict) -> None:
         logger.warning("run log 寫唔入（%s）：%s", settings.run_log_path, e)
 
 
-def run_consult(conversation_id: str, text: str, photo_paths: list[str] | None = None) -> dict:
+def run_consult(
+    conversation_id: str,
+    text: str,
+    photo_paths: list[str] | None = None,
+    clip: dict | None = None,
+) -> dict:
     session = SessionLocal()
     try:
         conv = session.query(Conversation).filter_by(id=conversation_id).first()
         if conv is None:
             raise HTTPException(status_code=404, detail="conversation not found")
-        cloud_analysis = bool(conv.cloud_analysis)
+        # Two independent conditions, both required before an image byte leaves the
+        # machine: the conversation is cloud-analysed (always true since the
+        # 2026-10-01 cloud-only decision) *and* the user granted the one-time
+        # consent. Checked here, server-side, so the guarantee never depends on the
+        # UI having hidden a button.
+        user_consent = bool(conv.user.photo_cloud_consent) if conv.user else False
+        cloud_analysis = bool(conv.cloud_analysis) and user_consent
+        if photo_paths and not cloud_analysis:
+            logger.warning(
+                "consult: %d photo(s) attached but cloud vision not allowed "
+                "(conversation_flag=%s, user_consent=%s) → text-only",
+                len(photo_paths),
+                bool(conv.cloud_analysis),
+                user_consent,
+            )
     finally:
         session.close()
 
@@ -90,6 +109,9 @@ def run_consult(conversation_id: str, text: str, photo_paths: list[str] | None =
                 "conversation_id": conversation_id,
                 "user_text": text,
                 "photo_paths": photo_paths or [],
+                # `{"duration": 12.4, "frames": 6}` 當用戶上傳嘅係片（唔係相）。
+                # 有呢個 flag，prompt 才會叫 model 講「條片」而唔係「幾張相」。
+                "clip": clip,
                 "cloud_analysis": cloud_analysis,
                 "trace": [],
             }

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { ComponentType } from 'react'
 import { Chat } from '../components/Chat'
 import { ProgressView } from '../components/ProgressView'
@@ -8,7 +7,8 @@ import { SettingsView } from '../components/SettingsView'
 import { GuideView } from '../components/GuideView'
 import { Sidebar } from '../components/Sidebar'
 import type { View } from '../types'
-import type { HomeProps, SceneTab, ShellNav, ShellProps, ShellScene } from './defs'
+import { useSceneRoute } from '../hooks/useSceneRoute'
+import type { HomeProps, SceneTab, ShellNav, ShellProps } from './defs'
 import { ShellTop } from './ShellTop'
 
 interface Props {
@@ -24,7 +24,7 @@ interface Props {
  * scene 區一律重用返現成 view（Chat+RightPanel／RecordsView／ProgressView／SettingsView）→ feature parity。
  */
 export function StandardShell({ p, tabs, home: Home }: Props) {
-  const [scene, setScene] = useState<ShellScene>('home')
+  const [scene, setScene] = useSceneRoute(tabs)
   const active = p.active
   if (!active) return null
   const nav: ShellNav = { go: setScene }
@@ -54,7 +54,6 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
           scene={scene}
           onScene={setScene}
           onSelectConversation={p.onSelectConversation}
-          onToggleCloud={p.onToggleCloud}
         />
         <div className="shell-scene">
           {scene === 'home' && <Home p={p} nav={nav} />}
@@ -69,11 +68,9 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
                 online={p.online}
                 loading={p.loadingThread}
                 onSelectConversation={p.onSelectConversation}
-                onToggleCloud={p.onToggleCloud}
                 onConfirmEvents={p.onConfirmEvents}
-                onQuickRecord={p.onQuickRecord}
               />
-              <RightPanel conversation={active} refreshKey={p.refreshKey} onToggleCloud={p.onToggleCloud} />
+              <RightPanel conversation={active} refreshKey={p.refreshKey} />
             </div>
           )}
           {scene === 'records' && <RecordsView conversation={active} />}

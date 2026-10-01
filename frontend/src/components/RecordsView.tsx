@@ -2,8 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import * as api from '../api'
 import { ATTRIBUTE_META, severityText } from '../format'
 import type { Conversation, RecordEntry } from '../types'
+import { Icon } from './Icon'
+import { useConfirm } from './ui/Confirm'
+import { useToast } from './ui/Toast'
+import { Skeleton } from './ui/Skeleton'
+import { EmptyState } from './ui/EmptyState'
 
 export function RecordsView({ conversation }: { conversation: Conversation }) {
+  const { toast } = useToast()
+  const confirm = useConfirm()
   const [entries, setEntries] = useState<RecordEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -36,43 +43,64 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
       .then(() => {
         setEditingId(null)
         reload()
+        toast('筆記已更新')
       })
-      .catch((err: Error) => window.alert(`儲存失敗：${err.message}`))
+      .catch((err: Error) => toast(`儲存失敗：${err.message}`, { tone: 'err' }))
   }
 
-  const onDeleteEntry = (e: RecordEntry) => {
-    if (!window.confirm(`刪除 ${e.date} 嘅紀錄（相／指標／筆記）？時間線同日事件都會移除。冇得復原。`)) return
+  const onDeleteEntry = async (e: RecordEntry) => {
+    const ok = await confirm({
+      title: `刪除 ${e.date} 嘅紀錄？`,
+      body: '會移除當日嘅相、指標、筆記，同埋嗰日嘅時間線事件。冇得復原。',
+      confirmLabel: '刪除紀錄',
+      tone: 'danger',
+    })
+    if (!ok) return
     api
       .deleteEntry(conversation.id, e.id)
-      .then(reload)
-      .catch((err: Error) => window.alert(`刪除失敗：${err.message}`))
+      .then(() => {
+        reload()
+        toast(`已刪除 ${e.date} 嘅紀錄`)
+      })
+      .catch((err: Error) => toast(`刪除失敗：${err.message}`, { tone: 'err' }))
   }
 
-  const onDeletePhoto = (e: RecordEntry, photoPath: string) => {
-    if (!window.confirm(`刪除 ${e.date} 呢張相？冇得復原。`)) return
+  /* Photo row id == 檔名 id（route 按 path 搵 row）。 */
+  const onDeletePhoto = async (e: RecordEntry, photoPath: string) => {
+    const ok = await confirm({
+      title: `刪除 ${e.date} 呢張相？`,
+      body: '檔案會由你部機永久刪除，冇得復原。',
+      confirmLabel: '刪除相片',
+      tone: 'danger',
+    })
+    if (!ok) return
     const id = photoPath.split('/').pop()?.replace('.jpg', '')
-    // Photo row id == stored file name id.
     api
       .deleteEntryPhoto(e.id, id ?? '')
-      .then(reload)
-      .catch((err: Error) => window.alert(`刪相失敗：${err.message}`))
+      .then(() => {
+        reload()
+        toast('已刪除呢張相')
+      })
+      .catch((err: Error) => toast(`刪相失敗：${err.message}`, { tone: 'err' }))
   }
 
   return (
-    <main className="view full">
+    <main tabIndex={0} role="region" aria-label="記錄內容" className="view full">
       <div className="view-head">
         <h2>皮膚記錄 · {conversation.bodyPart}</h2>
         <a className="btn ghost" href="/api/export">
-          ⬇ 匯出數據 (zip)
+          <Icon name="download" size={16} /> 匯出數據 (zip)
         </a>
       </div>
       <p className="hint">記錄係你嘅真數據：可以改筆記、刪走影錯嘅相、或者刪成日紀錄。</p>
       {loading ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : error ? (
-        <p className="empty">⚠️ {error}（請確認 backend 已起）</p>
+        <p className="empty">
+            <Icon name="circle-alert" size={16} /> {error}（請確認 backend 已起）
+          </p>
       ) : entries.length === 0 ? (
-        <p className="empty">未有記錄。去「教練對話」影相／打卡，agent 會自動寫入日記。</p>
+        <EmptyState icon="clipboard-list">未有記錄。去「教練對話」影相／打卡，agent 會自動寫入日記。</EmptyState>
       ) : (
         entries.map((e) => (
           <div key={e.id} className="entry-card">
@@ -80,10 +108,10 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
               {e.date}
               <span className="entry-actions">
                 <button className="link-btn" onClick={() => startEdit(e)}>
-                  ✎ 改筆記
+                  <Icon name="pencil" size={15} /> 改筆記
                 </button>
                 <button className="link-btn danger" onClick={() => onDeleteEntry(e)}>
-                  🗑 刪除
+                  <Icon name="trash-2" size={15} /> 刪除
                 </button>
               </span>
             </div>

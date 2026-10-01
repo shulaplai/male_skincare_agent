@@ -1,4 +1,6 @@
 import type { Conversation, View } from '../types'
+import { Icon } from './Icon'
+import type { IconName } from './Icon'
 
 interface Props {
   conversations: Conversation[]
@@ -14,58 +16,17 @@ interface Props {
   compact?: boolean
 }
 
-const NAV: { key: View; label: string; icon: JSX.Element }[] = [
-  {
-    key: 'chat',
-    label: '教練對話',
-    icon: (
-      <svg viewBox="0 0 24 24">
-        <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.5 8.5 0 0 1-8.5-8.5A8.5 8.5 0 0 1 12.5 3c.7 0 1.4.08 2 .24L17 5l-1.5 3 3.5 1-1 2.5z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'records',
-    label: '皮膚記錄',
-    icon: (
-      <svg viewBox="0 0 24 24">
-        <rect x="3" y="4" width="18" height="16" rx="3" />
-        <path d="M3 9h18M8 4v16" />
-      </svg>
-    ),
-  },
-  {
-    key: 'progress',
-    label: '進度追蹤',
-    icon: (
-      <svg viewBox="0 0 24 24">
-        <path d="M3 17l6-6 4 4 7-7" />
-        <path d="M14 7h7v7" />
-      </svg>
-    ),
-  },
-  {
-    key: 'guide',
-    label: '護膚指南',
-    icon: (
-      // 打開嘅書：同其他 NAV icon 一樣係 stroke-only SVG（唔用 emoji，令線條一致）
-      <svg viewBox="0 0 24 24">
-        <path d="M12 6.5C10.5 5 8.6 4.3 6 4.3H3.5v13.4H6c2.6 0 4.5.7 6 2.2" />
-        <path d="M12 6.5c1.5-1.5 3.4-2.2 6-2.2h2.5v13.4H18c-2.6 0-4.5.7-6 2.2" />
-        <path d="M12 6.5V20" />
-      </svg>
-    ),
-  },
-  {
-    key: 'settings',
-    label: '設定',
-    icon: (
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19 12a7 7 0 0 0-.14-1.4l2-1.5-2-3.5-2.4 1A7 7 0 0 0 14 5.4L13.5 3h-3L10 5.4A7 7 0 0 0 7.6 6.6l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .14 1.4l-2 1.5 2 3.5 2.4-1A7 7 0 0 0 10 18.6l.5 2.4h3l.5-2.4a7 7 0 0 0 2.4-1.2l2.4 1 2-3.5-2-1.5A7 7 0 0 0 19 12z" />
-      </svg>
-    ),
-  },
+/**
+ * Site 導覽（桌面 chat 結構嘅左欄）。
+ * ⚠️ 呢五個 icon 以前係**手畫 SVG** —— 同底部 nav 一樣，唔同來源嘅線重／視覺大小會唔一致，
+ * 所以同 emoji 一樣要換成 registry（Lucide）。
+ */
+const NAV: { key: View; label: string; icon: IconName }[] = [
+  { key: 'chat', label: '教練對話', icon: 'message-square' },
+  { key: 'records', label: '皮膚記錄', icon: 'clipboard-list' },
+  { key: 'progress', label: '進度追蹤', icon: 'chart-column' },
+  { key: 'guide', label: '護膚指南', icon: 'book-open' },
+  { key: 'settings', label: '設定', icon: 'settings' },
 ]
 
 export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate, onRename, onDelete, compact }: Props) {
@@ -82,7 +43,7 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
 
       <div>
         <div className="convo-head">
-          <label>部位對話</label>
+          <span className="convo-head-title">部位對話</span>
           <span className="add" title="新增對話" onClick={onAdd}>
             ＋
           </span>
@@ -101,12 +62,11 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
               <span className="name">{c.bodyPart}</span>
               <span className="meta">
                 {c.isDefault ? '主對話' : '部位對話'}
-                {c.cloudAnalysis ? ' · ☁️' : ' · 🔒'}
               </span>
             </span>
             <span className="convo-actions" onClick={(e) => e.stopPropagation()}>
-              <i title="改名" onClick={() => onRename(c)}>✎</i>
-              <i title="刪除" onClick={() => onDelete(c)}>🗑</i>
+              <i title="改名" aria-label="改名" onClick={() => onRename(c)}><Icon name="pencil" size={14} /></i>
+              <i title="刪除" aria-label="刪除" onClick={() => onDelete(c)}><Icon name="trash-2" size={14} /></i>
             </span>
           </div>
         ))}
@@ -125,7 +85,7 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
           <nav className="nav">
             {NAV.map((n) => (
               <a key={n.key} className={view === n.key ? 'active' : ''} onClick={() => onNavigate(n.key)}>
-                {n.icon}
+                <Icon name={n.icon} size={17} />
                 {n.label}
               </a>
             ))}

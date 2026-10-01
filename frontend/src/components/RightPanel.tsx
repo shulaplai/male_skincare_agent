@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import * as api from '../api'
+import { useConfirm } from './ui/Confirm'
+import { useToast } from './ui/Toast'
 import { ATTRIBUTE_KEYS, ATTRIBUTE_META, severityText } from '../format'
 import type { Conversation, MemoryItem, RecordEntry, Summary } from '../types'
+import { Icon } from '../components/Icon'
+import { Skeleton } from './ui/Skeleton'
+import { EmptyState } from './ui/EmptyState'
 
 const kindLabel: Record<MemoryItem['kind'], string> = {
   derived: '推導記憶',
@@ -12,7 +17,6 @@ const kindLabel: Record<MemoryItem['kind'], string> = {
 interface Props {
   conversation: Conversation
   refreshKey: number
-  onToggleCloud: (id: string, enabled: boolean) => void
 }
 
 function Spark({ series }: { series: number[] }) {
@@ -46,7 +50,9 @@ function attrSeries(entries: RecordEntry[], key: string): { dates: string[]; sev
   return { dates, sev }
 }
 
-export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
+export function RightPanel({ conversation, refreshKey }: Props) {
+  const { toast } = useToast()
+  const confirm = useConfirm()
   const [summary, setSummary] = useState<Summary | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'err'>('loading')
 
@@ -77,36 +83,37 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
     }
   }, [conversation.id, refreshKey])
 
-  const cloud = conversation.cloudAnalysis
   const latest = summary?.entries?.[0] // entries are date-desc
   const prev = summary?.entries?.[1]
   const severityOf = (e: RecordEntry | undefined, key: string): number | null =>
     e ? (e.attributes ?? []).find((a) => a.key === key)?.severity ?? null : null
 
-  const onDeleteInsight = (m: MemoryItem) => {
+  const onDeleteInsight = async (m: MemoryItem) => {
     if (!m.id) return
-    if (!window.confirm(`刪除呢條記憶：「${m.text}」？`)) return
+    const ok = await confirm({
+      title: '刪除呢條記憶？',
+      body: `「${m.text}」`,
+      confirmLabel: '刪除記憶',
+      tone: 'danger',
+    })
+    if (!ok) return
     api
       .deleteInsight(conversation.id, m.id)
-      .then(load)
-      .catch((e: Error) => window.alert(`刪除失敗：${e.message}`))
+      .then(() => {
+        load()
+        toast('已刪除呢條記憶')
+      })
+      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
   }
 
   return (
     <aside className="right">
       <div className="panel-head">
         <h3>{conversation.bodyPart}</h3>
-        <span
-          className={`cloud-toggle ${cloud ? 'on' : ''}`}
-          title={cloud ? '雲分析已開（影相會送雲端 vision）' : '本地模式（相唔會上雲分析）'}
-          onClick={() => onToggleCloud(conversation.id, !cloud)}
-        >
-          {cloud ? '☁️ 雲分析' : '🔒 本地'}
-        </span>
       </div>
 
       {state === 'err' && <p className="empty small">連唔到 backend。</p>}
-      {state === 'loading' && <p className="empty small">載入中…</p>}
+      {state === 'loading' && <Skeleton lines={2} />}
       {state === 'ok' && summary && (
         <>
           <div>
@@ -146,21 +153,21 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
                 </div>
               </div>
             ) : (
-              <p className="empty small">未有指標。影張相／打個卡，agent 會寫低今日嘅皮膚狀態。</p>
+              <EmptyState small icon="camera">未有指標。影張相／打個卡，agent 會寫低今日嘅皮膚狀態。</EmptyState>
             )}
           </div>
 
           <div>
             <h3>AI 記得你</h3>
             {summary.insights.length === 0 ? (
-              <p className="empty small">未有記憶。</p>
+              <EmptyState small icon="sparkles">未有記憶。</EmptyState>
             ) : (
               <div className="mem-group">
                 {summary.insights.map((m, i) => (
                   <div className="mem" key={m.id ?? i}>
                     <div className={`t ${m.kind}`}>
                       {kindLabel[m.kind] ?? m.kind}
-                      {m.scope === 'global' && <span className="scope-badge">🌐 全局</span>}
+                      {m.scope === 'global' && <span className="scope-badge"><Icon name="globe" size={12} /> 全局</span>}
                       {m.id && (
                         <i className="mem-x" title="刪除呢條記憶（修正）" onClick={() => onDeleteInsight(m)}>
                           ×
@@ -185,7 +192,7 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
           <div>
             <h3>因果時間線</h3>
             {summary.timeline.length === 0 ? (
-              <p className="empty small">未有事件。自報嘅飲食／產品同明顯皮膚變化會喺度累積。</p>
+              <EmptyState small icon="clipboard-list">未有事件。自報嘅飲食／產品同明顯皮膚變化會喺度累積。</EmptyState>
             ) : (
               <div className="tl">
                 {summary.timeline.map((e, i) => (
@@ -193,7 +200,7 @@ export function RightPanel({ conversation, refreshKey, onToggleCloud }: Props) {
                     <div className="d">
                       {e.date}
                       <span className={`src ${e.source ?? 'user'}`}>
-                        {e.source === 'agent' ? 'AI 偵測' : e.scope === 'global' ? '🌐 飲食（全局）' : '你'}
+                        {e.source === 'agent' ? (<><Icon name="sparkles" size={12} /> AI 偵測</>) : e.scope === 'global' ? (<><Icon name="globe" size={12} /> 飲食（全局）</>) : '你'}
                       </span>
                     </div>
                     <div className="x">{e.text}</div>

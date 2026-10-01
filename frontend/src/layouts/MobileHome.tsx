@@ -5,6 +5,7 @@ import { useSummary } from '../hooks/useSummary'
 import { ATTRIBUTE_KEYS, ATTRIBUTE_META, severityText } from '../format'
 import type { Message, RecordEntry } from '../types'
 import type { HomeProps } from './defs'
+import { Icon } from '../components/Icon'
 
 /** `今天` / `昨天` / `YYYY-MM-DD · 星期X`；`short` 就出 `MM-DD 週X`（手機空間有限） */
 function dayLabel(date: string, short = false): string {
@@ -109,10 +110,14 @@ export function MobileHome({ p, nav }: HomeProps) {
       </section>
 
       <button className="mob-cta" onClick={() => nav.go('chat')}>
-        ✍️ 今日打卡／問教練
+        <Icon name="camera" size={16} /> 今日打卡／問教練
       </button>
 
-      {error && <p className="empty">⚠️ {error}（請確認 backend 已起）</p>}
+      {error && (
+          <p className="empty">
+            <Icon name="circle-alert" size={16} /> {error}（請確認 backend 已起）
+          </p>
+        )}
 
       <section className="mob-card">
         <h3>今日指標</h3>

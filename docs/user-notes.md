@@ -27,8 +27,9 @@ SKINCOACH_EMBEDDER_CACHE_DIR=./data/.fastembed-cache HF_HOME=./data/.hf-cache \
 cd frontend && npm run dev
 ```
 
-開 http://localhost:5173 。**相永遠留喺你部機**；只有 conversation 開咗 ☁️ 雲分析，相才會送去
-`deepseek-v4-flash-vision-exp`。
+開 http://localhost:5173 。**冇本地模式**，同意亦**默認已給**（單一用戶自用；`SKINCOACH_REQUIRE_PHOTO_CONSENT=true` 才會出同意畫面）。
+相片檔案**永遠留喺你部機**；送去雲端嘅只係分析用嘅影像（`deepseek-v4-flash-vision-exp`）。
+文字訊息兩邊都會送去同一個模型。記錄方法見 app 內「設定 → 指南 → 點樣記錄最準確」。
 
 ## 撞到問題就複製呢格
 

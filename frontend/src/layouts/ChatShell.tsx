@@ -41,11 +41,9 @@ export function ChatShell(p: ShellProps) {
             online={p.online}
             loading={p.loadingThread}
             onSelectConversation={p.onSelectConversation}
-            onToggleCloud={p.onToggleCloud}
             onConfirmEvents={p.onConfirmEvents}
-            onQuickRecord={p.onQuickRecord}
           />
-          <RightPanel conversation={active} refreshKey={p.refreshKey} onToggleCloud={p.onToggleCloud} />
+          <RightPanel conversation={active} refreshKey={p.refreshKey} />
         </>
       )}
       {view === 'records' && <RecordsView conversation={active} />}

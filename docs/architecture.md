@@ -23,7 +23,7 @@ LLM 係**一個組件**，唔係**個 product**。下面每一層都係「點控
 ## 2. Agent 流程（LangGraph，5 nodes 線性）
 
 ```
-用戶影相/打字（相儲喺本地；conversation 開咗「雲分析」先送相上雲）
+用戶影相/打字（相永遠儲喺本地；用戶一次性同意之後，相先會送去雲端 vision）
    ▼
 analyze   「而家」張相 → vision model（deepseek-v4-flash-vision-exp，consent off / 冇相 → 純文字降級）
    ▼
@@ -49,9 +49,12 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 ## 4. Local-first + opt-in 雲分析（Privacy 決策）
 
 - 相 + 日記**永遠**留喺用戶部機（SQLite + file system）。
-- 雲分析係 **opt-in**：每個 conversation 一個「雲分析」開關（`cloud_analysis`，default 由 `SKINCOACH_CLOUD_ANALYSIS_DEFAULT` 控制，product default = off）。off 時相唔會離開部機：agent 行純文字分析，prompt 會同 model 講明「有相但睇唔到」，UI 標「未睇相」。
+- 分析係 **全雲端**（2026-10-01 決定；以前係每個 conversation 一個 opt-in 開關，已經冇「本地模式」）。相唔上雲就冇 vision，產品價值會消失 —— 所以改成「**一次性明示同意**」：第一次開 app 出 `ConsentGate`，用戶要打勾＋撳同意先入得（`User.photo_cloud_consent` + `consent_at` 入 DB），之後唔再問。
+- **默認同意**：呢個 deployment 係一個人喺自己部機用（`require_photo_consent=False`），所以 consent 當作已給；`SKINCOACH_REQUIRE_PHOTO_CONSENT=true` 就變返做「先打勾先用」嘅多用戶模式，同一條 code path。
+- **consent 係 code gate，唔係靠 prompt，亦唔係靠前端收埋個掣**：`service.run_consult` 每次都 check `conversation.cloud_analysis AND user.photo_cloud_consent`，唔夠條件就只送文字（prompt 講明「有相但睇唔到」，唔會呃 model 話冇相），`vision_reason = consent_off` 入 trace。
+- 決定記錄：[issue #25](https://github.com/shulaplai/male_skincare_agent/issues/25)。
 - 冇 API key 時行 **FakeLLM**（deterministic 罐頭輸出，成個 graph 跑得通）—— 唔係 Ollama。
-- 面試講法：「local-first 係產品價值；opt-in 雲分析係成本／質素嘅 tradeoff，我將『儲存』同『分析』拆開做兩個獨立決策，consent 係 code gate 唔係靠 prompt。」
+- 面試講法：「local-first 係儲存價值（相／日記／記憶永遠留喺用戶部機，`data/` 一個 folder 帶走），雲分析係質素必要條件但要有明示 consent；我將『儲存』同『分析』拆開，consent 由 conversation 級升去 user 級一次性。」
 
 ## 5. 長期記憶（沿用 SKINFILE 概念，落咗 SQLite）
 

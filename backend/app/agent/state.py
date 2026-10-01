@@ -26,6 +26,9 @@ class AgentState(TypedDict, total=False):
     # cloud analysis. analyze refuses to send photos when it is False.
     cloud_analysis: bool
     vision_used: bool
+    # 用戶上傳嘅係一段短片（唔係相）：`{"duration": 12.4, "frames": 6}`。
+    # 前端／主觀上係「一條片」——抽格係內部實作，prompt 要講「條片」而唔好數格。
+    clip: dict | None
     analysis: dict | None
     tool_results: list[dict]
     # A pasted ingredient list is a *question*, not a check-in — and the deterministic

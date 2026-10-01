@@ -38,12 +38,18 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-5"
     openai_model: str = "gpt-5"
 
-    # Privacy consent: per-conversation cloud-analysis default for NEW
-    # conversations. Product default is off (photos never leave the machine
-    # unless the user opts in); a self-hoster who has consented can set
-    # SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true so every new conversation starts
-    # with cloud analysis enabled. The per-conversation toggle overrides this.
-    cloud_analysis_default: bool = False
+    # Cloud photo analysis is no longer configurable per conversation: since the
+    # 2026-10-01 decision the app is cloud-only and the only gate is the one-time
+    # `User.photo_cloud_consent` (stored in the DB, checked server-side in
+    # `service.run_consult`). The old `SKINCOACH_CLOUD_ANALYSIS_DEFAULT` env var is
+    # gone; it is ignored if still present in an existing `.env` (extra="ignore").
+    #
+    # Who the consent screen is for: this repo's real deployment is ONE user on
+    # their own machine, so the default is **consent already given** (the screen
+    # never appears and the gate is satisfied on first run). Set
+    # SKINCOACH_REQUIRE_PHOTO_CONSENT=true for a multi-user / hosted deployment
+    # where the user has to tick the box before any photo may go to the cloud.
+    require_photo_consent: bool = False
 
     # ---- observability / debugging ----
     # Log level for app modules (uvicorn keeps its own handlers).

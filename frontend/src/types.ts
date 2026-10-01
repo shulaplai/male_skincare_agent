@@ -48,6 +48,8 @@ export interface Message {
   time: string // HH:MM display
   date: string // YYYY-MM-DD (for day separators)
   photo?: string
+  /** 用戶今次上傳嘅係一段片（UI 出「🎬 皮膚影片」，唔會顯示抽格出嚟嘅相） */
+  clip?: { duration: number }
   analysis?: Analysis
   disclaimer?: string
   escalate?: boolean
@@ -148,6 +150,12 @@ export interface ServerMessage {
     advice?: string[]
     disclaimer?: string
     escalate?: boolean
+    /** AI 抽取出嚟、等用戶確認嘅自報事件（Q51）——persist 之後 reload 都仲喺度 */
+    detected_events?: DetectedEvent[]
+    /** 用戶已經撳過「✅ 記低」→ reload 唔應該再出同一個 chip */
+    events_applied?: boolean
+    /** user message：今次係片（`{duration, frames}`），唔係相 */
+    clip?: { duration: number; frames: number } | null
     vision_used?: boolean
   }
   created_at: string

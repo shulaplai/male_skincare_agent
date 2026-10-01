@@ -78,12 +78,22 @@ export async function deleteConversation(cid: string): Promise<{ status: string 
   )
 }
 
-export async function setCloudAnalysis(cid: string, enabled: boolean): Promise<{ cloud_analysis: boolean }> {
+export interface ConsentState {
+  granted: boolean
+  at: string | null
+}
+
+/** 一次性相片同意（2026-10-01：全雲端，consent 由 conversation 級升去 user 級）。 */
+export async function getConsent(): Promise<ConsentState> {
+  return parse(await fetch('/api/consent'))
+}
+
+export async function grantConsent(granted = true): Promise<ConsentState> {
   return parse(
-    await fetch(`/api/conversations/${cid}/cloud-analysis`, {
-      method: 'PUT',
+    await fetch('/api/consent', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled }),
+      body: JSON.stringify({ granted }),
     }),
   )
 }
@@ -92,12 +102,19 @@ export async function consult(
   conversationId: string,
   text: string,
   photoPaths: string[] = [],
+  /** 今次係一條片（唔係相）→ 後端叫 model 講「條片」，唔會數字數 */
+  video?: { duration: number; frames: number },
 ): Promise<ConsultResult> {
   return parse(
     await fetch('/api/consult', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: conversationId, text, photo_paths: photoPaths }),
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        text,
+        photo_paths: photoPaths,
+        video: video ?? null,
+      }),
     }),
   )
 }
@@ -121,15 +138,42 @@ export async function uploadPhoto(file: File): Promise<{ id: string; path: strin
  * `compressed` / `original_bytes` / `stored_bytes` are reported so the UI can tell the
  * user what happened to their file rather than silently shrinking it.
  */
-export async function uploadVideo(conversationId: string, file: File): Promise<VideoUpload> {
-  const fd = new FormData()
-  fd.append('file', file)
-  return parse(
-    await fetch(`/api/videos?cid=${encodeURIComponent(conversationId)}`, {
-      method: 'POST',
-      body: fd,
-    }),
-  )
+/**
+ * 上載一條片。用 XHR 而唔用 fetch：`fetch` 冇 upload progress event，而一條 20 秒
+ * 手機片可以幾十 MB —— 用戶要見到「上載緊，幾多 %」，唔係呆呆等。
+ */
+export function uploadVideo(
+  conversationId: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<VideoUpload> {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `/api/videos?cid=${encodeURIComponent(conversationId)}`)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100))
+    }
+    xhr.onload = () => {
+      let body: unknown = null
+      try {
+        body = JSON.parse(xhr.responseText)
+      } catch {
+        body = null
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100)
+        resolve(body as VideoUpload)
+      } else {
+        const detail = (body as { detail?: string } | null)?.detail
+        reject(new Error(detail || `HTTP ${xhr.status}`))
+      }
+    }
+    xhr.onerror = () => reject(new Error('網絡中斷，上傳失敗'))
+    xhr.onabort = () => reject(new Error('上傳已取消'))
+    xhr.send(fd)
+  })
 }
 
 export async function getSummary(conversationId: string): Promise<Summary> {
@@ -140,12 +184,17 @@ export async function getMessages(conversationId: string): Promise<ServerMessage
   return parse(await fetch(`/api/conversations/${conversationId}/messages`))
 }
 
-export async function applyEvents(conversationId: string, events: DetectedEvent[]): Promise<{ written: number }> {
+export async function applyEvents(
+  conversationId: string,
+  events: DetectedEvent[],
+  /** 邊條 chat message 出嘅 chip（`s123` → 123）；session 內新訊息可以唔傳 */
+  messageId?: number,
+): Promise<{ written: number; events_applied_on: number | null }> {
   return parse(
     await fetch(`/api/conversations/${conversationId}/events`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ events }),
+      body: JSON.stringify({ events, message_id: messageId ?? null }),
     }),
   )
 }

@@ -21,3 +21,9 @@ data/
 
 # eval report output
 backend/eval/out/
+# Playwright artifacts（snapshot 本身要 commit：tests/ui/__screenshots__）
+frontend/test-results/
+frontend/playwright-report/
+
+# DSH vision 工具嘅 artifact（唔係專案內容）
+.dsh-vision-router/

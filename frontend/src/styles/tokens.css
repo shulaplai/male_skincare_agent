@@ -1,0 +1,124 @@
+/**
+ * Design tokens（Phase 1，2026-10-01 用戶批准）。
+ *
+ * 呢個檔係**唯一**嘅值來源：`index.css` 唔應該再出現 raw hex 或者散裝 px 尺寸。
+ * 顏色全部量過 WCAG：
+ *
+ *   用途            舊值       舊對比    新值       新對比
+ *   --muted        #a1878f    3.00:1    #7d6169    5.06:1
+ *   --faint        #c0a8ae    2.02:1    #82686f    4.60:1
+ *   --accent-deep  #c95f80    3.52:1    #b04e6d    4.61:1
+ *   --good         #5fa184    2.77:1    #37735a    5.09:1
+ *   --warn         #d98a66   ~2.5:1     #a8552b    4.79:1
+ *   --danger       #d64545   ~3.4:1     #b3453f    4.99:1
+ *
+ * 暗色：--faint #7a636b = 2.82:1 → #a88f97 = 5.20:1（舊值連「淡」都談唔上，係睇唔到）。
+ *
+ * ⚠️ 換 token 之後一定要 `npm run ui:check`：`tests/ui/a11y.spec.ts` 嘅 `KNOWN` 會量到
+ *    `color-contrast` 由 70 個節點跌到幾多，目標係 0（Phase 2 要清空成個 KNOWN）。
+ */
+
+:root {
+  /* ---------- 顏色（light） ---------- */
+  --bg: #faf3f0;
+  --panel: #fdf7f5;
+  --card: #fff;
+  --line: #f1dcd9;
+  --text: #382c31; /* 13.35:1 */
+  --muted: #7d6169; /* 5.06:1（次要文字：時間、label、提示） */
+  --faint: #82686f; /* 4.60:1（最淡但仍要讀得到） */
+  --accent: #e6809c; /* 只做裝飾／漸變，唔可以單獨承載文字 */
+  --accent-soft: #f5b9c9;
+  --accent-deep: #b04e6d; /* 4.61:1（標題、徽章、active） */
+  --good: #37735a; /* 5.09:1 */
+  --warn: #a8552b; /* 4.79:1 */
+  --danger: #b3453f; /* 4.99:1 */
+  --glow: rgba(230, 128, 156, 0.18);
+  --shadow: 0 8px 28px -16px rgba(160, 90, 110, 0.28);
+  /* 淺色底（chip／badge 用），同文字色一對： */
+  --tint-accent: #f6dfe6;
+  /* 淡色底上面嘅文字色：`--accent-deep` 喺純白係 4.61:1，但喺 --tint-accent 上只有 4.0:1，
+     所以淡底要用更深嘅一對（呢個就係點解 token 要成對，唔可以一個色走天涯）。 */
+  --accent-ink: #8f3b57; /* on --tint-accent = 5.67:1 */
+  --tint-good: #e2efe8;
+  --tint-bad: #f6e2e0;
+  --tint-info: #e8f1f9;
+  --info: #2e5f86;
+
+  /* ---------- 字 ---------- */
+  --serif: 'Fraunces', serif;
+  --sans: 'Nunito Sans', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  /* 字級 scale。⭐ 下限 12px：手機上 9.5px 係讀唔到嘅（實測 axe 同肉眼都係）。
+     唯一例外係底部 tab label（--f-tab 11px）—— 因為嗰度有 icon 一齊承載意思。 */
+  --f-tab: 11px;
+  --f-xs: 12px;
+  --f-sm: 13px;
+  --f-md: 15px;
+  --f-lg: 17px;
+  --f-xl: 19px;
+  --f-2xl: 22px;
+  --f-3xl: 24px;
+
+  /* ---------- 尺寸 scale（4 嘅倍數） ---------- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* ---------- 圓角 ---------- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  /* ---------- 觸控目標 ---------- */
+  /* WCAG 2.5.8 最低 24px、Apple HIG 建議 44px。實測過最細去到 20px（`.link-btn`），
+     連 WCAG 最低都唔夠 —— 所以一律用 44px，唔再逐個地方填 padding。 */
+  --tap: 44px;
+
+  /* ---------- 動效（保守：120–200ms） ---------- */
+  --t-fast: 120ms;
+  --t-base: 160ms;
+  --t-sheet: 200ms;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+[data-theme='dark'] {
+  --bg: #1c1419;
+  --panel: #241a20;
+  --card: #2c2127;
+  --line: #3d2f35;
+  --text: #f4e7ec;
+  --muted: #c9b2b9; /* 7.79:1（舊 #b399a1 = 5.90:1） */
+  --faint: #a88f97; /* 5.20:1（舊 #7a636b = 2.82:1 ← 等於睇唔到） */
+  --accent: #ef8fae;
+  --accent-soft: #f5b9c9;
+  --accent-deep: #f095b4; /* 7.14:1（舊 #d96f92 = 4.90:1） */
+  --good: #93d0b0; /* 8.78:1 */
+  --warn: #d99a6c; /* 6.49:1 */
+  --danger: #f08b83; /* 6.44:1 */
+  --glow: rgba(239, 143, 174, 0.16);
+  --shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.5);
+  --tint-accent: #46313a;
+  --accent-ink: #f7c3d4; /* on --tint-accent = 7.79:1 */
+  --tint-good: #2b3f36;
+  --tint-bad: #4a3230;
+  --tint-info: #2b3b47;
+  --info: #a9cbe4; /* 8.6:1 */
+}
+
+/* 系統開咗「減少動態」就全部停（WCAG 2.3.3；亦係慳電） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

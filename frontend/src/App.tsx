@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ConsentGate } from './components/ConsentGate'
+import { useViewportHeight } from './hooks/useViewportHeight'
+import { ConfirmProvider, useConfirm } from './components/ui/Confirm'
+import { Sheet } from './components/ui/Sheet'
+import { ToastProvider, useToast } from './components/ui/Toast'
 import { LayoutProvider, useLayout } from './layouts/LayoutContext'
 import { Shell } from './layouts/Shells'
 import { ThemeProvider } from './theme'
@@ -27,7 +32,15 @@ function LayoutHost({ p }: { p: ShellProps }) {
   )
 }
 
-export default function App() {
+/**
+ * ⚠️ `useToast()` / `useLayout()` 只可以喺 provider **之內** 用，所以真正嘅 app 係
+ * `AppInner`，而 `App` 淨係負責掛 providers（次序：theme → toast → layout）。
+ * 以前所有嘢都喺 `App` 度，想用 `useToast()` 就會拿到 context 嘅 default（靜靜冇反應）。
+ */
+function AppInner() {
+  const { toast } = useToast()
+  const confirm = useConfirm()
+  useViewportHeight()  // iOS 鍵盤：寫 --vvh 落 :root（見 hooks/useViewportHeight.ts）
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Record<string, Message[]>>({})
@@ -35,7 +48,33 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [sending, setSending] = useState(false)
   const [loadingThread, setLoadingThread] = useState(false)
+  /* 一次性相片同意：`null` = 未知（載入緊）。未同意之前唔會 render app —— 因為
+     「全雲端」之下冇本地模式，用戶冇得「唔同意但照用」。後端一樣擋。 */
+  /* Sheet 取代 window.prompt／confirm（Phase 2a）。一次只會開一個。 */
+  const [sheet, setSheet] = useState<{ kind: 'new' | 'rename'; conv?: Conversation } | null>(null)
+  const [sheetText, setSheetText] = useState('')
+  const [consent, setConsent] = useState<boolean | null>(null)
+  const [consentBusy, setConsentBusy] = useState(false)
+  const [consentErr, setConsentErr] = useState<string | null>(null)
   const booted = useRef(false)
+
+  const agree = useCallback(() => {
+    setConsentBusy(true)
+    setConsentErr(null)
+    api
+      .grantConsent(true)
+      .then((r) => setConsent(r.granted))
+      .catch((e: Error) => setConsentErr(e.message || '未知錯誤'))
+      .finally(() => setConsentBusy(false))
+  }, [])
+
+  // Consent 狀態：app 開之前問後端（唔靠 localStorage，因為呢個係 data truth）
+  useEffect(() => {
+    api
+      .getConsent()
+      .then((r) => setConsent(r.granted))
+      .catch(() => setConsent(null)) // 後端未起：下面會顯示「連接緊 backend…」
+  }, [])
 
   // Boot: list/create conversations from the backend (source of truth).
   useEffect(() => {
@@ -88,8 +127,14 @@ export default function App() {
   const active = conversations.find((c) => c.id === activeId) ?? conversations[0]
 
   const addConversation = () => {
-    const name = window.prompt('新部位名稱？（例如：背部、手腳、頭皮…）')
-    if (!name?.trim()) return
+    setSheetText('')
+    setSheet({ kind: 'new' })
+  }
+
+  const submitNewConversation = () => {
+    const name = sheetText.trim()
+    if (!name) return
+    setSheet(null)
     if (online) {
       api.createConversation(name.trim()).then((c) => {
         const conv = toConversation(c)
@@ -103,20 +148,11 @@ export default function App() {
     setActiveId(conv.id)
   }
 
-  const setCloud = useCallback(
-    (cid: string, enabled: boolean) => {
-      if (!online) return
-      api
-        .setCloudAnalysis(cid, enabled)
-        .then(() => {
-          setConversations((prev) => prev.map((c) => (c.id === cid ? { ...c, cloudAnalysis: enabled } : c)))
-        })
-        .catch((e: Error) => window.alert(`更新失敗：${e.message}`))
-    },
-    [online],
-  )
-
-  const sendMessage = (text: string, photos: { id: string; path: string }[]) => {
+  const sendMessage = (
+    text: string,
+    photos: { id: string; path: string }[],
+    video?: { duration: number; frames: number },
+  ) => {
     if (!active) return
     if (sending) return // guard against double-submit while a consult is running
     const cid = active.id
@@ -127,7 +163,9 @@ export default function App() {
       text,
       time: '現在',
       date: new Date().toISOString().slice(0, 10),
-      photo: pid ? `/api/photos/${pid}` : undefined,
+      // 片：只出「🎬 皮膚影片」chip；抽格出嚟嘅相唔會顯示（內部實作）
+      clip: video ? { duration: video.duration } : undefined,
+      photo: !video && pid ? `/api/photos/${pid}` : undefined,
       pending: true,
     }
     setMessages((prev) => ({ ...prev, [cid]: [...(prev[cid] ?? []), userMsg] }))
@@ -150,7 +188,7 @@ export default function App() {
 
     setSending(true)
     api
-      .consult(cid, text, photos.map((p) => p.id))
+      .consult(cid, text, photos.map((p) => p.id), video)
       .then((res) => {
         const reply: Message = {
           id: local(),
@@ -189,8 +227,11 @@ export default function App() {
 
   const confirmEvents = (cid: string, msgId: string, events: DetectedEvent[]) => {
     if (!online) return
+    // `s<id>` = 由 server 載入嘅訊息（有真 DB id，可以精準標記）；session 內新訊息
+    // 只有本地 id，交返 server 用事件內容配對。
+    const dbId = /^s\d+$/.test(msgId) ? Number(msgId.slice(1)) : undefined
     api
-      .applyEvents(cid, events)
+      .applyEvents(cid, events, dbId)
       .then(() => {
         // Hide the chips on that message once confirmed.
         setMessages((prev) => ({
@@ -199,34 +240,36 @@ export default function App() {
         }))
         setRefreshKey((k) => k + 1)
       })
-      .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
-  }
-
-  const quickRecord = (cid: string, diet: string, product: string) => {
-    const events: DetectedEvent[] = []
-    if (diet.trim()) events.push({ type: 'diet', text: diet.trim(), tags: [] })
-    if (product.trim()) events.push({ type: 'product_start', text: `開始用：${product.trim()}`, product_name: product.trim() })
-    if (!events.length) return
-    if (!online) {
-      window.alert('後端未連線，記唔到。')
-      return
-    }
-    api
-      .applyEvents(cid, events)
-      .then(() => setRefreshKey((k) => k + 1))
-      .catch((e: Error) => window.alert(`記低失敗：${e.message}`))
+      .catch((e: Error) => toast(`記低失敗：${e.message}`, { tone: 'err' }))
   }
 
   const renameConversation = (c: Conversation) => {
-    const name = window.prompt('改名做？', c.bodyPart)
-    if (!name?.trim()) return
-    api.renameConversation(c.id, name.trim()).then((r) => {
-      setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, bodyPart: r.body_part } : x)))
-    }).catch((e: Error) => window.alert(`改名失敗：${e.message}`))
+    setSheetText(c.bodyPart)
+    setSheet({ kind: 'rename', conv: c })
   }
 
-  const deleteConv = (c: Conversation) => {
-    if (!window.confirm(`永久刪除「${c.bodyPart}」同佢所有紀錄（相／日記／記憶／時間線）？呢個動作冇得復原。`)) return
+  const submitRename = () => {
+    const c = sheet?.conv
+    const name = sheetText.trim()
+    if (!c || !name) return
+    setSheet(null)
+    api
+      .renameConversation(c.id, name)
+      .then((r) => {
+        setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, bodyPart: r.body_part } : x)))
+        toast(`已改名做「${r.body_part}」`)
+      })
+      .catch((e: Error) => toast(`改名失敗：${e.message}`, { tone: 'err' }))
+  }
+
+  const deleteConv = async (c: Conversation) => {
+    const ok = await confirm({
+      title: `刪除「${c.bodyPart}」？`,
+      body: '會連同呢個部位嘅相、日記、記憶同時間線一齊永久刪除，冇得復原。',
+      confirmLabel: '確定刪除',
+      tone: 'danger',
+    })
+    if (!ok) return
     api.deleteConversation(c.id)
       .then(async () => {
         const rest = conversations.filter((x) => x.id !== c.id)
@@ -239,21 +282,22 @@ export default function App() {
           setActiveId(nc.id)
         }
         setRefreshKey((k) => k + 1)
+        toast(`已刪除「${c.bodyPart}」`)
       })
-      .catch((e: Error) => window.alert(`刪除失敗：${e.message}`))
+      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
+  }
+
+  if (consent === false) {
+    return <ConsentGate busy={consentBusy} error={consentErr} onAgree={agree} />
   }
 
   if (!active) {
     return (
-      <ThemeProvider>
-        <LayoutProvider>
-          <div className="app layout-chat">
-            <main className="view full">
-              <p className="empty">連接緊 backend…（如冇反應，請確認 uvicorn 已喺 :8001 起咗）</p>
-            </main>
-          </div>
-        </LayoutProvider>
-      </ThemeProvider>
+      <div className="app layout-chat">
+        <main tabIndex={0} role="region" aria-label="連線狀態" className="view full">
+          <p className="empty">連接緊 backend…（如冇反應，請確認 uvicorn 已喺 :8001 起咗）</p>
+        </main>
+      </div>
     )
   }
 
@@ -269,17 +313,63 @@ export default function App() {
     onAddConversation: addConversation,
     onRenameConversation: renameConversation,
     onDeleteConversation: deleteConv,
-    onToggleCloud: setCloud,
     onSend: sendMessage,
     onConfirmEvents: confirmEvents,
-    onQuickRecord: quickRecord,
   }
 
   return (
+    <>
+      <LayoutHost p={shellProps} />
+
+      <Sheet
+        open={sheet?.kind === 'new'}
+        title="新增部位"
+        body="例如：背部、手腳、頭皮。每個部位有自己嘅紀錄、記憶同時間線。"
+        confirmLabel="新增"
+        onConfirm={submitNewConversation}
+        onClose={() => setSheet(null)}
+      >
+        <input
+          type="text"
+          value={sheetText}
+          onChange={(e) => setSheetText(e.target.value)}
+          placeholder="部位名稱"
+          aria-label="部位名稱"
+          onKeyDown={(e) => e.key === 'Enter' && submitNewConversation()}
+        />
+      </Sheet>
+
+      <Sheet
+        open={sheet?.kind === 'rename'}
+        title="改名"
+        confirmLabel="儲存"
+        onConfirm={submitRename}
+        onClose={() => setSheet(null)}
+      >
+        <input
+          type="text"
+          value={sheetText}
+          onChange={(e) => setSheetText(e.target.value)}
+          placeholder="部位名稱"
+          aria-label="部位名稱"
+          onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+        />
+      </Sheet>
+
+    </>
+  )
+}
+
+export default function App() {
+  return (
     <ThemeProvider>
-      <LayoutProvider>
-        <LayoutHost p={shellProps} />
-      </LayoutProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <LayoutProvider>
+            <AppInner />
+          </LayoutProvider>
+        </ConfirmProvider>
+      </ToastProvider>
     </ThemeProvider>
   )
 }

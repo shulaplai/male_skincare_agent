@@ -28,6 +28,18 @@ TOOL_GUIDE = (
     "要知識性／機理性解釋，或者問「點解」「應該點做」時填。"
 )
 
+# 「點樣記錄最準確」係產品層指引（唔係文獻結論），喺 onboarding 嗰 turn 講一次，
+# 之後用戶淨係打字打卡嘅時候再簡短提一次。同 `app/guide.py` 嘅「點樣記錄最準確」
+# 一節講同一件事，改一邊要改另一邊。
+RECORDING_GUIDE = (
+    "每日最準確嘅做法：**拍一段約 20 秒嘅片，鏡頭慢慢掃過成塊面**（app 每個片會抽最多 6 格，"
+    "鏡頭唔動就會當成重複、只抽到一格）。做唔到片就**影一張相**（自然光、同一光源同一角度最好）。"
+    "乜都唔想影就直接**打幾隻字**：食咗咩、用咗咩產品、點護膚。"
+    "⚠️ 拍片或者自己講出嚟嘅聲**唔會**被記錄（app 只睇畫面），所以飲食／產品要打落對話度，"
+    "我會幫你抽出嚟等你確認。"
+)
+
+
 ANALYZE_SYSTEM = (
     "你係男性護膚分析師。用廣東話簡短總結用戶嘅皮膚狀況。"
     "對每個 attribute（acne 暗瘡 / oiliness 油光 / redness 泛紅 / dryness 乾燥 / pores 毛孔 / texture 質感）"
@@ -47,8 +59,11 @@ ADVISE_SYSTEM = (
     "- `reply`（正文，用戶會直接見到）用廣東話寫 2–5 句：先總結而家皮膚狀態（引用分析），"
     "再解釋點解咁建議（背後原因），最後講你會點樣幫佢一路追蹤。要具體、有溫度、唔好空泛。\n"
     "- `items` 係 3–5 條精簡行動點（一句一個動作），會喺卡片逐條列。\n"
-    "- `detected_events`：如果用戶今次訊息**明確**講到自報事件（食咗／飲咗啲特別嘢、"
-    "開始用或停用某產品），就提出嚟等用戶確認；冇就留空 []。唔好老作、唔好將推測當事實。"
+    "- `detected_events` 係**飲食／產品嘅唯一入口**：用戶唔會填表，只會順口講"
+    "（「今晚食咗麻辣火鍋」、「換咗支 A 醇精華」、「停咗隻防晒」）。"
+    "凡係佢今次訊息講到食咗／飲咗特別嘢、開始用或停用某產品，就要抽成事件提出嚟等佢確認；"
+    "一句講咗幾樣就出幾個事件（可以多過一個）。冇就留空 []。"
+    "**唔好老作、唔好將推測當事實、唔好將『一直都係咁』當成新事件。**"
     "diet 類型要填 `tags`（spicy/sugary/oily_food/dairy/alcohol 其中認到嘅）；"
     "product 類型要填 `product_name`（用返用戶講嘅名，唔好自己改）。\n"
     "唔開藥、唔俾劑量、唔診斷疾病；涉及醫療層面要轉介皮膚科醫生。"
@@ -60,8 +75,25 @@ def build_analyze_prompt(
     has_photo: bool,
     photo_viewed: bool = False,
     photo_unreadable: bool = False,
+    clip: dict | None = None,
 ) -> str:
-    if has_photo and photo_viewed:
+    if has_photo and photo_viewed and clip:
+        # 用戶上傳嘅係一段短片。畫面係內部抽格攞嘅 —— 唔可以同用戶講「6 張相」、
+        # 「格數」或者「抽出嚟嘅相」（2026-10-01 決定：抽格係 backstage 實作）。
+        frames = int((clip or {}).get("frames") or 0)
+        if frames < 2:
+            note = (
+                "（用戶上傳嘅係一段短片，但畫面變化太少，只睇得到一個角度。"
+                "請只靠你睇到嘅嘢評估，並喺回覆用一句提佢：下次拍片記住鏡頭慢慢掃過成塊面，"
+                "先睇得到唔同部位。**唔好**講格數、幀數或者「幾張相」。）"
+            )
+        else:
+            note = (
+                "（用戶上傳嘅係一段短片，以下係條片嘅畫面，可以當佢橫掃過塊面。"
+                "同用戶講嘅時候一律講「條片」，**唔好**講「幾張相」、「格數」或者任何"
+                "「抽格／截圖」嘅講法。）"
+            )
+    elif has_photo and photo_viewed:
         note = "（有用戶上傳嘅皮膚相，相已附上俾你分析）"
     elif has_photo and photo_unreadable:
         # Consent WAS granted and the bytes were requested — the file simply could
@@ -132,7 +164,8 @@ def build_advise_prompt(state: dict) -> str:
                 "1) 回覆寫得比平日詳盡啲（新手 onboarding 語氣），逐項解釋你睇到嘅皮膚指標；\n"
                 "2) 解釋「baseline」已建立，之後每次影相都會同今次比較，話佢知點解咁有用；\n"
                 "3) 提醒佢之後只需繼續影相／打幾隻字就得，乜都唔使特登填；\n"
-                "4) 只可以講你真係喺相入面睇到嘅嘢。"
+                "4) 用 2–3 句講清楚**之後點記錄最準確**：" + RECORDING_GUIDE + "\n"
+                "5) 只可以講你真係喺相入面睇到嘅嘢。"
             )
         else:
             parts.append(
@@ -141,9 +174,27 @@ def build_advise_prompt(state: dict) -> str:
                 "1) 回覆寫得比平日詳盡啲（新手 onboarding 語氣），逐項解釋你從佢文字睇到嘅皮膚指標；\n"
                 "2) 解釋「baseline」已建立，之後每次影相或者打卡都會同今次比較，話佢知點解咁有用；\n"
                 "3) 提醒佢之後只需繼續打幾隻字（想我睇相就可以影相）就得，乜都唔使特登填；\n"
-                "4) **唔好**講「呢張相」、「我睇到你張相」、「相入面」或者任何暗示你睇過相嘅講法；\n"
-                "5) 唔好叫佢補相，亦唔好講你「睇唔到」相 —— 今次根本冇相。"
+                "4) 用 2–3 句講清楚**之後點記錄最準確**：" + RECORDING_GUIDE + "\n"
+                "5) **唔好**講「呢張相」、「我睇到你張相」、「相入面」或者任何暗示你睇過相嘅講法；\n"
+                "6) 唔好叫佢補相，亦唔好講你「睇唔到」相 —— 今次根本冇相。"
             )
+
+    # 用戶上傳嘅係片：可以講「條片」，但唔可以 leak 內部實作（抽格／相片數）。
+    if state.get("clip"):
+        parts.append(
+            "【用戶今次係上傳一段短片】\n"
+            "一律講「條片」。**唔好**講「幾張相」、「格數」、「幀」、「抽格」、「截圖」，"
+            "亦唔好講你收到幾多張圖。"
+        )
+
+    # 純文字打卡（今次有皮膚觀察但冇相）：唔想每次長篇，但值得提醒「影相／拍片會準好多」。
+    # 判斷係 deterministic（`vision_reason`），唔靠 model 自己記住。
+    if observed and not state.get("first_checkin") and state.get("vision_reason") == "no_photo":
+        parts.append(
+            "【今次係純文字打卡】\n"
+            "用**一句**（唔好多過一句）提佢：想皮膚紀錄準啲，可以影相或者拍一段約 20 秒嘅片"
+            "（鏡頭慢慢掃過成塊面）。唔好長篇解釋、唔好叫佢補做今日嗰次。"
+        )
 
     parts.append(f"用戶：{state['user_text']}")
     parts.append(f"分析：{json.dumps(analysis, ensure_ascii=False)}")

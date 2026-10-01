@@ -31,14 +31,17 @@ export function ymd(iso: string): string {
 /** Map a persisted server message back to a display Message (Q7 reload). */
 export function fromServerMessage(m: ServerMessage): Message {
   if (m.role === 'user') {
+    const clip = m.payload.clip
     const pid = m.payload.photos?.[0]
     return {
       id: `s${m.id}`,
       role: 'user',
-      text: m.text || '（已上傳皮膚相）',
+      text: m.text || (clip ? '（已上傳皮膚影片）' : '（已上傳皮膚相）'),
       time: hhmm(m.created_at),
       date: ymd(m.created_at),
-      photo: pid ? `/api/photos/${pid}` : undefined,
+      // 片：出影片 chip，唔可以顯示抽格出嚟嘅相（內部實作唔應該 leak 俾用戶）
+      clip: clip ? { duration: clip.duration ?? 0 } : undefined,
+      photo: !clip && pid ? `/api/photos/${pid}` : undefined,
     }
   }
   const p = m.payload
@@ -56,5 +59,8 @@ export function fromServerMessage(m: ServerMessage): Message {
     disclaimer: p.disclaimer,
     escalate: p.escalate,
     vision_used: p.vision_used,
+    // AI 抽出嘅自報事件要跟埋 reload 返嚟（以前只在 live state → reload 就消失，
+    // 用戶永遠確認唔到 diet／product，成因時間線亦餵唔到料）。已經確認過嘅唔再出。
+    events: !p.events_applied && p.detected_events?.length ? p.detected_events : undefined,
   }
 }

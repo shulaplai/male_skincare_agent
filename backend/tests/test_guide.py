@@ -28,8 +28,10 @@ _REAL_DB = Path(__file__).resolve().parents[1] / "data" / "skincoach.db"
 # ---------------------------------------------------------------------------
 
 
-def test_sections_cover_the_four_requested_topics():
-    assert section_ids() == ["daily", "order", "by_skin", "cautions"]
+def test_sections_cover_the_requested_topics():
+    # `logging`（點樣記錄最準確）係 2026-10-01 加嘅產品指引：個 app 靠用戶每日影相／
+    # 打幾隻字，所以「點記錄」要同護膚知識一樣擺喺指南入面。
+    assert section_ids() == ["daily", "order", "by_skin", "cautions", "logging"]
 
 
 def test_guide_is_self_consistent():
@@ -59,7 +61,7 @@ def test_endpoint_serves_the_guide():
     r = TestClient(app).get("/api/guide")
     assert r.status_code == 200
     body = r.json()
-    assert [s["id"] for s in body["sections"]] == ["daily", "order", "by_skin", "cautions"]
+    assert [s["id"] for s in body["sections"]] == ["daily", "order", "by_skin", "cautions", "logging"]
     assert body["sources"]
 
 

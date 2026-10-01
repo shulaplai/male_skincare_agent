@@ -5,6 +5,9 @@ import { useSummary } from '../hooks/useSummary'
 import { ATTRIBUTE_KEYS, ATTRIBUTE_META, severityText } from '../format'
 import type { AttributeAnchor, AnchorInfo } from '../types'
 import type { HomeProps } from './defs'
+import { Icon } from '../components/Icon'
+import { Skeleton } from '../components/ui/Skeleton'
+import { EmptyState } from '../components/ui/EmptyState'
 
 function AnchorCell({ v, now }: { v: AnchorInfo | null; now: number }) {
   if (!v) return <span className="anchor-cell none">—</span>
@@ -38,13 +41,13 @@ export function DashHome({ p, nav }: HomeProps) {
         </div>
         <div className="dash-btns">
           <button className="btn" onClick={() => nav.go('chat')}>
-            ✍️ 今日打卡／問教練
+            <Icon name="camera" size={16} /> 今日打卡／問教練
           </button>
           <button className="btn ghost" onClick={() => nav.go('records')}>
-            🗂 完整記錄
+            <Icon name="clipboard-list" size={16} /> 完整記錄
           </button>
           <button className="btn ghost" onClick={() => nav.go('progress')}>
-            📈 進度詳細
+            <Icon name="chart-column" size={16} /> 進度詳細
           </button>
         </div>
       </div>
@@ -53,9 +56,9 @@ export function DashHome({ p, nav }: HomeProps) {
         <section className="dash-card today">
           <h3>今日皮膚狀態{latest ? ` · ${latest.date}` : ''}</h3>
           {loading ? (
-            <p className="empty small">載入中…</p>
+            <Skeleton lines={2} />
           ) : !latest || (latest.attributes ?? []).length === 0 ? (
-            <p className="empty small">未有指標。撳「今日打卡」影張相／打個卡，agent 會寫低今日狀態。</p>
+            <EmptyState small icon="camera">未有指標。撳「今日打卡」影張相／打個卡，agent 會寫低今日狀態。</EmptyState>
           ) : (
             <div className="attr-list">
               {ATTRIBUTE_KEYS.map((key) => {
@@ -80,9 +83,9 @@ export function DashHome({ p, nav }: HomeProps) {
         <section className="dash-card trends">
           <h3>指標趨勢（0–3 級）</h3>
           {loading ? (
-            <p className="empty small">載入中…</p>
+            <Skeleton lines={2} />
           ) : entries.length === 0 ? (
-            <p className="empty small">未有數據。打卡幾次之後趨勢會由真數據畫出嚟。</p>
+            <EmptyState small icon="chart-column">未有數據。打卡幾次之後趨勢會由真數據畫出嚟。</EmptyState>
           ) : (
             <div className="trends">
               {ATTRIBUTE_KEYS.map((key) => {
@@ -103,7 +106,7 @@ export function DashHome({ p, nav }: HomeProps) {
         <section className="dash-card anchors">
           <h3>同基準比較</h3>
           {loading ? (
-            <p className="empty small">載入中…</p>
+            <Skeleton lines={2} />
           ) : anchors.length === 0 ? (
             <p className="empty small">
               未有得比較。記錄夠 3 日以上，最新一日就會同上次／約 1 個月前／約 3 個月前比較（±7 日內最接近嗰日）。
@@ -140,13 +143,13 @@ export function DashHome({ p, nav }: HomeProps) {
           {summary ? (
             <MemoryList items={summary.insights} onDelete={removeInsight} />
           ) : (
-            <p className="empty small">載入中…</p>
+            <Skeleton lines={2} />
           )}
         </section>
 
         <section className="dash-card timeline">
           <h3>因果時間線</h3>
-          {summary ? <TimelineList events={summary.timeline} /> : <p className="empty small">載入中…</p>}
+          {summary ? <TimelineList events={summary.timeline} /> : <Skeleton lines={2} />}
         </section>
       </div>
     </div>

@@ -24,7 +24,10 @@ POST /api/consult  {conversation_id, text, photo_paths}
   │     └─ 冇 validation、冇 loading，直接轉手
   │
   └─ app/agent/service.py:70  run_consult()
-       ├─ :71-78  讀 conversation.cloud_analysis（privacy consent）→ 之後入 state
+       ├─ :71-88  讀 privacy consent → 之後入 state：
+       │             `cloud_analysis = conversation.cloud_analysis AND user.photo_cloud_consent`
+       │           （全雲端政策之下第一個永遠 True；第二個係一次性同意）
+       │           有相但唔夠條件 → log warning，最後行純文字
        │           搵唔到 conversation → HTTP 404
        ├─ :80-84  build_graph(llm=get_llm("text"), vision_llm=get_llm("vision"), …)
        ├─ :86-94  graph.invoke(state)
@@ -45,6 +48,8 @@ START → analyze → tools → advise → guardrail → persist → END
 
 | node | 行 | 用 LLM？ | 讀 | 寫落 state |
 |---|---|---|---|---|
+| `persist` | `:481-517` | 冇 LLM | — | ChatMessage（user＋coach）；coach `payload` 帶 `detected_events`（reload 出返 chips）、`events_applied` 由 confirm route 補 |
+
 | `analyze` | `:91-165` | ✅ **text 或 vision** | `user_text`、`photo_paths`、`cloud_analysis` | `analysis`（`SkinAnalysis`）、`vision_used`、`trace` |
 | `tools` | `:167-261` | ❌ | `analysis.tool_calls`、`user_text` + DB | `tool_results`、`product_eval`、`recent_messages`、`first_checkin`、`trace` |
 | `advise` | `:263-286` | ✅ text | `analysis`、`tool_results`、`product_eval`、`recent_messages`、`first_checkin` | `advice`（`Advice`）、`trace` |
@@ -62,7 +67,7 @@ LLM 只負責寫成句子**（見 §8）。
 
 ```
 has_photo = bool(photo_paths)
-consent   = bool(state["cloud_analysis"])
+consent   = bool(state["cloud_analysis"])   # = conv flag AND User.photo_cloud_consent（見 service.py）
 vision    = has_photo and consent and not isinstance(vllm, FakeLLM)   # :95
 vision_attempted = 同上面一樣（刻意喺 fallback 之前計）              # :104
 ```

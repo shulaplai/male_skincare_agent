@@ -35,6 +35,10 @@
 **iPhone 預設嘅 HEIC 相上載直接 500**；**第一次純文字打卡，教練會講「呢張相已經幫你建立咗
 baseline」（用戶根本冇俾相）**。三個都已修＋驗證。
 
+**之後用戶真係用手機連上嚟用，即刻撞到第四個 P1**（**手機版對話完全 scroll 唔到、輸入框唔喺畫面**，
+§3 P1-4）—— 同 P1-1 同一個 CSS family，已修＋重新驗證。**教訓**：上一輪「窄屏實測通過」只量咗
+page 層同 2 條訊息嘅短 thread，唔夠。**
+
 另外兩個 P2 唔應該由我單方面決定，所以**冇改**：**同日 Entry 會被後一條含糊訊息整條覆蓋**
 （實測 acne 2→1、oiliness 1→0，再連鎖到 memory 同商品評估 good→caution）；**偵測到嘅
 「我留意到…✅ 記低」chips reload 就消失**（diet 事件永遠確認唔到 → 因果時間線餵唔到料）。
@@ -53,7 +57,7 @@ baseline」（用戶根本冇俾相）**。三個都已修＋驗證。
 | **RAG** | `search_knowledge` 有跑、回 3 rows（要真 embedder；見 §5 註） |
 | **商品評估（chat 內）** | 貼真 INCI → 結構判斷命中、`recognised: 5`、verdict 由程式算、`reply` 完全跟程式事實；tretinoin → 硬停 |
 | **四套 layout** | Settings 揀結構即時生效＋`localStorage` persist；`?layout=` preview 生效，preview 期間喺 Settings 揀結構會**清走 URL 參數**（同文件一致）；760px→mobile、761px→desktop |
-| **窄屏** | 390／760px：`scrollWidth == innerWidth`（無橫向溢出）、底部 tab bar 齊、只喺窄屏 16px 輸入（防 iOS zoom）；journal／dash／mobile **冇縱向溢出** |
+| **窄屏** | 390／760px：`scrollWidth == innerWidth`（無橫向溢出）、底部 tab bar 齊、只喺窄屏 16px 輸入（防 iOS zoom）；journal／dash／mobile **頁面層**冇縱向溢出。⚠️ **更正（P1-4）**：呢一列只量咗 page 層，而且當時 thread 只有 2 條訊息 —— 用手機同 6 條訊息（4,166px）再量就揭到 chat scene 嘅 `.thread` 完全冇得 scroll、輸入框喺 3,400px 以下。**「冇溢出」唔等於「撳得到」。** |
 | **空態誠實度** | 全部「未有指標／未有記憶／未有事件」；指南用 3 個「未加圖片」佔位、**0 張假圖**；冇 demo 數混入 |
 | **匯出** | zip 有 19 張相 ＋ 3 條片；**default config 下亦有 `skincoach.db`**（實測） |
 | **刪除** | entry／insight／相／conversation 都刪 row ＋ file；`delete_conversation` 會連未 attach 嘅抽格都清（`files_removed: 7`） |
@@ -116,6 +120,55 @@ run log 記 `has_photo: false`、`vision_used: false`、`vision_reason: "no_phot
 「我已經幫你建立咗今次嘅 baseline…之後你每次影相**或者打幾隻字**，我都會同今日比」、
 badge「✍️ 文字分析（未睇相）」→ 假宣稱消失，相變成「將來可以」而唔係「已經」。
 新 test：`tests/test_prompt_photo_claims.py`（兩個分支＋consent_off note）。
+
+### P1-4 手機版對話 scene：完全 scroll 唔到、輸入框唔喺畫面（**用戶喺真手機上撞到**）
+
+**重現**（390×844，`app layout-mobile`，真 thread 6 條訊息／內容 4,166px）：`.shell-scene`
+clientHeight 736，但 `.chat` height **4237**；`.thread` clientHeight 4166 ＝ scrollHeight 4166
+（`threadScrollable: 0`）、`.thread.scrollTop` 點寫都係 0；`.compose` top/bottom ＝ **4221/4292**
+（viewport 844，即係喺 3,400px 以下）；`window.scrollY` 永遠 0，`.app.layout-mobile` 係
+`overflow: hidden` ＋ `.app` `height: 100dvh` → **用戶唯一可以做嘅係睇住最舊嗰幾條訊息**：
+向上冇得拉、向下冇得拉、打字框摸唔到。截圖 `m1-before.png`（modlens：「NO MESSAGE COMPOSER
+IS VISIBLE … There is no text input field, no send button…」）。
+
+**機制**：`.chat` 同時係兩種容器嘅 item —— `ChatShell`（桌面）同 `StandardShell`（journal／dash）
+係 `.shell-chat`（**grid**），`MobileShell` 係 `.shell-scene`（**flex column**）。`.chat` 只有
+`min-width: 0`，**冇 `min-height: 0`**，而兩個容器都會將 `min-height: auto` 解析成「內容高度」：
+
+| 容器 | 量到 |
+|---|---|
+| `.shell-scene`（flex column，390 mobile） | `.chat` 4237px（scene 736px）→ `.thread` 冇 overflow |
+| `.shell-chat`（grid，390 `?layout=journal`） | `gridTemplateRows: 4523.69px` → `.chat` 4524px、`.compose` top 4630 |
+
+即係同 **P1-1 同一個 family**：P1-1 修嘅係 `.app` 嘅 grid children（`.side`／`.chat`／`.right`），
+呢個係 `.chat` 自己喺再落一層嘅同一個問題。桌面 1280 實測冇事（`.chat` 900px ＝ row 高度、
+`.thread` 內部 scroll）—— 所以呢個 bug **只喺窄屏／手機版出現**，而我上一輪試用冇抓到，係因為
+當時 thread 仲短（2 條訊息）＋我只量咗 page 層（見 §2「窄屏」一列嘅更正）。
+
+**已修**：
+1. `frontend/src/index.css`：`.chat { min-height: 0 }`（base rule，兩個容器一齊修）；加上
+   `.shell-scene > .view, .shell-scene > .chat { flex: 1 1 auto; min-height: 0 }`
+   —— scene 嘅內容一定要「填滿 ＋ 准許縮細」。
+2. `frontend/src/components/Chat.tsx`：**跟住最新一句**。`.thread` 係內部 scroll 容器（唔係 window
+   scroll），以前 reload 完永遠停喺最舊一條。而家用 `useLayoutEffect`（換對話／有新訊息／發送中）
+   ＋ `onScroll` 判斷「用戶係唔係仲跟住底部」＋ `<img onLoad>` 重新 pin（相係 async 載入，
+   未 pin 之前 1280 實測 max 2429、載入完 3147）。用戶自己向上睇歷史時**唔會**被搶走位置。
+
+**驗證**（`m2_after.py` 量 box chain ＋ 真 wheel gesture；`m4_mobile_send.py` 用手機 viewport 打字／發送，
+`POST /api/consult` 用 mock intercept，**真 DB 完全冇寫入**）：
+
+| 情境 | 修前 | 修後 |
+|---|---|---|
+| 390 mobile chat | scrollable 0、compose top 4221 | scrollable **3501**、compose 720–791、開喺最新一句；wheel 3501→2701→3501 |
+| 390 `?layout=journal` chat | scrollable 0、compose top 4630 | scrollable **3865**、compose 765–844 |
+| 390 `?layout=dash` chat | 同上 | scrollable **3865**、compose 765–844 |
+| 1280 chat（桌面，本來 OK） | — | scrollable 3147、**冇回歸**（immediate 同 settled 都 3147） |
+| 1280 `?layout=mobile` preview | 同 mobile 一樣壞 | scrollable 3430、compose 847–900 |
+| 390 今日／記錄／進度／設定 | — | `scene.scrollH == clientH`，冇溢出、tab bar 齊 |
+| 手機打字＋發送 | — | 打字入到、typing bubble 同回覆都 pin 到底（3678→3987）、console 0 error |
+| 用戶向上睇歷史時有新訊息 | — | scrollTop 保持 2487（**唔會**被拉返底部）；自己一發送就跳返底部 |
+
+截圖：`m2-chat.png`（修後手機版對話＋輸入框）、`m4-typing.png`、`m4-reply.png`、`m2-d1280-chat.png`。
 
 ---
 
@@ -196,7 +249,8 @@ are／is／includes），只剝 CJK function word，所以唔會食到拉丁 INC
 
 | 檔案 | 改咗咩 |
 |---|---|
-| `frontend/src/index.css` | `.app > * { min-height: 0 }`（P1-1，附註解寫明量到嘅數字） |
+| `frontend/src/index.css` | `.app > * { min-height: 0 }`（P1-1，附註解寫明量到嘅數字）；`.chat { min-height: 0 }` ＋ `.shell-scene > .view, .shell-scene > .chat { flex: 1 1 auto; min-height: 0 }`（P1-4） |
+| `frontend/src/components/Chat.tsx` | 跟住最新一句：`useLayoutEffect` ＋ `onScroll` pinned ＋ `<img onLoad>` 重新 pin（P1-4） |
 | `backend/app/photo.py` | `UnreadableImage`；`compress_image` 加 `ImageOps.exif_transpose`（P1-2、P3-8） |
 | `backend/app/main.py` | `/api/photos` 接 `UnreadableImage` → 415 ＋ 可讀廣東話訊息（P1-2） |
 | `backend/app/video.py` | `UNREADABLE_CLIP` 短訊息；ffmpeg 全文入 log（P3-7，兩處 decode path） |
@@ -219,6 +273,9 @@ CSS 改動**冇**自動化測試（`frontend` 冇 test runner，#12 未決）→
 
 1. **真 iPhone**：本機冇真機。HEIC 用 macOS 造嘅真 HEIC、EXIF 用合成 fixture（raw pixels 打側 ＋
    真 orientation tag）。**iOS 實機上 Safari 送出嚟嘅檔案係咩形態未驗**。
+   （後補：用戶真係用 iPhone 連 LAN 用過 —— 唯一揭到嘅係 **P1-4 手機版對話 layout**，即係
+   Safari／真機相容性冇爆新嘢；但 iOS 鍵盤彈出時 `100dvh` 嘅行為、同 Safari 送出嚟嘅相／片
+   檔案形態，**到今日仍然未驗**。）
 2. **真手機 4K 片**：62MB／106MB 樣本係用 bundled ffmpeg 由用戶條片合成（真 4K 未驗）；
    壓縮路徑本身有確定性測試。
 3. **用戶素材係 WhatsApp 重壓版**（縮到 478×850、EXIF 已清）→ 覆蓋唔到「原檔直出」情境。
@@ -232,8 +289,8 @@ CSS 改動**冇**自動化測試（`frontend` 冇 test runner，#12 未決）→
 
 ## 8. 建議下一步
 
-1. **即刻 merge 上面 6 個修復**（3 個 P1 全部係用戶一用就撞到）。
+1. **即刻 merge 上面 7 個修復**（4 個 P1 全部係用戶一用就撞到）。
 2. **處理已開嘅 4 個 issue**：[#21](https://github.com/shulaplai/male_skincare_agent/issues/21) 同日合併政策、[#22](https://github.com/shulaplai/male_skincare_agent/issues/22) chip 保存、[#23](https://github.com/shulaplai/male_skincare_agent/issues/23) orphan 清理、[#24](https://github.com/shulaplai/male_skincare_agent/issues/24) HEIC 原生支援 —— 全部係產品／依賴決定。
 3. 想我再補：P3-2（刪 entry 連 chat 引用）、P3-3（多相顯示）、P3-5（時間招呼語）都可以即刻做。
 4. 如果要寫入 demo video，**記得先修 P1-1**：demo 會傾好多條，舊 code 20 條訊息之後
-   input 就唔喺畫面，screen record 會出事。
+   input 就唔喺畫面，screen record 會出事。用手機（或者窄屏）錄就更加要先修 **P1-4**。

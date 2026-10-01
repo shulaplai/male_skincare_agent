@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>SkinCoach 手機版 v2 — 樣板（Phase 1 之前睇）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!--
+  手機版 v2 樣板（2026-10-01）
+  ⚠️ 呢個係**設計樣板**，唔係 app：所有數字／文字都係假數據，唔喺 Vite build 範圍。
+  用途：畀用戶睇實物，批准之後 Phase 1–3 就照住做。
+  同 `mobile-*.html`（舊樣式 chooser）唔同：呢份係**出貨 app 嘅下一代**，所以刻意沿用
+  出貨 app 嘅字（Fraunces + Nunito Sans + JetBrains Mono）同 token。
+  改咗咩：見最底 legend 表（字級 / 對比度 / 觸控目標 / icon）。
+-->
+<style>
+:root{
+  /* ── 現有（出貨 app）── */
+  --old-bg:#faf3f0; --old-muted:#a1878f; --old-faint:#c0a8ae; --old-accent-deep:#c95f80; --old-good:#5fa184;
+  /* ── 新 token（Phase 1 會入 code）：全部 ≥4.5:1 ── */
+  --bg:#faf3f0; --panel:#fdf7f5; --card:#fff; --line:#f1dcd9;
+  --text:#382c31;          /* 13.4:1 */
+  --muted:#7d6169;         /* 5.06:1（舊 #a1878f = 3.00）*/
+  --faint:#82686f;         /* 4.60:1（舊 #c0a8ae = 2.02）*/
+  --accent:#e6809c; --accent-soft:#f5b9c9;
+  --accent-deep:#b04e6d;   /* 4.61:1（舊 #c95f80 = 3.52）*/
+  --good:#37735a;          /* 5.09:1（舊 #5fa184 = 2.77）*/
+  --warn:#a8552b; --danger:#b3453f;
+  --glow:rgba(230,128,156,.18);
+  --shadow:0 10px 30px -18px rgba(160,90,110,.35);
+  /* 尺寸 scale */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --r-sm:10px; --r-md:14px; --r-lg:18px; --r-pill:999px;
+  --tap:44px;              /* 觸控目標下限 */
+  --t-fast:120ms; --t-sheet:200ms;
+  --f-xs:12px; --f-sm:13px; --f-md:15px; --f-lg:17px; --f-xl:19px; --f-tab:11px;
+  --serif:'Fraunces',serif; --sans:'Nunito Sans',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+/* 暗色：同一個 scale，只換色。全部 ≥4.5:1（舊嘅 --faint #7a636b = 2.82、--muted 都改深／改淺）*/
+[data-theme='dark']{
+  --bg:#1c1419; --panel:#241a20; --card:#2c2127; --line:#3d2f35;
+  --text:#f4e7ec;
+  --muted:#c9b2b9;        /* 7.79:1（舊 #b399a1 = 5.90）*/
+  --faint:#a88f97;        /* 5.20:1（舊 #7a636b = 2.82）*/
+  --accent:#ef8fae; --accent-soft:#f5b9c9;
+  --accent-deep:#f095b4;  /* 7.14:1（舊 #d96f92 = 4.90）*/
+  --good:#93d0b0; --warn:#d99a6c; --danger:#f08b83;
+  --glow:rgba(239,143,174,.16);
+  --shadow:0 10px 30px -18px rgba(0,0,0,.5);
+}
+[data-theme='dark'] .photo .ph{background:linear-gradient(150deg,#5b444b,#3f3037)}
+[data-theme='dark'] .reveal{background:rgba(28,22,24,.92);color:var(--text)}
+[data-theme='dark'] .toast{background:#efe7ec;color:#2f2429}
+[data-theme='dark'] .badge{background:#2b3b47;color:#a9cbe4}
+[data-theme='dark'] .chip.good{border-color:#3c5b4d}
+[data-theme='dark'] .chip.bad{border-color:#5d3b3a}
+[data-theme='dark'] .advice .n{background:#46313a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#efe7e4;font-family:var(--sans);color:var(--text);padding:28px;display:flex;flex-direction:column;gap:24px}
+h1{font-family:var(--serif);font-size:26px;font-weight:600}
+.sub{font-size:13px;color:#6a555c;max-width:1100px;line-height:1.6}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start}
+.cell{display:flex;flex-direction:column;gap:10px;width:390px}
+.cell > .cap{font-size:12.5px;font-weight:800;letter-spacing:.02em}
+.cell > .note{font-size:12px;line-height:1.65;color:#6a555c;background:#fff;border:1px solid #e3d5d3;border-radius:10px;padding:10px 12px}
+.cell > .note b{color:var(--accent-deep)}
+/* ── 手機框 ── */
+.phone{width:390px;height:844px;background:var(--bg);border-radius:34px;border:9px solid #2a2027;overflow:hidden;position:relative;box-shadow:var(--shadow);/* ⚠️ 一定要喺呢度宣告 color：`--text` 係喺 .phone 上覆寫嘅，如果只喺 body 設 color，子元素會繼承**body 計好嘅淺色值** → 暗色模式會變深字襯深底（我第一版就係噉）*/color:var(--text)}
+.status{height:26px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-size:11px;font-weight:700;color:var(--muted)}
+.app{height:calc(100% - 26px);display:flex;flex-direction:column}
+/* 頂部 */
+.top{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top .who{display:flex;align-items:center;gap:8px;min-width:0}
+.top h2{font-family:var(--serif);font-size:var(--f-lg);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.top .sw{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;font-size:var(--f-xs);color:var(--muted);font-weight:700}
+.top .acts{display:flex;align-items:center;gap:4px}
+.iconbtn{width:var(--tap);height:var(--tap);display:grid;place-items:center;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--good)}
+/* 場景 */
+.scene{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:var(--s4) var(--s3) var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+.scroll::-webkit-scrollbar{width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s4);box-shadow:var(--shadow)}
+.card h3{font-family:var(--serif);font-size:var(--f-lg);font-weight:600;margin-bottom:var(--s3)}
+.card h3.b{color:var(--accent-deep)}
+.k{font-size:var(--f-xs);color:var(--muted);font-weight:700}
+.mono{font-family:var(--mono)}
+.big{font-family:var(--mono);font-size:22px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:var(--s2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:var(--f-xs);font-weight:700;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-pill);padding:6px 10px;color:var(--text)}
+.chip.good{color:var(--good);border-color:#cfe4da}
+.chip.bad{color:var(--danger);border-color:#eccfcd}
+.chip.neutral{color:var(--muted)}
+/* 按鈕 */
+.btn{min-height:var(--tap);display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--r-md);border:1px solid var(--line);background:var(--card);color:var(--text);font-family:var(--sans);font-size:var(--f-sm);font-weight:800;padding:0 var(--s4)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-deep));border:none;color:#fff;box-shadow:0 10px 22px -12px var(--accent)}
+.btn.danger{color:var(--danger);border-color:#eccfcd}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+/* 對話 */
+.thread{flex:1;min-height:0;overflow-y:auto;padding:var(--s3) var(--s3) var(--s4);display:flex;flex-direction:column;gap:var(--s3)}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.me{flex-direction:row-reverse}
+.a{width:30px;height:30px;border-radius:50%;flex:none;margin-top:2px;display:grid;place-items:center;font-size:13px}
+.a.coach{background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff}
+.a.me{background:var(--line);color:var(--muted)}
+.bubble{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:11px 13px;font-size:var(--f-md);line-height:1.6;box-shadow:var(--shadow);max-width:100%}
+.msg.me .bubble{background:var(--glow);box-shadow:none}
+.msg.me{max-width:84%}
+.meta{font-family:var(--mono);font-size:var(--f-xs);color:var(--muted);margin-bottom:5px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:var(--f-xs);font-weight:700;border-radius:var(--r-pill);padding:4px 9px;background:#e8f1f9;color:#2e5f86;margin-top:8px}
+.badge.local{background:var(--panel);color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.metric{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);padding:8px}
+.metric .v{font-family:var(--mono);font-size:19px;margin-top:2px}
+.advice{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:var(--f-sm);line-height:1.55}
+.advice li{display:flex;gap:9px}
+.advice .n{flex:none;width:22px;height:22px;border-radius:7px;background:#f6dfe6;color:var(--accent-deep);font-family:var(--mono);font-size:11px;display:grid;place-items:center;font-weight:700}
+.disc{font-size:var(--f-xs);color:var(--muted);margin-top:10px}
+.photo{position:relative;display:inline-block;margin-top:8px;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--line)}
+.photo .ph{width:132px;height:176px;background:linear-gradient(150deg,#e9d3d0,#d8b9bd);display:block}
+.photo.blur .ph{filter:blur(9px)}
+.reveal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:var(--r-pill);border:1px solid var(--line);background:rgba(255,255,255,.94);font-size:var(--f-xs);font-weight:800;color:var(--text)}
+.clipchip{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:6px 12px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--panel);font-size:var(--f-xs);font-weight:700;color:var(--muted)}
+.events{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;align-items:center}
+.ev{display:inline-flex;align-items:center;gap:5px;font-size:var(--f-xs);font-weight:700;background:#f6dfe6;color:var(--accent-deep);border-radius:var(--r-pill);padding:5px 9px}
+.ev-yes{display:inline-flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:var(--r-pill);border:1px solid var(--line);background:var(--card);font-size:var(--f-xs);font-weight:800;color:var(--good)}
+/* composer */
+.compose{border-top:1px solid var(--line);background:var(--panel);padding:9px 10px calc(9px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px}
+.compose .ta{flex:1;min-width:0;min-height:44px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);padding:11px 13px;font-size:16px;color:var(--muted);line-height:1.4}
+.send{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent-deep));color:#fff;border:none}
+.clipupload{flex:1 1 100%;display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);padding:6px}
+.clipupload .th{width:48px;height:48px;border-radius:var(--r-sm);background:linear-gradient(150deg,#e3d0cf,#cdb0b6);display:grid;place-items:center;color:#fff}
+.clipupload .m{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.bar{height:5px;border-radius:var(--r-pill);background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:42%;background:linear-gradient(90deg,var(--accent),var(--accent-deep))}
+/* tab bar */
+.tabs{flex:none;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:56px;background:none;border:none;color:var(--muted);font-family:var(--sans);font-size:var(--f-tab);font-weight:800}
+.tabs button.on{color:var(--accent-deep)}
+/* 列表 / 記錄 */
+.entry{display:flex;flex-direction:column;gap:9px}
+.entry .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.entry .date{font-size:var(--f-xs);color:var(--muted);font-weight:700}
+.entry .tx{font-size:var(--f-sm);line-height:1.6}
+.acts2{display:flex;gap:8px}
+.acts2 .btn{min-height:var(--tap);padding:0 12px;font-size:var(--f-xs)}
+/* 進度 */
+.bars{display:flex;flex-direction:column;gap:10px}
+.bline{display:flex;align-items:center;gap:10px}
+.bline .name{width:46px;font-size:var(--f-xs);color:var(--muted);font-weight:700}
+.track{flex:1;height:9px;border-radius:var(--r-pill);background:var(--panel);border:1px solid var(--line);overflow:hidden}
+.track i{display:block;height:100%;border-radius:var(--r-pill)}
+/* 空態 / skeleton */
+.skel{height:14px;border-radius:7px;background:linear-gradient(90deg,#efe3e1,#f7efed,#efe3e1);background-size:200% 100%;animation:sk 1.4s linear infinite}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.empty{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:var(--s5) var(--s4);color:var(--muted);font-size:var(--f-sm);line-height:1.6}
+.empty .ic{width:28px;height:28px;color:var(--faint)}
+/* sheet / toast */
+.scrim{position:absolute;inset:0;background:rgba(40,28,33,.42);display:flex;align-items:flex-end}
+.sheet{width:100%;background:var(--card);border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.sheet h3{font-family:var(--serif);font-size:var(--f-lg)}
+.grab{width:40px;height:4px;border-radius:var(--r-pill);background:var(--line);align-self:center}
+.field{min-height:var(--tap);border:1px solid var(--line);border-radius:var(--r-md);background:var(--panel);padding:12px;font-size:16px;color:var(--text)}
+.toast{position:absolute;left:12px;right:12px;bottom:74px;background:#2f2429;color:#fff;border-radius:var(--r-md);padding:12px 14px;font-size:var(--f-sm);display:flex;align-items:center;gap:9px;box-shadow:var(--shadow)}
+.legend{background:#fff;border:1px solid #e3d5d3;border-radius:14px;padding:16px 18px;max-width:1180px}
+.legend h2{font-family:var(--serif);font-size:20px;margin-bottom:12px}
+td,th{padding:8px 10px 8px 0}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{text-align:left;padding:6px 10px 6px 0;border-bottom:1px solid #f0e4e2}
+code{font-family:var(--mono);font-size:11.5px;background:#f7efed;padding:1px 5px;border-radius:5px}
+.old{color:#a1878f} .new{color:#b04e6d;font-weight:700}
+
+.ic.up{transform:rotate(90deg)}
+</style>
+</head>
+<body>
+<h1>手機版 v2 — 樣板（睇完 OK 就照住做）</h1>
+<p class="sub">11 個框：5 個 scene ＋ 指南 ＋ 狀態（載入／空態／錯誤／Sheet／Toast／影片上載）＋ 暗色模式。
+每個框下面有「改咗咩」。全部用新 token（<code>--muted 5.06:1</code>、<code>--faint 4.60:1</code>、
+<code>--accent-deep 4.61:1</code>、<code>--good 5.09:1</code>）、字級下限 12px、觸控目標 ≥44px、Lucide icon。</p>
+
+<div class="grid">
+  <div class="cell"><div class="cap">① 今日</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="k">今天 · 星期四</div>
+        <div class="big" style="margin-top:4px">4 / 6 <span class="k">指標</span></div>
+        <div class="k" style="margin-top:6px">油光 · 暗瘡 · 毛孔 · 泛紅</div>
+      </div>
+      <div style="width:74px;height:74px;border-radius:50%;background:conic-gradient(var(--accent-deep) 0 66%, var(--line) 66% 100%);display:grid;place-items:center">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--card);display:grid;place-items:center">
+          <span class="mono" style="font-size:13px;font-weight:700">66%</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn primary wide" style="margin-top:14px"><svg class="ic " viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg>今日打卡／影相</button>
+  </div>
+
+  <div class="card">
+    <h3 class="b">今日指標</h3>
+    <div class="chips">
+      <span class="chip">暗瘡 1/3</span><span class="chip">油光 2/3</span><span class="chip">毛孔 2/3</span>
+      <span class="chip good">泛紅 0/3</span>
+    </div>
+    <div class="chips" style="margin-top:12px">
+      <span class="chip neutral">↓ 改善 1 級</span><span class="chip neutral">→ 持平 2 項</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row"><h3 style="margin:0">最近紀錄</h3><span class="btn ghost" style="min-height:44px"><svg class="ic " viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg>全部</span></div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+      <div>
+        <div class="row"><span class="entry"><span class="date">10-01 週四</span></span><span class="chip good">改善</span></div>
+        <div class="tx" style="margin-top:6px">T 字位反光範圍收窄，下巴新出一粒。</div>
+      </div>
+      <div style="border-top:1px solid var(--line);padding-top:12px">
+        <div class="row"><span class="entry"><span class="date">09-30 週三</span></span><span class="chip bad">惡化</span></div>
+        <div class="tx" style="margin-top:6px">食咗麻辣火鍋之後一日泛紅升 1 級。</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>環形進度數字由 9.5px→<b>12px</b>；卡片標題用 <code>--accent-deep</code> 新色（3.52→4.61:1）；「全部」由細字 link 變成 <b>44px 高按鈕</b>；CTA 加 camera icon。</div>
+  </div>
+
+  <div class="cell"><div class="cap">② 對話</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="thread">
+  <div class="msg me"><div class="a me">你</div>
+    <div class="bubble"><div class="meta">你 · 09:12</div>今日影咗條片
+      <div class="clipchip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3" /></svg>皮膚影片 · 12 秒</div>
+    </div>
+  </div>
+
+  <div class="msg"><div class="a coach">👁</div>
+    <div class="bubble">
+      <div class="meta">教練 · Agent · 09:12</div>
+      睇你條片，T 字位反光範圍同上次差唔多，下巴嗰粒係新出嘅。呢組數字我會記住，下次影相比對。
+      <div class="badge"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></svg>已睇相分析（雲端）</div>
+      <div class="metrics">
+        <div class="metric"><div class="k">油光</div><div class="v">2</div></div>
+        <div class="metric"><div class="k">暗瘡</div><div class="v">1</div></div>
+        <div class="metric"><div class="k">毛孔</div><div class="v">2</div></div>
+      </div>
+      <ul class="advice">
+        <li><span class="n">01</span><span>早晚溫和潔面，唔好用磨砂</span></li>
+        <li><span class="n">02</span><span>精華搽煙酰胺，BHA 每週 2–3 次</span></li>
+        <li><span class="n">03</span><span>日間一定要搽防曬</span></li>
+      </ul>
+      <div class="disc">以上建議只供參考，唔構成醫療意見。</div>
+      <div class="events">
+        <span class="k">我留意到：</span>
+        <span class="ev"><svg class="ic " viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>食咗麻辣火鍋</span>
+        <span class="ev">🧴開始用煙酰胺精華</span>
+        <button class="ev-yes"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>記低</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="msg me"><div class="a me">你</div>
+    <div class="bubble"><div class="meta">你 · 09:20</div>今日塊面有啲油
+      <div class="photo blur"><span class="ph"></span>
+        <button class="reveal"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></svg>顯示</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="compose">
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg></span>
+  <div class="ta">問面部皮膚教練任何嘢…</div>
+  <button class="send"><svg class="ic up" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg></button>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>時間「你 · 09:12」由 9.5px→<b>12px</b> 同新色（1.19→5.06:1）；自己嗰邊<b>靠右</b>（84% 闊）；建議步驟編號由 <b>1.0:1 → 新色 5.5:1</b>；相先模糊＋「顯示」掣 ≥36px；影片出中性 chip，唔會出抽格相；發送掣圓形箭嘴；輸入框 16px（防 iOS zoom）。</div>
+  </div>
+
+  <div class="cell"><div class="cap">③ 記錄</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card">
+    <h3>匯出同備份</h3>
+    <div class="k" style="line-height:1.6">相、日記、記憶、時間線全部喺你自己部機。匯出嘅 zip 包含埋 SQLite 資料庫。</div>
+    <button class="btn wide" style="margin-top:12px"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /> <polyline points="7 10 12 15 17 10" /> <line x1="12" x2="12" y1="15" y2="3" /></svg>匯出數據（zip）</button>
+  </div>
+
+  <div class="card entry">
+    <div class="hd"><span class="date">2026-10-01 · 週四</span><span class="chip good">改善</span></div>
+    <div class="tx">今日塊面冇咁油；T 字位反光收窄。</div>
+    <div class="chips"><span class="chip">暗瘡 1/3</span><span class="chip">油光 2/3</span></div>
+    <div class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改筆記</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></div>
+  </div>
+
+  <div class="card entry">
+    <div class="hd"><span class="date">2026-09-30 · 週三</span><span class="chip bad">惡化</span></div>
+    <div class="tx">食咗麻辣火鍋。</div>
+    <div class="chips"><span class="chip">泛紅 2/3</span><span class="chip">油光 3/3</span></div>
+    <div class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改筆記</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>「✎ 改筆記／🗑 刪除」由 <b>49×20 / 42×20</b>（低過 WCAG 24）變成 <b>44px 高按鈕</b>；日期 10px→12px；emoji 換 Lucide；匯出掣 44px。</div>
+  </div>
+
+  <div class="cell"><div class="cap">④ 進度</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card">
+    <h3 class="b">皮膚指標趨勢</h3>
+    <div class="bars">
+      <div class="bline"><span class="name">油光</span><span class="track"><i style="width:66%;background:var(--warn)"></i></span><span class="chip bad">↑1</span></div>
+      <div class="bline"><span class="name">暗瘡</span><span class="track"><i style="width:33%;background:var(--good)"></i></span><span class="chip good">↓1</span></div>
+      <div class="bline"><span class="name">毛孔</span><span class="track"><i style="width:66%;background:var(--muted)"></i></span><span class="chip neutral">持平</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>相關性（4 個紀錄日）</h3>
+    <div class="tx">辣 → 暗瘡：3 次之中 3 次之後一日暗瘡升 1 級。</div>
+    <div class="k" style="margin-top:8px">樣本仍然少，當參考。</div>
+  </div>
+
+  <div class="card">
+    <h3>記憶</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="row"><span class="tx">T 字位長期偏油</span><span class="chip neutral"><svg class="ic " viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></svg>AI 偵測</span></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px" class="row">
+        <span class="tx">偏好清爽 gel 質地</span><span class="chip"><svg class="ic " viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></svg>全局</span>
+      </div>
+    </div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>趨勢/相關性/記憶嘅 <code>--muted</code>、<code>--good</code>、<code>--warn</code> 全部換合規色；記憶 chip 由 emoji 🌐 換 globe icon；<code>AI 偵測</code> 1.91:1 → 5.06:1。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑤ 設定</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card">
+    <h3>外觀</h3>
+    <div class="row" style="margin-top:6px"><span class="tx">夜間模式</span><span class="chip neutral"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg>跟系統</span></div>
+    <div class="row" style="margin-top:12px"><span class="tx">字級</span><span class="chip">標準</span></div>
+  </div>
+
+  <div class="card">
+    <h3>介面結構</h3>
+    <div class="chips">
+      <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>對話主導</span>
+      <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>皮膚日記</span>
+      <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg>進度儀表板</span>
+      <span class="chip" style="border-color:var(--accent-deep);color:var(--accent-deep)"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /> <circle cx="12" cy="7" r="4" /></svg>手機版</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>部位對話</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="row"><span class="tx">面部皮膚</span>
+        <span class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改名</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></span>
+      </div>
+      <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span class="tx">頭皮</span>
+        <span class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改名</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></span>
+      </div>
+    </div>
+    <button class="btn wide" style="margin-top:14px"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14" /> <path d="M12 5v14" /></svg>新增部位</button>
+  </div>
+
+  <div class="card">
+    <h3>指南</h3>
+    <div class="tx">男士護膚基本資料 · 點樣記錄最準確</div>
+    <button class="btn wide" style="margin-top:12px"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14" /> <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" /></svg>睇指南</button>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>改名／刪除／新增部位全部 44px 按鈕（唔再靠 22px 細字）；新增部位／改名改用 <b>底部 Sheet</b>（唔再 <code>window.prompt</code>，iOS 連續彈會被封）；結構 picker 用 Lucide。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑥ 指南</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="row" style="gap:8px">
+    <button class="btn"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg>返設定</button>
+    <span class="k">5 節 · 有引用</span>
+  </div>
+  <div class="chips">
+    <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg>一日流程</span>
+    <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>先後次序</span>
+    <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>用咩產品</span>
+    <span class="chip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg>注意</span>
+    <span class="chip" style="border-color:var(--accent-deep);color:var(--accent-deep)"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>點記錄</span>
+  </div>
+  <div class="card">
+    <h3 class="b"><svg class="ic " viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>點樣記錄最準確</h3>
+    <div class="tx">三步就夠：潔面、保濕、防曬。多過三步唔會自動更好。</div>
+    <ul class="advice" style="margin-top:12px">
+      <li><span class="n">01</span><span><b>影相</b>：自然光、唔好化妝、同一光源同一角度</span></li>
+      <li><span class="n">02</span><span><b>拍片</b>：約 20 秒，鏡頭慢慢掃過成塊面</span></li>
+      <li><span class="n">03</span><span><b>淨係打幾隻字</b>：食咗咩、用咗咩產品、點護膚</span></li>
+    </ul>
+    <div class="chip bad" style="margin-top:12px"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg>拍片／講出嚟嘅聲唔會記錄，飲食要打字</div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>TOC chip 由 35px → <b>44px</b>；卡頭 emoji 換 icon；警告用 <code>--danger</code>（5.0:1）；「返設定」44px。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑦ 狀態：載入／空態／錯誤</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card"><h3>載入中（skeleton，唔再係「載入中…」）</h3>
+    <div style="display:flex;flex-direction:column;gap:9px;margin-top:10px">
+      <div class="skel" style="width:60%"></div><div class="skel"></div><div class="skel" style="width:80%"></div>
+    </div>
+  </div>
+  <div class="card"><h3>空態</h3>
+    <div class="empty"><svg class="ic " viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>今日仲未有紀錄。<br />影一張相，或者打幾隻字就得。</span>
+      <button class="btn primary"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg>影第一張相</button></div>
+  </div>
+  <div class="card"><h3>錯誤（inline，唔再彈 alert）</h3>
+    <div class="chip bad" style="white-space:normal;line-height:1.5"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></svg>連唔到 backend，請確認 uvicorn 已經起。</div>
+  </div>
+  <div class="card"><h3>成功提示（toast 取代 alert）</h3>
+    <div class="tx" style="font-size:var(--f-sm)">刪咗一日紀錄之後，底部彈一句＋一個「復原」。</div>
+  </div>
+</div>
+<div class="compose">
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg></span>
+  <div class="ta">問面部皮膚教練任何嘢…</div>
+  <button class="send"><svg class="ic up" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg></button>
+</div></div>
+    <nav class="tabs"><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>新：</b>載入 → <b>skeleton</b>（唔再一句「載入中…」）；空態有 icon ＋ 一個行動掣；錯誤 → <b>inline chip</b>（唔再彈 <code>alert</code>）。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑧ 改名：底部 Sheet（取代 prompt）</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card"><h3>部位對話</h3>
+    <div class="row"><span class="tx">面部皮膚</span>
+      <span class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改名</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></span></div>
+  </div>
+  <div class="card"><h3>改名</h3>
+    <div class="tx" style="font-size:var(--f-sm)">撳「改名」就由下面升起一個 sheet（200ms slide），唔再彈 <code>window.prompt</code>。</div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+<div class="scrim"><div class="sheet">
+  <span class="grab"></span>
+  <h3>改名做？</h3>
+  <div class="field">面部皮膚</div>
+  <button class="btn primary wide"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>儲存</button>
+  <button class="btn wide">取消</button>
+</div></div>
+  </div>
+</div>
+    <div class="note"><b>新：</b>改名／新增部位／刪除確認 → <b>bottom sheet</b>（200ms slide、跟 reduced-motion）。iOS 連續彈 <code>prompt</code> 會被封、IG／FB in-app browser 直情 disable，所以呢個係 bug 級修正。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑨ 成功提示：Toast（取代 alert）</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="scroll">
+  <div class="card entry">
+    <div class="hd"><span class="date">2026-10-01 · 週四</span><span class="chip good">改善</span></div>
+    <div class="tx">呢一日嘅紀錄啱啱刪咗（測試 toast）。</div>
+    <div class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改筆記</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></div>
+  </div>
+  <div class="card entry">
+    <div class="hd"><span class="date">2026-09-30 · 週三</span><span class="chip bad">惡化</span></div>
+    <div class="tx">食咗麻辣火鍋。</div>
+    <div class="acts2"><button class="btn"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /></svg>改筆記</button><button class="btn danger"><svg class="ic " viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /> <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /> <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /> <line x1="10" x2="10" y1="11" y2="17" /> <line x1="14" x2="14" y1="11" y2="17" /></svg>刪除</button></div>
+  </div>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+<div class="toast"><svg class="ic " viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>已刪除 10-01 嘅紀錄<button class="btn ghost" style="min-height:36px;margin-left:auto;color:#fff;border-color:#6b5a61">復原</button></div>
+  </div>
+</div>
+    <div class="note"><b>新：</b>刪除之後彈一句＋「復原」，唔會再中斷你做緊嘅嘢。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑩ 影片上載（唔 leak 內部實作）</div>
+<div class="phone" >
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="thread">
+  <div class="msg"><div class="a coach">👁</div><div class="bubble">
+    <div class="meta">教練 · Agent · 09:12</div>睇你條片，T 字位反光範圍同上次差唔多。</div></div>
+  <div class="msg me"><div class="a me">你</div><div class="bubble"><div class="meta">你 · 09:12</div>今日影咗條片
+    <div class="clipchip"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3" /></svg>皮膚影片 · 12 秒</div></div></div>
+</div>
+<div class="compose">
+  <div class="clipupload">
+    <span class="th"><svg class="ic " viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3" /></svg></span>
+    <span class="m">
+      <b style="font-size:var(--f-xs)">🎬 皮膚影片</b>
+      <span class="bar"><i></i></span>
+      <span class="k">上載緊… 42%（唔使等，可以繼續打字）</span>
+    </span>
+    <span class="iconbtn" style="width:32px;height:32px;border:none;background:none"><svg class="ic " viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18" /> <path d="m6 6 12 12" /></svg></span>
+  </div>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg></span>
+  <div class="ta">問面部皮膚教練任何嘢…</div>
+  <button class="send"><svg class="ic up" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg></button>
+</div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>上載期間見到<b>你條片＋真進度條</b>，唔會出現一格格抽出嚟嘅縮圖、亦冇「抽咗 6 張相／已壓縮」字眼。</div>
+  </div>
+
+  <div class="cell"><div class="cap">⑪ 暗色模式（token 亦要換）</div>
+<div class="phone" data-theme="dark">
+  <div class="status"><span>17:02</span><span class="mono">5G ▮▮▮</span></div>
+  <div class="app">
+    <div class="top">
+<div class="who">
+  <span class="a coach" style="width:28px;height:28px">🧔</span>
+  <h2>面部皮膚</h2>
+  <span class="sw"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>切換</span>
+</div>
+<div class="acts">
+  <span class="dot" title="Agent 在線"></span>
+  <span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /> <path d="M12 2v2" /> <path d="M12 20v2" /> <path d="m4.93 4.93 1.41 1.41" /> <path d="m17.66 17.66 1.41 1.41" /> <path d="M2 12h2" /> <path d="M20 12h2" /> <path d="m6.34 17.66-1.41 1.41" /> <path d="m19.07 4.93-1.41 1.41" /></svg></span>
+</div></div>
+    <div class="scene">
+<div class="thread">
+  <div class="msg"><div class="a coach">👁</div><div class="bubble">
+    <div class="meta">教練 · Agent · 09:12</div>睇你條片，T 字位反光範圍同上次差唔多，下巴嗰粒係新出嘅。
+    <div class="badge"><svg class="ic " viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></svg>已睇相分析（雲端）</div>
+    <div class="metrics">
+      <div class="metric"><div class="k">油光</div><div class="v">2</div></div>
+      <div class="metric"><div class="k">暗瘡</div><div class="v">1</div></div>
+    </div>
+    <div class="events"><span class="k">我留意到：</span><span class="ev"><svg class="ic " viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>食咗麻辣火鍋</span></div>
+  </div></div>
+  <div class="msg me"><div class="a me">你</div><div class="bubble"><div class="meta">你 · 09:20</div>今日塊面有啲油
+    <div class="photo blur"><span class="ph"></span><button class="reveal"><svg class="ic " viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /> <circle cx="12" cy="12" r="3" /></svg>顯示</button></div>
+  </div></div>
+</div>
+<div class="compose"><span class="iconbtn"><svg class="ic " viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /> <circle cx="12" cy="13" r="3" /></svg></span><div class="ta">問面部皮膚教練任何嘢…</div><button class="send"><svg class="ic up" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /> <path d="M19 12H5" /></svg></button></div></div>
+    <nav class="tabs"><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /> <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg><span>今日</span></button><button class="on"><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg><span>對話</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1" /> <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /> <path d="M12 11h4" /> <path d="M12 16h4" /> <path d="M8 11h.01" /> <path d="M8 16h.01" /></svg><span>記錄</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16" /> <path d="M18 17V9" /> <path d="M13 17V5" /> <path d="M8 17v-3" /></svg><span>進度</span></button><button class=""><svg class="ic " viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /> <circle cx="12" cy="12" r="3" /></svg><span>設定</span></button></nav>
+    
+  </div>
+</div>
+    <div class="note"><b>改咗：</b>暗色 <code>--faint</code> 舊值 <b>2.82:1</b>、<code>--muted</code> 5.90:1 → 新 <code>#a88f97</code> 5.20:1 ／ <code>#c9b2b9</code> 7.79:1；<code>--accent-deep</code> 亦調亮到 7.14:1。</div>
+  </div>
+</div>
+
+<div class="legend">
+  <h2>Token 對照（量度出嚟，唔係口味）</h2>
+  <table>
+    <tr><th>用途</th><th>舊</th><th>對比度</th><th>新</th><th>對比度</th></tr>
+    <tr><td>次要文字 <code>--muted</code></td><td class="old">#a1878f</td><td>3.00:1 ✗</td><td class="new">#7d6169</td><td>5.06:1 ✓</td></tr>
+    <tr><td>最淡文字 <code>--faint</code></td><td class="old">#c0a8ae</td><td>2.02:1 ✗</td><td class="new">#82686f</td><td>4.60:1 ✓</td></tr>
+    <tr><td>標題／徽章 <code>--accent-deep</code></td><td class="old">#c95f80</td><td>3.52:1 ✗</td><td class="new">#b04e6d</td><td>4.61:1 ✓</td></tr>
+    <tr><td>改善 <code>--good</code></td><td class="old">#5fa184</td><td>2.77:1 ✗</td><td class="new">#37735a</td><td>5.09:1 ✓</td></tr>
+    <tr><td>注意 <code>--warn</code>／危險 <code>--danger</code></td><td class="old">#d98a66 / #d64545</td><td>~2.5 / 3.4:1 ✗</td><td class="new">#a8552b / #b3453f</td><td>4.79 / 4.99:1 ✓</td></tr>
+    <tr><td>對話時間</td><td class="old">9.5px</td><td>—</td><td class="new">12px</td><td>—</td></tr>
+    <tr><td>tab label</td><td class="old">9.5px</td><td>—</td><td class="new">11px</td><td>—</td></tr>
+    <tr><td>對話正文</td><td class="old">14.5px</td><td>—</td><td class="new">15px</td><td>—</td></tr>
+    <tr><td>觸控目標</td><td class="old">最細 20px</td><td>低過 WCAG 24</td><td class="new">全部 ≥44px</td><td>—</td></tr>
+    <tr><td>Icon</td><td class="old">emoji（5 個來源）</td><td>—</td><td class="new">Lucide（同一 24 grid）</td><td>—</td></tr>
+  </table>
+</div>
+</body></html>

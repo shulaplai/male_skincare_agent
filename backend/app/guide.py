@@ -118,7 +118,7 @@ def build_guide() -> Guide:
         Section(
             id="daily",
             title="一日應該點護膚",
-            icon="☀️",
+            icon="sun",
             summary="三步就夠：潔面、保濕、防曬。多過三步唔會自動更好。",
             blocks=[
                 Block(
@@ -168,7 +168,7 @@ def build_guide() -> Guide:
         Section(
             id="order",
             title="護膚嘅先後次序",
-            icon="🔢",
+            icon="list-ordered",
             summary="由最薄身去到最厚身；功效產品放喺保濕之前。",
             blocks=[
                 Block(
@@ -208,7 +208,7 @@ def build_guide() -> Guide:
         Section(
             id="by_skin",
             title="應該用咩產品",
-            icon="🧴",
+            icon="droplet",
             summary="按你而家嘅皮膚狀況揀成份 —— 主選係證據最多嗰個，次選係特殊情況改用。",
             blocks=[
                 Block(
@@ -243,7 +243,7 @@ def build_guide() -> Guide:
         Section(
             id="cautions",
             title="護膚時有咩要注意",
-            icon="⚠️",
+            icon="triangle-alert",
             summary="唔好擠、唔好刷、防曬要搽足、有醫療問題要睇醫生。",
             blocks=[
                 Block(
@@ -283,6 +283,52 @@ def build_guide() -> Guide:
                     type="image",
                     image_id="cautions",
                     text="注意事項示意圖（佔位）",
+                ),
+            ],
+        ),
+        Section(
+            id="logging",
+            title="點樣記錄最準確",
+            icon="pencil",
+            summary="每日 20 秒片（鏡頭慢慢掃）＞影相＞打幾隻字。聲係唔會記錄嘅。",
+            blocks=[
+                Block(
+                    type="callout",
+                    tone="tip",
+                    text=(
+                        "**（app 建議，唔係文獻結論）最好嘅記錄：每日拍一段約 20 秒嘅片，"
+                        "鏡頭慢慢掃過成塊面。** app 會喺條片抽最多 6 格畫面做分析 —— "
+                        "**鏡頭一定要動**：定鏡 20 秒會被當成重複，最後只抽到一格；"
+                        "慢慢由額頭掃到下巴、再掃兩邊面頰，就抽得足。"
+                    ),
+                ),
+                Block(
+                    type="steps",
+                    items=[
+                        "**影相**（做唔到片就影相）：自然光、唔好背光、唔好開閃光燈、唔好化妝",
+                        "**同一條件**：盡量同一個時間（例如朝早洗完臉）、同一個光源、同一個角度 → 先比得出變化",
+                        "**淨係口講都得**：食咗咩、用咗咩產品、點護膚，打幾隻字就得，唔使填表",
+                        "**一次只加一樣新產品**，隔幾日先再加第二樣 → 皮膚出事就知係邊樣",
+                    ],
+                ),
+                Block(
+                    type="callout",
+                    tone="warn",
+                    text=(
+                        "**⚠️ app 唔會聽聲。** 拍片或者對住手機講咗食咩、用咗咩，"
+                        "係**唔會**被記錄嘅（條片淨係抽畫面格，音軌會丟掉）。"
+                        "要記飲食／產品，一定要**打落對話**（可以用鍵盤嘅語音輸入功能打）。"
+                        "打完之後 AI 會抽出「我留意到…」畀你撳「✅ 記低」先真正寫入紀錄。"
+                    ),
+                ),
+                Block(
+                    type="list",
+                    items=[
+                        "**打完之後我幫你抽**：飲食（辣／甜／油／奶／酒）同產品（開始用／停用）會變成事件，等你確認先寫入",
+                        "**每日一個紀錄**：同一日再打卡會同當日嘅紀錄合併（唔會開新一日）",
+                        "**唔好自己打分**：照你感覺講就得（「今日好油」、「有兩粒新瘡」），指標由分析計",
+                        "**連續性比完美重要**：隔日影一張清相，好過一個月後影一張靚相",
+                    ],
                 ),
             ],
         ),

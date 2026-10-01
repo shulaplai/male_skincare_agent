@@ -1,3 +1,4 @@
+import type { IconName } from '../components/Icon'
 import type { Conversation, DetectedEvent, LayoutId, Message, View } from '../types'
 
 /** 所有 shell 共用嘅 props（由 App 一次過供俾四套結構）。 */
@@ -13,20 +14,32 @@ export interface ShellProps {
   onAddConversation: () => void
   onRenameConversation: (c: Conversation) => void
   onDeleteConversation: (c: Conversation) => void
-  onToggleCloud: (id: string, enabled: boolean) => void
   onSend: (text: string, photos: { id: string; path: string }[]) => void
   onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
-  onQuickRecord: (conversationId: string, diet: string, product: string) => void
 }
 
 /** 新結構 shell 內部嘅 scene（home 係各 shell 自己嘅主畫面）。 */
 export type ShellScene = 'home' | View
 
+/**
+ * 底部 tab bar 嘅 scene。`guide` 故意唔包括：指南係由 Settings 入嘅 sub-page，
+ * 唔會佔一個 tab（所以 `NAV_ICONS` 可以係 exhaustive Record，漏咗就編譯唔過）。
+ */
+export type TabScene = Exclude<ShellScene, 'guide'>
+
+/** `icon` 係 `components/Icon.tsx` 嘅 icon 名（以前係 emoji；見嗰個檔嘅註解）。 */
 export interface SceneTab {
-  key: ShellScene
+  key: TabScene
   label: string
-  icon: string
+  icon: IconName
 }
+
+/**
+ * URL 認得嘅**所有** scene，唔止 tab。
+ * `guide` 冇 tab（由 Settings 入），但佢一樣係一個 page：如果只認 tab 名，
+ * `?scene=guide` reload 就會靜靜跌返第一頁（真實撞過）。
+ */
+export const SHELL_SCENES: ShellScene[] = ['home', 'chat', 'records', 'progress', 'settings', 'guide']
 
 /**
  * Layout registry：四套「結構」嘅 **metadata／導覽 config**（純 data，唔含 JSX）。
@@ -37,7 +50,7 @@ export interface SceneTab {
 export interface LayoutDef {
   id: LayoutId
   name: string
-  icon: string
+  icon: IconName
   tagline: string
   blurb: string
   tabs?: SceneTab[]
@@ -55,52 +68,52 @@ export const LAYOUTS: LayoutDef[] = [
   {
     id: 'chat',
     name: '教練對話',
-    icon: '💬',
+    icon: 'message-square',
     tagline: '對話主導',
     blurb: '左欄部位＋中間對話＋右欄實時數據。每日問教練、睇相分析、覆事件最順。',
   },
   {
     id: 'journal',
     name: '皮膚日記',
-    icon: '📔',
+    icon: 'notebook-text',
     tagline: '日記主導',
     blurb: '中間係逐日紀錄 feed（相＋指標＋當日回覆），右欄記憶／時間線。記錄為本、回顧友好。',
     tabs: [
-      { key: 'home', label: '皮膚日記', icon: '📔' },
-      { key: 'chat', label: '教練對話', icon: '💬' },
-      { key: 'records', label: '完整記錄', icon: '🗂️' },
-      { key: 'progress', label: '進度', icon: '📈' },
-      { key: 'settings', label: '設定', icon: '⚙️' },
+      { key: 'home', label: '皮膚日記', icon: 'notebook-text' },
+      { key: 'chat', label: '教練對話', icon: 'message-square' },
+      { key: 'records', label: '完整記錄', icon: 'clipboard-list' },
+      { key: 'progress', label: '進度', icon: 'chart-column' },
+      { key: 'settings', label: '設定', icon: 'settings' },
     ],
   },
   {
     id: 'dash',
     name: '進度儀表板',
-    icon: '📊',
+    icon: 'chart-column',
     tagline: '數據主導',
     blurb: '一眼睇晒今日狀態、趨勢、相關性同記憶。快睇「有冇變好」，操作收喺頂部。',
     tabs: [
-      { key: 'home', label: '進度儀表板', icon: '📊' },
-      { key: 'chat', label: '教練對話', icon: '💬' },
-      { key: 'records', label: '完整記錄', icon: '🗂️' },
-      { key: 'progress', label: '進度', icon: '📈' },
-      { key: 'settings', label: '設定', icon: '⚙️' },
+      { key: 'home', label: '進度儀表板', icon: 'chart-column' },
+      { key: 'chat', label: '教練對話', icon: 'message-square' },
+      { key: 'records', label: '完整記錄', icon: 'clipboard-list' },
+      { key: 'progress', label: '進度', icon: 'chart-column' },
+      { key: 'settings', label: '設定', icon: 'settings' },
     ],
   },
   {
     /** ⚠️ 一定排最後：`layoutById` fallback 係 `LAYOUTS[0]`，唔可以搶咗 `chat` 嘅 fallback。 */
     id: 'mobile',
     name: '手機版',
-    icon: '📱',
+    icon: 'smartphone',
     tagline: '手機主導 · 窄屏自動',
     blurb:
       '窄屏專用：頂部部位／狀態，底部 5 個 tab，單欄全屏。窄屏會自動用呢套，闊屏揀咗就當手機框 preview。',
     tabs: [
-      { key: 'home', label: '今日', icon: '☀️' },
-      { key: 'chat', label: '對話', icon: '💬' },
-      { key: 'records', label: '記錄', icon: '🗂️' },
-      { key: 'progress', label: '進度', icon: '📈' },
-      { key: 'settings', label: '設定', icon: '⚙️' },
+      { key: 'home', label: '今日', icon: 'house' },
+      { key: 'chat', label: '對話', icon: 'message-square' },
+      { key: 'records', label: '記錄', icon: 'clipboard-list' },
+      { key: 'progress', label: '進度', icon: 'chart-column' },
+      { key: 'settings', label: '設定', icon: 'settings' },
     ],
   },
 ]

@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 226 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 273 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -22,6 +22,9 @@ cd frontend
 npm run typecheck    # tsc --noEmit，一定要過
 npm run build        # typecheck + vite build
 npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行）
+npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（34 snapshot + axe 12（淺／暗）＋ 5 互動）
+npm run ui:update    # UI 改動**預期之內**時更新 baseline snapshot（要逐個解釋）
+npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :5173/:5174）
 ```
 
 ## 目錄結構速覽
@@ -42,10 +45,15 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 226 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 273 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
+| `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture，含一張代碼生成嘅假相）、`snapshots.spec.ts`（41 張：4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
+| `frontend/src/styles/tokens.css` | **唯一值來源**：顏色（全部量過 WCAG）、字級 scale（下限 12px）、spacing／radius／tap／動效時長 ＋ `prefers-reduced-motion` 全域 rule | 唔好喺 `index.css` 加新 raw hex／新尺寸 |
+| `frontend/src/components/ui/` | 基礎元件：`Icon`（Lucide registry，35 個）、`Sheet`、`Confirm`（promise 式 `useConfirm()`）、`Toast`、`Skeleton`、`Lightbox` | 新 UI 一律用呢批，唔好返去 `window.prompt/alert` |
+| `docs/ui-plan.md` | **手機版 UI／UX 審計 ＋ 四階段計劃**：Phase 0（工具／gate）已完成；5 個決定已經用戶逐項批（Lucide 統一、保守動效、自寫 Sheet/Toast、完整字級 scale）。量到嘅 tap target／字級／對比度問題列咗喺度，Phase 1–3 逐項修 | 開工前先睇 |
 | `docs/` | architecture / **backend-flow**（由請求到 DB 嘅完整流程 + 真/Fake LLM 分別）/ roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims / product-eval-plan / open-findings | 見 `docs/status-vs-claims.md` 對照；**改 pipeline 要同步 `backend-flow.md`**（佢引 `file:line`） |
+| `design/mobile-v2-round1.html` | **手機版 v2 樣板（2026-10-01，等緊用戶批）**：11 個手機框（5 scene ＋ 指南 ＋ 狀態 ＋ Sheet／Toast ＋ 影片上載 ＋ 暗色）＋ token 對照表。單一檔案、假數據、唔喺 Vite build 範圍 | 批之前唔好照住改 app；批准後 Phase 1–3 就照佢做 |
 | `design/` | 靜態 HTML 設計樣板：`index.html`（桌面方向 chooser，方向 01 已選）／`mobile.html`（手機樣式 chooser）＋ `mockup-*.html` / `mobile-*.html`（每個係 self-contained phone/laptop frame） | **唔喺 Vite build 範圍**（Vite root 係 `frontend/`）；**同出貨 app 係兩套視覺語言**（`mockup-*.html` 用 Newsreader + cream/forest，app 用 Fraunces + 玫瑰粉）—— 唔好當佢係 app 嘅前例；樣板內容係假數據；serve 嘅時候只 serve `design/`（唔好喺 repo root serve，會漏 `backend/.env`） |
 | `archive/skinfile/` | 上一代純前端 demo | 博物館，唔好改 |
 
@@ -54,7 +62,15 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 1. **Deterministic core 行先，LLM 只做模糊層**：guardrail、change detect、timeline 寫入、memory decay 全部係 code，唔好靠 prompt 求 LLM。LLM 只出現喺 `analyze`（睇相/文字出結構化分析）同 `advise`（出建議正文＋items）。
 2. **固定 attribute schema（唔好自創）**：`attributes.py` 六個 key（acne/oiliness/redness/dryness/pores/texture）× 0–3 severity 係唯一真源；change detect、persist、timeline 全部食佢。加 attribute = 改 schema（versioned），唔係叫 LLM 自由發揮。
 3. **型別合約**：所有 LLM 輸出強制 Pydantic schema（`schemas.py`）；唔好漏 free text。
-4. **Privacy consent 唔可以繞過**：送相上雲前一定要 check conversation `cloud_analysis`；off 時只行純文字並喺 prompt 講明「有相但睇唔到」，唔好同 model 講「無相」。
+4. **Privacy consent 唔可以繞過（2026-10-01 改咗模型：全雲端 + 默認同意）**：已經冇「本地模式」。
+   送相上雲要**同時**滿足 `Conversation.cloud_analysis`（legacy 欄，永遠 True）**同**
+   `User.photo_cloud_consent`，兩個都喺 **`service.run_consult`（server-side）** check，唔可以只靠前端
+   唔顯示個掣。唔夠條件時只行純文字（prompt 講明「有相但睇唔到」，唔好同 model 講「無相」）。
+   **默認**：呢個 deployment 係單一用戶自用，所以 `settings.require_photo_consent = False` →
+   同意當作已給（`_normalise_consent_policy()` 會補舊 row），`ConsentGate` 唔會出。
+   多人／hosted 部署要設 `SKINCOACH_REQUIRE_PHOTO_CONSENT=true` 才會問。
+   **撤回要保留 `consent_at`** —— 佢係「有同意歷史」嘅標記，補 backfill 靠佢分辨「從來冇同意」同「撤回咗」，
+   否則重啟就會靜靜幫人開返。（決定記錄：[issue #25](https://github.com/shulaplai/male_skincare_agent/issues/25)。）
 5. **`Entry` 同 `ChatMessage` 分家**：Entry = 每日結構化摘要（data truth，畀 code 食）；ChatMessage = 對話 turns（display truth，畀 reload 用）。唔好混埋。
 6. **Pure functions**：`prompts.py` / `attributes.py` / `memory.py` 唔可以有 DB/DOM 依賴；eval 會直接 import。
 7. **SQLite migration**：改 model 加 column 時，喺 `db.py._COLUMN_MIGRATIONS` 加 ALTER；`create_all` 唔會改舊 table。唔好叫人鏟 DB。
@@ -95,8 +111,43 @@ npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行
 - **`MOBILE_MAX_WIDTH = 760` 嘅 CSS 冇得 import**：`index.css` 尾段 `@media (max-width: 760px)` 同 `.app.layout-mobile` 係人手同步 —— **改一邊要改兩邊**。實測過 760 = mobile、761 = 桌面，兩邊一致。
 - **`.app.layout-journal` / `.app.layout-dash` 嘅 `grid-template-columns` 係 (0,2,0)，會蓋過 `@media (max-width:760px) .app` 嘅 (0,1,0)**（真實 bug：窄屏會令 `.shell-main` 跌落 220px 第一欄，內容被壓扁）。窄屏覆蓋一定要用**同等 specificity 而且放喺檔尾**。
 - **`mobile` shell 嘅 scene 區要用 `.shell-scene`，唔可以用 `.shell-chat`**：`.shell-chat` 係 2 欄 grid；另外 `mobile` 區會用 CSS 收埋 `.chathead`（`ShellTop` 已提供同一組資訊，唔好雙重 header）。
-- **`.app` 用 `height: 100vh; height: 100dvh`**：手機 `100vh` 連 URL bar 高度，底部 composer／tab bar 會縮落 browser chrome 下面。
-- **`.compose input` 窄屏要 16px**：< 16px 會令 iOS Safari focus 輸入框時自動 zoom 成個 page。
+- **`.chat` 一定要有 `min-height: 0`，`.shell-scene` 嘅 child 一定要 `flex: 1 1 auto; min-height: 0`**（真實 bug，用戶喺 iPhone 上撞到）：`.chat` 同時係 `.shell-chat`（grid）同 `.shell-scene`（flex column）嘅 item，兩個容器都會將 `min-height: auto` 解析成「內容高度」→ 長 thread 唔會喺 `.thread` 內部 scroll，而係撐爆容器（390×844 實測 `.chat` 4237px／grid row 4523px、`.thread` scrollable 0、`.compose` top 4221），再加 `.app.layout-mobile { overflow: hidden }` = **冇任何方法 scroll、輸入框永遠摸唔到**。同 `.app > * { min-height: 0 }` 係同一個 family，只係喺再落一層 —— 加新 shell／改 scene 容器時要一齊 check。⚠️ 「`scrollWidth == innerWidth`、冇溢出」**唔等於**「撳得到」：驗窄屏一定要**長內容 ＋ 量 `.compose` 喺唔喺 viewport 內 ＋ 真 wheel gesture**。
+- **Scene（tab）= page，唔係 `useState`**：`hooks/useSceneRoute.ts` 將 scene 寫入 URL（`?scene=chat`、home 唔寫），`pushState` + `popstate`。有 tab 嘅 shell（`MobileShell`／`StandardShell`）都一定要用佢 —— 以前係 local state，撳完 tab 一 reload 就跌返第一頁（真實用戶回報）。
+  ⚠️ URL 驗證要用 `defs.SHELL_SCENES`（**所有** scene）而唔係 `tabs.map(t => t.key)`：`guide` 冇 tab 但一樣係一個 page，只認 tab 名就會令 `?scene=guide` reload 靜靜跌返第一頁（真實撞過）。
+- **片＝一條片，唔係「6 張相」**（2026-10-01 用戶指示）：抽格／壓縮係 backstage 實作，**唔可以 leak 俾用戶**。
+  UI 端：上載期間喺 composer 出「🎬 皮膚影片 + 真進度條」（`api.uploadVideo` 用 **XHR** 因為 `fetch` 冇 upload progress），
+  **唔會**逐格出縮圖、冇「抽咗 6 張相／已壓縮 MB／格太似」文案；送出後對話只出中性 chip（`Message.clip`）。
+  資料端：`POST /api/consult` 帶 `video:{duration,frames}` → `state["clip"]` → `persist` 寫入 user payload
+  `payload["clip"]`（所以 reload 都係出 chip 唔係相）→ `format.ts` 見到 `clip` 就**唔會**出 `photo`。
+  Prompt 端：`build_analyze_prompt(..., clip=...)` 同 `build_advise_prompt` 都明文禁止講「幾張相／格數／抽格」；
+  `frames < 2` 時改用一句廣東話提醒「鏡頭慢慢掃過成塊面」（唔講數字）。
+- **本地影片預覽嘅 blob 生命週期**：`URL.createObjectURL` 一定要經 `useEffect` cleanup 回收（即場 revoke 會令
+  `<video>` 報 `ERR_REQUEST_RANGE_NOT_SATISFIABLE`）。另加一層防守：`onError` → SVG 佔位（唔會黑格）。
+  ⚠️ **更正記錄**：我一度以為 Chromium 播唔到 H.264，其實係我自己嘅測試檔被 `open(..., 'wb')` 清空成 0 byte
+  —— 用真片（4.3KB、160×120、2 秒）重測係 `readyState 4 / duration 2 / error None`。寫測試資料前先 `ls -la`。
+- **底部 nav icon 用 vendored Lucide path，改完一定要重量**：`layouts/navIcons.tsx` 係 `lucide-static@0.469.0`（ISC）嘅官方 path。
+  之前兩版都唔齊：emoji（字形來源唔同）同**自己手畫嘅 path**（實測 ink 高 17／17／16.5／**14**／**12** CSS px、
+  視覺中心差 1.25px）。而家五個 icon ink 中心一致（`home` 加咗 `translate(0 0.4)` 校正）。
+  ⚠️ 改完要行 `/tmp/skc-trial/w1_tabbar_ink.py`（dsf=4 量 ink bounding box）確認 `cy`／`h` 對齊。
+- **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
+- **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
+- **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：51 個 Playwright test（31 snapshot × 4 layout × 6 scene × 手機/桌面 ＋ P1-4 長 thread 回歸 ＋ 760/761 斷點 ＋ 影片上載）＋ axe WCAG 2.1 AA。
+  ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
+  ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
+  ⚠️ snapshot flaky 嘅源頭通常係 **webfont swap**：`settle()` 一定要 `await document.fonts.ready`，
+    而 `Chat.tsx` 亦已經加咗 `document.fonts.ready.then(pinToBottom)`（真用戶 reload 之後條 thread 亦要貼底）。
+- **`useToast()` / `useLayout()` 只可以喺 provider 之內用**：`App` 自己 render providers，所以真正嘅 app 係 `AppInner`（provider 入面），`App` 淨係掛 `ThemeProvider → ToastProvider → ConfirmProvider → LayoutProvider`。喺 provider 外面叫會拿到 context default（**靜靜冇反應**）。
+- **block comment 入面唔可以出現「星號＋斜線」**：我自己中過兩次 —— 寫 `` `**/api/**` `` 呢個 glob 嘅時候，
+  中間嘅星號＋斜線會提早閂咗 JSDoc，後面嘅文字變成 code → eslint `no-unused-expressions`
+  （而且報錯行數係**註解入面**，好難睇得出）。要寫 glob 就用文字描述（`fixtures.ts` 開頭有寫法示範）。
+- **相片一律先模糊（`components/BlurPhoto.tsx`）**：皮膚相係自拍，`<img>` 直接出清等於行過嘅人一眼睇晒。`BlurPhoto` 每次 render 都由模糊開始（唔記「睇過」），要撳「顯示」先清；`alt` 亦要跟狀態改。呢個係 UI 遮蓋，同 consent（相可唔可以上雲）係兩件事，兩樣都要。
+- **AI 抽出嘅自報事件一定要 persist 落 coach payload**（issue #22）：`Advice.detected_events`（diet／product_start／product_stop）係飲食／產品嘅**唯一入口**，用戶只會順口講。`persist` 要寫入 `ChatMessage.payload["detected_events"]`，`format.ts` 要 restore 返 —— 以前只存在 browser live state，reload 就冇，用戶永遠確認唔到，因果時間線亦冇料。另外確認之後要標 `payload["events_applied"]`（`main._mark_events_applied`：有 `message_id` 用 id，session 內新訊息用事件內容配對），否則 reload 會再出同一個 chip，撳兩次就寫兩次。
+- **`RECORDING_GUIDE` 嘅文字有兩份**：`app/agent/prompts.py`（AI 喺對話講）同 `app/guide.py`「點樣記錄最準確」一節（app 內指南）。兩邊講同一件事 —— **改一邊要改另一邊**。當中「拍片／講出嚟嘅聲唔會記錄」係產品事實（抽格會丟音軌），唔可以為咗好聽而刪。
+- **Chat bubble 嘅 class 名唔可以照抄 `role`**：`role` 係 `user|coach`，但 CSS 嘅左右分邊係 `.msg.me`（`row-reverse` + `margin-left: auto`）／`.a.me`。直接寫 `msg ${m.role}` 會出 `msg user`，**永遠 match 唔到** —— 實測 390px 全部 bubble 都由 x=57 開始，用戶自己講嘅嘢同 AI 一樣靠左。`Chat.tsx` 一定要做 `role → me/coach` mapping。
+- **`.thread` 係內部 scroll 容器，唔係 window scroll**：所以 `Chat.tsx` 要自己「跟住最新一句」（`useLayoutEffect` ＋ `onScroll` pinned ＋ `<img onLoad>`——相係 async 載入，載入完 scrollHeight 又變，唔重新 pin 就會停喺中間）。用戶自己向上睇歷史時**唔可以**搶佢位置。
+- **高度鏈用 `html, body, #root, .app { height: 100% }`，唔用 `100dvh`**（2026-10-01 改）：dvh 係動態值，Chrome Android 喺 nested scroller（我哋 `.thread`）捲動時會收起 URL bar、dvh 跟住變，而 app 本身唔 scroll（`overflow: hidden`）→ re-layout 落後，底部 tab bar 下面就出現一條空位（用戶回報）。`%` 鏈跟 layout viewport 就唔會變。`viewport-fit=cover` 照留（`env(safe-area-inset-*)` 要用）。
+- **Composer 係 auto-grow `<textarea>`，唔係 `<input>`**：`.compose textarea` 窄屏一樣要 16px（< 16px 會令 iOS Safari focus 時自動 zoom 成個 page）。高度由 `Chat.tsx` 量 `scrollHeight` 寫 inline style（上限 132px，之後自己 scroll），`.compose` 要 `align-items: flex-end`（唔係 center）。**Enter 送、Shift+Enter 換行，而且一定要擋 `e.nativeEvent.isComposing`** —— 中文輸入法確認候選字都會 fire Enter，唔擋就會誤送。placeholder 要短：長 placeholder 喺手機 16px 字會自己 wrap 成兩行，令輸入框一開就 72px 高。發送掣係圓形箭嘴 SVG（`.send`，送緊時換轉圈），冇文字。
 - **`useLayout()` 只可以喺 `LayoutProvider` 嘅 child 讀**：App 本身 render provider，所以 layout 要喺 `LayoutHost`（provider 內）讀；喺 App body 讀 = 永遠 default `chat`（真實撞過，layout 切換會靜靜失效）。
 - **App wrapper class 係 `app layout-<id>`**，唔好改做 `shell-<id>` —— `.shell-chat` 係 shell 內部 chat 場景 grid container，同名會撞壞成個 app grid（chat 佈局變兩欄）。
 - **新結構嘅 data／動作一律用 hooks**：`hooks/useSummary`、`useCorrelations`、`useEntryActions`、`useInsightActions`（`refreshKey` 一 bump 就 re-fetch）；顯示 block 一律 `components/blocks.tsx`。改 API 只應該改一處。

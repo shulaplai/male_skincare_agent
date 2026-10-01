@@ -52,10 +52,22 @@ from app.video import (
 from app.self_report import apply_events
 
 
+class ClipInfo(BaseModel):
+    """A short clip the user uploaded instead of a photo.
+
+    The UI does NOT tell the user that a clip is sampled into frames — from their
+    side they sent a video. This object is what lets the agent talk about 「條片」
+    and lets the reply avoid narrating frames/counts (2026-10-01 decision).
+    """
+    duration: float = 0.0
+    frames: int = 0
+
+
 class ConsultRequest(BaseModel):
     conversation_id: str
     text: str
     photo_paths: list[str] = []
+    video: ClipInfo | None = None
 
 
 class ConversationRequest(BaseModel):
@@ -63,8 +75,9 @@ class ConversationRequest(BaseModel):
     icon: str = "🧴"
 
 
-class CloudAnalysisRequest(BaseModel):
-    enabled: bool
+class ConsentRequest(BaseModel):
+    """One-time photo consent. `granted=false` withdraws it (app returns to the gate)."""
+    granted: bool = True
 
 
 class FactRequest(BaseModel):
@@ -81,6 +94,8 @@ class RenameRequest(BaseModel):
 class EventsRequest(BaseModel):
     """Confirmed self-reported events from the user (Q49/Q51)."""
     events: list[DetectedEvent]
+    # 邊條 chat message 出嘅 chip（`s<id>` → 12）。冇傳就用內容配對（見 route）。
+    message_id: int | None = None
 
 
 class ProductEvalRequest(BaseModel):
@@ -170,17 +185,6 @@ def get_conversation(cid: str, db: Session = Depends(get_session)) -> dict:
     return {"id": c.id, "body_part": c.body_part, "icon": c.icon, "cloud_analysis": bool(c.cloud_analysis)}
 
 
-@app.put("/api/conversations/{cid}/cloud-analysis")
-def set_cloud_analysis(cid: str, req: CloudAnalysisRequest, db: Session = Depends(get_session)) -> dict:
-    """Toggle cloud-photo-analysis consent for a conversation (Q18)."""
-    c = db.query(Conversation).filter_by(id=cid).first()
-    if c is None:
-        raise HTTPException(status_code=404, detail="conversation not found")
-    c.cloud_analysis = req.enabled
-    db.commit()
-    return {"id": c.id, "cloud_analysis": bool(c.cloud_analysis)}
-
-
 @app.put("/api/conversations/{cid}")
 def rename_conversation(cid: str, req: RenameRequest, db: Session = Depends(get_session)) -> dict:
     """Rename a conversation (Q52)."""
@@ -264,12 +268,45 @@ def create_fact(cid: str, req: FactRequest, db: Session = Depends(get_session)) 
 
 @app.post("/api/conversations/{cid}/events")
 def confirm_events(cid: str, req: EventsRequest, db: Session = Depends(get_session)) -> dict:
-    """User confirmed detected_events -> write Entry / timeline / products (Q51)."""
+    """User confirmed detected_events -> write Entry / timeline / products (Q51).
+
+    Also marks the chat message that proposed them, so a reload does not show the
+    same「我留意到…✅ 記低」chip again (pressing it twice would write the same diet /
+    product twice). The id is the persisted one when the thread was loaded from the
+    server; a message sent in *this* session only exists locally, so we fall back to
+    matching on the events themselves.
+    """
     conv = db.query(Conversation).filter_by(id=cid).first()
     if conv is None:
         raise HTTPException(status_code=404, detail="conversation not found")
     stats = apply_events(db, cid, req.events)
-    return {"written": stats["diet"] + stats["product"], **stats}
+    marked = _mark_events_applied(db, cid, req.message_id, req.events)
+    return {"written": stats["diet"] + stats["product"], "events_applied_on": marked, **stats}
+
+
+def _mark_events_applied(
+    db: Session, cid: str, message_id: int | None, events: list[DetectedEvent]
+) -> int | None:
+    """Stamp `events_applied` on the coach message that proposed these events."""
+    wanted = {(e.type, e.text.strip()) for e in events}
+    q = db.query(ChatMessage).filter_by(conversation_id=cid, role="coach")
+    msg = q.filter_by(id=message_id).first() if message_id else None
+    if msg is None:
+        for candidate in q.order_by(ChatMessage.id.desc()).limit(20):
+            proposed = {
+                (e.get("type"), str(e.get("text", "")).strip())
+                for e in (candidate.payload or {}).get("detected_events") or []
+            }
+            if proposed & wanted:
+                msg = candidate
+                break
+    if msg is None:
+        return None
+    payload = dict(msg.payload or {})
+    payload["events_applied"] = True
+    msg.payload = payload          # 新 dict → SQLAlchemy 見到 mutation
+    db.commit()
+    return msg.id
 
 
 @app.post("/api/conversations/{cid}/products/evaluate")
@@ -328,7 +365,9 @@ def evaluate_product_route(
 @app.post("/api/consult")
 def consult(req: ConsultRequest) -> dict:
     """Run the LangGraph agent: analyze -> tools -> advise -> guardrail -> persist."""
-    return run_consult(req.conversation_id, req.text, req.photo_paths)
+    return run_consult(
+        req.conversation_id, req.text, req.photo_paths, clip=req.video.model_dump() if req.video else None
+    )
 
 
 @app.post("/api/photos")
@@ -599,6 +638,22 @@ def get_photo(photo_id: str) -> FileResponse:
     if not path.exists():
         raise HTTPException(status_code=404, detail="photo not found")
     return FileResponse(path)
+
+
+@app.get("/api/consent")
+def get_consent(db: Session = Depends(get_session)) -> dict:
+    """One-time photo consent state (2026-10-01: cloud-only, consent asked once).
+
+    `granted: false` means the app must show the consent screen and no photo may be
+    sent to cloud vision — `service.run_consult` enforces the same thing server-side.
+    """
+    return crud.consent_state(db)
+
+
+@app.post("/api/consent")
+def post_consent(req: ConsentRequest, db: Session = Depends(get_session)) -> dict:
+    """Record (or withdraw) consent to send photo bytes to a cloud vision model."""
+    return crud.set_consent(db, req.granted)
 
 
 @app.get("/api/settings")

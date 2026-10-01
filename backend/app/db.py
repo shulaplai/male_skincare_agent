@@ -4,6 +4,7 @@ Local-first: a single SQLite file under `data/`. The storage layer is isolated
 here so it can be swapped for Postgres + pgvector without touching the rest of
 the app (the interview answer, not just a comment).
 """
+import datetime
 import logging
 import os
 
@@ -30,6 +31,10 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # New columns added after a table was first created. `create_all` never alters
 # existing tables, so we ALTER TABLE here — this preserves the local corpus DB.
 _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
+    "users": [
+        ("photo_cloud_consent", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("consent_at", "DATETIME"),
+    ],
     "conversations": [
         ("cloud_analysis", "BOOLEAN NOT NULL DEFAULT 0"),
     ],
@@ -150,6 +155,47 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     _migrate_columns()
     _rebuild_stale_nullables()
+    _normalise_cloud_only_policy()
+    _normalise_consent_policy()
+
+
+def _normalise_cloud_only_policy() -> None:
+    """Cloud-only decision (2026-10-01): the per-conversation mode flag is gone.
+
+    The app can no longer be in "local" mode, so a row that still says
+    `cloud_analysis = 0` would be describing a state the product no longer has.
+    Normalise it once at startup instead of leaving a lie in the DB (this touches
+    one policy flag only — never user content). The actual consent gate is
+    `User.photo_cloud_consent`, which this deliberately does **not** set: consent
+    must come from the user, not from a migration.
+    """
+    if not settings.database_url.startswith("sqlite"):
+        return
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE conversations SET cloud_analysis = 1 WHERE cloud_analysis = 0"))
+
+
+def _normalise_consent_policy() -> None:
+    """Self-host consent default (2026-10-01): consent counts as given.
+
+    A database created before the switch has `photo_cloud_consent = 0`, which would
+    keep the consent screen (and the server-side gate) blocking the only user of
+    this deployment. When the policy does not require an explicit tick, backfill it
+    once — with the timestamp, so the row still records *when* consent started.
+    Skipped entirely when `SKINCOACH_REQUIRE_PHOTO_CONSENT=true`.
+    """
+    if not settings.database_url.startswith("sqlite") or settings.require_photo_consent:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                # 只補「從來冇同意過」嘅 row（`consent_at IS NULL`）：自願撤回嘅
+                # row 會 retain `consent_at`，唔可以幫佢哋自動開返。
+                "UPDATE users SET photo_cloud_consent = 1, consent_at = :now "
+                "WHERE photo_cloud_consent = 0 AND consent_at IS NULL"
+            ),
+            {"now": datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)},
+        )
 
 
 def get_session():

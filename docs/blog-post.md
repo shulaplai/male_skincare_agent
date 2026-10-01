@@ -110,7 +110,7 @@ Eval 永遠行 temp DB + committed golden corpus —— 唔會污染 dev data。
 ## 9. Local-first + opt-in 雲分析
 
 - 相 + 日記永遠留喺用戶部機。
-- 雲分析係 opt-in：每個 conversation 一個開關，off 時相唔會離開部機，agent 行純文字並誠實講「有相但睇唔到」（唔會同 model 講「無相」嚟呃佢）。
+- 雲分析要**明示同意**：第一次開 app 問一次（`ConsentGate`），同意之後唔再問；gate 喺 server-side code（`service.run_consult`），唔係靠前端收埋個掣。冇同意時相唔會離開部機，agent 行純文字並誠實講「有相但睇唔到」（唔會同 model 講「無相」嚟呃佢）。
 - 冇 API key 都行到：FakeLLM + hash embedder，成個 flow 跑得通 —— demo 冇得賴「冇 key」。
 
 ## 10. 教訓 + 下一步

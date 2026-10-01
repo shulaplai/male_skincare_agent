@@ -3,6 +3,7 @@ import * as api from '../api'
 import { LayoutPicker } from '../layouts/LayoutPicker'
 import { useTheme } from '../theme'
 import type { Conversation, View } from '../types'
+import { Icon } from '../components/Icon'
 
 type Conn = 'checking' | 'ok' | 'fail'
 
@@ -48,7 +49,7 @@ export function SettingsView(props: Props) {
   const convs = conversations ?? []
 
   return (
-    <main className="view full">
+    <main tabIndex={0} role="region" aria-label="設定內容" className="view full">
       <div className="view-head">
         <h2>設定</h2>
       </div>
@@ -69,7 +70,7 @@ export function SettingsView(props: Props) {
       <div className="guide-entry" style={{ maxWidth: 560 }}>
         <button className="guide-entry-btn" onClick={() => onNavigate?.('guide')}>
           <span className="ic" aria-hidden>
-            📖
+            <Icon name="book-open" size={22} />
           </span>
           <span className="t">
             <b>男士護膚基本資料</b>
@@ -102,15 +103,15 @@ export function SettingsView(props: Props) {
         <div className="setting">
           <div className="k">API Key</div>
           <div className={`v ${settings?.has_api_key ? 'good' : 'bad'}`}>
-            {settings?.has_api_key ? '✓ 已設定' : '未設定（會用 FakeLLM）'}
+            {settings?.has_api_key ? <><Icon name="check" size={13} /> 已設定</> : '未設定（會用 FakeLLM）'}
           </div>
         </div>
         <div className="setting">
           <div className="k">Backend</div>
           <div className="v">
             {conn === 'checking' && '測試緊…'}
-            {conn === 'ok' && <span className="good">✓ 連線正常</span>}
-            {conn === 'fail' && <span className="bad">✗ 連唔到</span>}
+            {conn === 'ok' && <span className="good"><Icon name="check" size={13} /> 連線正常</span>}
+            {conn === 'fail' && <span className="bad"><Icon name="x" size={13} /> 連唔到</span>}
             <button className="btn ghost small" onClick={testConn}>
               測試連線
             </button>
@@ -120,7 +121,7 @@ export function SettingsView(props: Props) {
           <div className="k">Theme</div>
           <div className="v">
             <button className="btn ghost" onClick={toggle}>
-              {theme === 'light' ? '☀️ 日間模式' : '🌙 夜間模式'}（撳一下切換）
+              {theme === 'light' ? <><Icon name="sun" size={14} /> 日間模式</> : <><Icon name="moon" size={14} /> 夜間模式</>}（撳一下切換）
             </button>
           </div>
         </div>
@@ -138,17 +139,16 @@ export function SettingsView(props: Props) {
               <div key={c.id} className={`conv-mgr-row${c.id === activeId ? ' active' : ''}`}>
                 <span className="part">{c.icon}</span>
                 <span className="nm">{c.bodyPart}</span>
-                <span className="meta">{c.cloudAnalysis ? '☁️ 雲分析' : '🔒 本地'}</span>
                 {c.id !== activeId && onSelectConversation && (
                   <button className="link-btn" onClick={() => onSelectConversation(c.id)}>
                     切換
                   </button>
                 )}
                 <button className="link-btn" onClick={() => onRenameConversation(c)}>
-                  ✎ 改名
+                  <Icon name="pencil" size={15} /> 改名
                 </button>
                 <button className="link-btn danger" onClick={() => onDeleteConversation(c)}>
-                  🗑 刪除
+                  <Icon name="trash-2" size={15} /> 刪除
                 </button>
               </div>
             ))}
@@ -165,7 +165,7 @@ export function SettingsView(props: Props) {
       <h3 className="block-title">數據</h3>
       <div className="row-gap">
         <a className="btn ghost" href="/api/export">
-          ⬇ 匯出全部數據 (zip)
+          <Icon name="download" size={16} /> 匯出全部數據 (zip)
         </a>
         <p className="hint">
           相片同日記永遠儲喺你部機（SQLite + file）。匯出係一個 zip，你可以自己 keep 返一份。

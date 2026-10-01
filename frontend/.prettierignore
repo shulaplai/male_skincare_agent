@@ -1,0 +1,5 @@
+dist
+node_modules
+tests/ui/__screenshots__
+playwright-report
+test-results

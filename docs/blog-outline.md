@@ -57,7 +57,7 @@ React (frontend) ──/api──> FastAPI ──> LangGraph agent
 
 ## 9. Local-first 決策
 
-- 相留用戶機，opt-in 雲分析；儲存同分析係兩個獨立決策。
+- 相留用戶機，一次性明示 consent 先做雲分析；儲存同分析係兩個獨立決策。
 
 ## 10. 教訓 + 下一步
 

@@ -165,9 +165,15 @@ def test_consult_failure_is_a_readable_503_not_a_bare_500(monkeypatch):
     monkeypatch.setattr(service, "build_graph", lambda **kw: AlwaysBroken())
     monkeypatch.setattr(service, "get_llm", lambda kind="text": object())
 
+    class FakeUser:
+        # `run_consult` reads the one-time photo consent off the conversation's user
+        # (cloud-only decision 2026-10-01). This scenario is text-only either way.
+        photo_cloud_consent = True
+
     class FakeConv:
         id = "c"
-        cloud_analysis = False
+        cloud_analysis = True
+        user = FakeUser()
 
     class FakeQuery:
         def filter_by(self, **kw):

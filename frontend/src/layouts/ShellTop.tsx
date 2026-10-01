@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTheme } from '../theme'
 import type { Conversation } from '../types'
 import type { SceneTab, ShellScene } from './defs'
+import { Icon } from '../components/Icon'
 
 interface Props {
   bodyLabel: string
@@ -13,14 +14,13 @@ interface Props {
   scene: ShellScene
   onScene: (s: ShellScene) => void
   onSelectConversation: (id: string) => void
-  onToggleCloud: (id: string, enabled: boolean) => void
 }
 
-/** 結構 2/3 共用嘅頂部：部位切換 + 狀態/雲/主題 + scene tabs。 */
-export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs, scene, onScene, onSelectConversation, onToggleCloud }: Props) {
+/** 結構 2/3/4 共用嘅頂部：部位切換 + 狀態/主題 + scene tabs。
+ *  ☁️／🔒 開關已經冇咗（2026-10-01：全雲端，consent 只問一次）。 */
+export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs, scene, onScene, onSelectConversation }: Props) {
   const { toggle } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
-  const cloud = active.cloudAnalysis
   return (
     <header className="shell-top">
       <div className="top-row">
@@ -43,7 +43,6 @@ export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs,
                     }}
                   >
                     {c.icon} {c.bodyPart}
-                    {c.cloudAnalysis ? ' · ☁️' : ' · 🔒'}
                   </div>
                 ))}
               </div>
@@ -54,25 +53,19 @@ export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs,
           {/* title 一定要有：手機版（`.app.layout-mobile`）會用 CSS 將文字收成一個 pulse 點，
               冇 title 就會完全失去「在線／離線」呢個資訊 */}
           <div className={`status${online ? '' : ' offline'}`} title={online ? 'Agent 在線' : '離線模式'}>
-            <span className="pulse" /> {online ? 'Agent 在線' : '離線模式'}
+            <span className="pulse" />
+            <span className="sb">{online ? 'Agent 在線' : '離線模式'}</span>
           </div>
-          <span
-            className={`cloud-toggle ${cloud ? 'on' : ''}`}
-            title={cloud ? '雲分析已開（影相會送雲端 vision）' : '本地模式（相唔會上雲分析）'}
-            onClick={() => onToggleCloud(active.id, !cloud)}
-          >
-            {cloud ? '☁️ 雲分析' : '🔒 本地'}
-          </span>
           <button className="theme" onClick={toggle} title="切換日/夜模式">
-            <span className="sun">☀️</span>
-            <span className="moon">🌙</span>
+            <span className="sun"><Icon name="sun" size={17} /></span>
+            <span className="moon"><Icon name="moon" size={17} /></span>
           </button>
         </div>
       </div>
       <nav className="scene-tabs">
         {tabs.map((t) => (
           <a key={t.key} className={scene === t.key ? 'active' : ''} onClick={() => onScene(t.key)}>
-            <span className="ti">{t.icon}</span>
+            <span className="ti" aria-hidden><Icon name={t.icon} size={16} /></span>
             {t.label}
           </a>
         ))}

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import * as api from '../api'
 import type { Guide, GuideBlock, GuideSection } from '../types'
+import { ICON_NAMES, Icon } from './Icon'
+import type { IconName } from './Icon'
+import { Skeleton } from './ui/Skeleton'
 
 /**
  * 「男士護膚基本資料」，左目錄 + 右正文。
@@ -158,7 +161,7 @@ function SectionBody({ section }: { section: GuideSection }) {
     <>
       <header className="guide-sec-head">
         <span className="ic" aria-hidden>
-          {section.icon}
+          <GuideIcon name={section.icon} />
         </span>
         <h3>{section.title}</h3>
       </header>
@@ -168,6 +171,11 @@ function SectionBody({ section }: { section: GuideSection }) {
       ))}
     </>
   )
+}
+
+/** 指南 section 嘅 icon 由 `app/guide.py` 傳過嚟（係 icon 名，唔再係 emoji）。 */
+function GuideIcon({ name }: { name: string }) {
+  return ICON_NAMES.includes(name as IconName) ? <Icon name={name as IconName} size={17} /> : null
 }
 
 export function GuideView({ onBack }: { onBack?: () => void }) {
@@ -198,7 +206,7 @@ export function GuideView({ onBack }: { onBack?: () => void }) {
   }
 
   return (
-    <main className="view full guide">
+    <main tabIndex={0} role="region" aria-label="男士護膚基本資料" className="view full guide">
       <div className="guide-head">
         <div>
           <h2>{guide?.title ?? '男士護膚基本資料'}</h2>
@@ -206,15 +214,17 @@ export function GuideView({ onBack }: { onBack?: () => void }) {
         </div>
         {onBack && (
           <button className="btn ghost" onClick={onBack}>
-            ← 返設定
+            <Icon name="arrow-left" size={16} /> 返設定
           </button>
         )}
       </div>
 
       {error ? (
-        <p className="empty">⚠️ {error}（請確認 backend 已起）</p>
+        <p className="empty">
+            <Icon name="circle-alert" size={16} /> {error}（請確認 backend 已起）
+          </p>
       ) : !guide ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : (
         <div className="guide-body">
           <nav className="guide-toc" aria-label="目錄">
@@ -222,7 +232,7 @@ export function GuideView({ onBack }: { onBack?: () => void }) {
             {guide.sections.map((s) => (
               <button key={s.id} className={active === s.id ? 'active' : ''} onClick={() => goTo(s.id)}>
                 <span className="ti" aria-hidden>
-                  {s.icon}
+                  <GuideIcon name={s.icon} />
                 </span>
                 {s.title}
               </button>
@@ -243,7 +253,7 @@ export function GuideView({ onBack }: { onBack?: () => void }) {
             <section className="guide-sec guide-refs">
               <header className="guide-sec-head">
                 <span className="ic" aria-hidden>
-                  📚
+                  <Icon name="book-open" size={26} />
                 </span>
                 <h3>引用資料</h3>
               </header>

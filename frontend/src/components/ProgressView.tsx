@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import * as api from '../api'
 import { ATTRIBUTE_KEYS, ATTRIBUTE_META } from '../format'
 import type { Conversation, CorrelationResult, MemoryItem, RecordEntry, Summary } from '../types'
+import { Icon } from '../components/Icon'
+import { Skeleton } from './ui/Skeleton'
+import { EmptyState } from './ui/EmptyState'
 
 const kindLabel: Record<MemoryItem['kind'], string> = {
   derived: '推導記憶',
@@ -103,16 +106,16 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
   const entries = summary?.entries ?? []
 
   return (
-    <main className="view full">
+    <main tabIndex={0} role="region" aria-label="進度內容" className="view full">
       <div className="view-head">
         <h2>進度追蹤 · {conversation.bodyPart}</h2>
       </div>
 
       <h3 className="block-title">皮膚指標趨勢（真實數據 · 0–3 級）</h3>
       {loading ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : entries.length === 0 ? (
-        <p className="empty">未有數據。去「教練對話」影相／打卡，趨勢會由你嘅真實紀錄畫出嚟。</p>
+        <EmptyState icon="chart-column">未有數據。去「教練對話」影相／打卡，趨勢會由你嘅真實紀錄畫出嚟。</EmptyState>
       ) : (
         <div className="attr-list" style={{ maxWidth: 640 }}>
           {ATTRIBUTE_KEYS.map((key) => {
@@ -135,7 +138,7 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
 
       <h3 className="block-title">同基準比較（上次 / 約 1 個月 / 約 3 個月）</h3>
       {loading ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : !summary || summary.anchors.length === 0 ? (
         <p className="empty">
           未有得比較。記錄夠 3 日以上，最新一日就會同上次／約 1 個月前／約 3 個月前比較（±7 日內最接近嗰日）。
@@ -162,16 +165,16 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
 
       <h3 className="block-title">AI 記得你</h3>
       {loading ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : !summary || summary.insights.length === 0 ? (
-        <p className="empty">未有記憶。多打卡幾次，agent 會建立推導記憶。</p>
+        <EmptyState icon="sparkles">未有記憶。多打卡幾次，agent 會建立推導記憶。</EmptyState>
       ) : (
         <div className="mem-group" style={{ maxWidth: 560 }}>
           {summary.insights.map((m, i) => (
             <div className="mem" key={i}>
               <div className={`t ${m.kind}`}>
                 {kindLabel[m.kind] ?? m.kind}
-                {m.scope === 'global' && <span className="scope-badge">🌐 全局</span>}
+                {m.scope === 'global' && <span className="scope-badge"><Icon name="globe" size={12} /> 全局</span>}
               </div>
               <div className="txt">{m.text}</div>
               {m.confidence != null && (
@@ -189,9 +192,9 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
 
       <h3 className="block-title">因果時間線</h3>
       {loading ? (
-        <p className="empty">載入中…</p>
+        <Skeleton lines={3} />
       ) : !summary || summary.timeline.length === 0 ? (
-        <p className="empty">未有時間線。</p>
+        <EmptyState icon="clipboard-list">未有時間線。</EmptyState>
       ) : (
         <div className="tl" style={{ maxWidth: 560 }}>
           {summary.timeline.map((e, i) => (
@@ -199,7 +202,7 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
               <div className="d">
                 {e.date}
                 <span className={`src ${e.source ?? 'user'}`}>
-                  {e.source === 'agent' ? 'AI 偵測' : e.scope === 'global' ? '🌐 飲食（全局）' : '你'}
+                  {e.source === 'agent' ? (<><Icon name="sparkles" size={12} /> AI 偵測</>) : e.scope === 'global' ? (<><Icon name="globe" size={12} /> 飲食（全局）</>) : '你'}
                 </span>
               </div>
               <div className="x">{e.text}</div>

@@ -1,11 +1,12 @@
-import { useState } from 'react'
 import { Chat } from '../components/Chat'
 import { ProgressView } from '../components/ProgressView'
 import { RecordsView } from '../components/RecordsView'
 import { SettingsView } from '../components/SettingsView'
 import { GuideView } from '../components/GuideView'
-import type { SceneTab, ShellNav, ShellProps, ShellScene } from './defs'
+import { useSceneRoute } from '../hooks/useSceneRoute'
+import type { SceneTab, ShellNav, ShellProps } from './defs'
 import { MobileHome } from './MobileHome'
+import { NavIcon } from './navIcons'
 import { ShellTop } from './ShellTop'
 
 interface Props {
@@ -27,7 +28,8 @@ interface Props {
  * scene 對應同 `StandardShell` 一模一樣（同一批元件、同一組 props）→ feature parity 自動成立。
  */
 export function MobileShell({ p, tabs }: Props) {
-  const [scene, setScene] = useState<ShellScene>('home')
+  // Page 系統：scene 寫入 URL（`?scene=chat`），所以 reload／上一頁會停喺同一頁
+  const [scene, setScene] = useSceneRoute(tabs)
   const active = p.active
   if (!active) return null
   const nav: ShellNav = { go: setScene }
@@ -44,7 +46,6 @@ export function MobileShell({ p, tabs }: Props) {
         scene={scene}
         onScene={setScene}
         onSelectConversation={p.onSelectConversation}
-        onToggleCloud={p.onToggleCloud}
       />
 
       <div className="shell-scene">
@@ -59,9 +60,7 @@ export function MobileShell({ p, tabs }: Props) {
             online={p.online}
             loading={p.loadingThread}
             onSelectConversation={p.onSelectConversation}
-            onToggleCloud={p.onToggleCloud}
             onConfirmEvents={p.onConfirmEvents}
-            onQuickRecord={p.onQuickRecord}
           />
         )}
         {scene === 'records' && <RecordsView conversation={active} />}
@@ -92,7 +91,7 @@ export function MobileShell({ p, tabs }: Props) {
             onClick={() => setScene(t.key)}
           >
             <span className="ti" aria-hidden>
-              {t.icon}
+              <NavIcon scene={t.key} />
             </span>
             <span className="tl">{t.label}</span>
           </button>

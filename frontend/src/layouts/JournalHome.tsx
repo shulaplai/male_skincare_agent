@@ -7,6 +7,7 @@ import { useSummary } from '../hooks/useSummary'
 import { ATTRIBUTE_META, severityText } from '../format'
 import type { Message, RecordEntry } from '../types'
 import type { HomeProps } from './defs'
+import { Icon } from '../components/Icon'
 
 function dayLabel(date: string): string {
   const d = new Date(`${date}T00:00:00`)
@@ -66,19 +67,21 @@ export function JournalHome({ p, nav }: HomeProps) {
             </div>
           </div>
           <button className="btn" onClick={() => nav.go('chat')}>
-            💬 開啟對話
+            <Icon name="message-square" size={16} /> 開啟對話
           </button>
         </div>
 
         {loading ? (
           <p className="empty">載入中…</p>
         ) : error ? (
-          <p className="empty">⚠️ {error}（請確認 backend 已起）</p>
+          <p className="empty">
+            <Icon name="circle-alert" size={16} /> {error}（請確認 backend 已起）
+          </p>
         ) : entries.length === 0 ? (
           <div className="jm-empty">
             <p className="empty">未有記錄。呢度會由你嘅真數據逐日砌出嚟。</p>
             <button className="btn" onClick={() => nav.go('chat')}>
-              ✍️ 今日打卡／問教練
+              <Icon name="camera" size={16} /> 今日打卡／問教練
             </button>
           </div>
         ) : (
@@ -90,10 +93,10 @@ export function JournalHome({ p, nav }: HomeProps) {
                   <div className="day-date">{dayLabel(entry.date)}</div>
                   <div className="entry-actions">
                     <button className="link-btn" onClick={() => startEdit(entry)}>
-                      ✎ 改筆記
+                      <Icon name="pencil" size={15} /> 改筆記
                     </button>
                     <button className="link-btn danger" onClick={() => entryActions.removeEntry(entry)}>
-                      🗑 刪除
+                      <Icon name="trash-2" size={15} /> 刪除
                     </button>
                   </div>
                 </div>
@@ -128,7 +131,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                   ))}
                   {(entry.products ?? []).map((product) => (
                     <span key={product} className="chip">
-                      🧴 {product}
+                      <Icon name="droplet" size={13} /> {product}
                     </span>
                   ))}
                   {(entry.metrics ?? []).map((m) => (
@@ -164,7 +167,7 @@ export function JournalHome({ p, nav }: HomeProps) {
 
                 {reply && (
                   <div className="jm-reply">
-                    <div className="k">當日教練回覆{reply.vision_used ? ' · 👁 已睇相' : ''}</div>
+                    <div className="k">當日教練回覆{reply.vision_used ? <>{' · '}<Icon name="eye" size={12} /> 已睇相</> : ''}</div>
                     <div className="t">{reply.text}</div>
                   </div>
                 )}
@@ -187,7 +190,7 @@ export function JournalHome({ p, nav }: HomeProps) {
       </aside>
 
       <button className="jm-fab" title="今日打卡／問教練" onClick={() => setDrawer(true)}>
-        ✍️ 今日打卡
+        <Icon name="camera" size={16} /> 今日打卡
       </button>
 
       {drawer && (
@@ -198,7 +201,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                 {active.icon} {active.bodyPart} · 教練對話
               </b>
               <i className="jm-drawer-x" onClick={() => setDrawer(false)}>
-                ✕
+                <Icon name="x" size={14} />
               </i>
             </div>
             <div className="jm-drawer-body">
@@ -211,9 +214,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                 online={p.online}
                 loading={p.loadingThread}
                 onSelectConversation={p.onSelectConversation}
-                onToggleCloud={p.onToggleCloud}
                 onConfirmEvents={p.onConfirmEvents}
-                onQuickRecord={p.onQuickRecord}
               />
             </div>
           </div>
