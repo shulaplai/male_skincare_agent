@@ -9,7 +9,7 @@
 
 ## 一、已經修好（有驗證）
 
-全部改動都跑過 `pytest -q`（77 綠）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
+全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 312）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
 
 | 原本問題 | 改動 | 點證明 |
 |---|---|---|
@@ -126,7 +126,7 @@
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 226 passed
+./.venv/bin/python -m pytest -q                    # 312 passed（2026-10-05）
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 md5 -q data/skincoach.db                           # 應該係 40823465d6041edf11c05a44f07d88b9
 

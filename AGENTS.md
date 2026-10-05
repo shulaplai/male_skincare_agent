@@ -43,7 +43,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `backend/app/guide.py` | In-app「男士護膚基本資料」內容（Pydantic 樹 + 每句 `citations`）；「應該用咩產品」由 `recommend.RULES` **生成**，所以指南同 agent 唔可能唔一致 | 純函數；`tests/test_guide.py` 對真 DB 逐條驗引文（CI skip） |
 | `backend/app/video.py` | 影片 → 抽格：`video_path` / `probe` / `extract_frames` / `compress_video` / `save_video` / `video_file` / `delete_video`。**≤20 秒**、上限 **100MB**（`MAX_BYTES`，串流途中驗）、最多 **6 格**、去重（32×32 灰階平均差 <6.0）。>40MB（`COMPRESS_OVER_BYTES`）自動重編碼（縮到 1280px、CRF 26、**丟音軌**）。原始片**本機儲**（`data/videos/<32hex>`）＋ `Video` row | ⚠️ **imageio 個 ffmpeg plugin 唔收 `BytesIO`**，所以一定要先寫落 disk 再解碼。⚠️ **`compress_video` 會將條片改名做 `<id>.c.mp4`** —— 搵／刪片一定要經 `video_file()`／`delete_video()`（兩個 spelling 都認），自己砌 `data_dir / v.path` 就會漏（見 `backend-flow.md` §7） |
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
-| `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
+| `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；4 個 agent scenario 之中 **3 個**有 `expect_tool` gate（`red_flag` 只有 `expect_escalate`，所以 escalation 路冇 tool 斷言） |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
 | `backend/tests/` | pytest（而家 312 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
@@ -56,8 +56,8 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `learn/` | **AI agent 入門課程（教材，唔屬於 app）**：9 章 markdown（§06 係「點樣寫自己嘅 eval」）＋ 10 個可執行實驗（`learn/labs/`，FakeLLM ＋ 臨時 DB）＋ `walkthrough-lab03.md`（逐格 trace 導讀）＋ `exercises.md`（習題）。給「識 Python 但未接觸過 AI」嘅人。跑法 `./backend/.venv/bin/python learn/labs/lab03_agent_loop.py` | 改 app 之後如果教材講錯咗（行號／行為），要同步；課程唔可以引入 app 冇嘅嘢。§06 引 `eval/*.py` 行號，改 eval 要一齊改 |
 | `docs/ux-audit-round2.md` | **第二輪 UX／UI 審計（2026-10-05）**：兩個 P0（相冇模糊、匯出壞）＋ 三個 P1（桌面導覽唔入 URL、鍵盤用唔到、冇 PWA）＋ **gate 盲點清單**（點解全部 gate 綠燈但問題出街）。全部有實測數字 | 改 UI／gate 之前先睇 §6 |
 | `docs/ui-plan.md` | **手機版 UI／UX 審計 ＋ 四階段計劃**：Phase 0（工具／gate）已完成；5 個決定已經用戶逐項批（Lucide 統一、保守動效、自寫 Sheet/Toast、完整字級 scale）。量到嘅 tap target／字級／對比度問題列咗喺度，Phase 1–3 逐項修 | 開工前先睇 |
-| `docs/` | architecture / **backend-flow**（由請求到 DB 嘅完整流程 + 真/Fake LLM 分別）/ roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims / product-eval-plan / open-findings | 見 `docs/status-vs-claims.md` 對照；**改 pipeline 要同步 `backend-flow.md`**（佢引 `file:line`） |
-| `design/mobile-v2-round1.html` | **手機版 v2 樣板（2026-10-01，等緊用戶批）**：11 個手機框（5 scene ＋ 指南 ＋ 狀態 ＋ Sheet／Toast ＋ 影片上載 ＋ 暗色）＋ token 對照表。單一檔案、假數據、唔喺 Vite build 範圍 | 批之前唔好照住改 app；批准後 Phase 1–3 就照佢做 |
+| `docs/` | architecture / **backend-flow**（由請求到 DB 嘅完整流程 + 真/Fake LLM 分別）/ roadmap / demo-script / blog-outline / blog-post / eval-report-sample / status-vs-claims / product-eval-plan / open-findings | 見 `docs/status-vs-claims.md` 對照；**改 pipeline 要同步 `backend-flow.md`**（佢引 `file:line`） |
+| `design/mobile-v2-round1.html` | **手機版 v2 樣板（2026-10-01 交；2026-10-05 用戶批准「照住做」）**：11 個手機框（5 scene ＋ 指南 ＋ 狀態 ＋ Sheet／Toast ＋ 影片上載 ＋ 暗色）＋ token 對照表。單一檔案、假數據、唔喺 Vite build 範圍 | 已經係**視覺參考**：Phase 1–3 已照佢落地，之後改手機版 UI 照住佢，唔好另開一套視覺語言（詳 `docs/ui-plan.md` §6） |
 | `design/` | 靜態 HTML 設計樣板：`index.html`（桌面方向 chooser，方向 01 已選）／`mobile.html`（手機樣式 chooser）＋ `mockup-*.html` / `mobile-*.html`（每個係 self-contained phone/laptop frame） | **唔喺 Vite build 範圍**（Vite root 係 `frontend/`）；**同出貨 app 係兩套視覺語言**（`mockup-*.html` 用 Newsreader + cream/forest，app 用 Fraunces + 玫瑰粉）—— 唔好當佢係 app 嘅前例；樣板內容係假數據；serve 嘅時候只 serve `design/`（唔好喺 repo root serve，會漏 `backend/.env`） |
 | `archive/skinfile/` | 上一代純前端 demo | 博物館，唔好改 |
 
@@ -259,7 +259,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - Layer 2 已完成：rolling 多錨點 UI（`/summary.anchors`）、product 庫（products table）、diet trigger tagging、correlation detector（`app/correlation.py` + `/correlations`）、global scope 寫入（diet → global timeline Q31）、preference 低頻抽取（`app/preferences.py`）、check-in 自動 fact（product fact hook）、hybrid 接線（tools search_knowledge）。
 - Layer 3：delete/edit UI（entry note / delete entry / delete photo / delete insight）已做；demo environment＋seed script（`scripts/seed_demo.py`）已做；Settings 測試連線已做；Docker compose 修復（nginx proxy / env 路徑 / corpus bake）見 status #18（狀態以 status-vs-claims 為準）；roadmap v2 同 blog/demo video 係 docs 層交付。
 - Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`（`POST /api/consult` 同 `trace_consult.py` 都寫；`run_log_enabled` 預設 True，路徑 `./data/runs.jsonl` 跟 CWD）；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
-- UI 結構四選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）／`mobile`（手機版，**窄屏 ≤760px 自動**）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=chat|journal|dash|mobile` 可 preview；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + blocks），feature parity（詳 status-vs-claims #25）。手機版樣式揀咗 `design/mobile-1-soft-cards.html`（「柔卡」）；窄屏自動切換同桌面無回歸都用 CDP 實測過。
+- UI 結構四選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）／`mobile`（手機版，**窄屏 ≤760px 自動**）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=chat|journal|dash|mobile` 可 preview；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + blocks）—— ⚠️ 呢個係 **action／API layer** parity（同一批 endpoint、同一批畫面元件），唔係 pixel／行為 parity（各有自己嘅 home 同空間分配）（詳 status-vs-claims #25）。手機版樣式揀咗 `design/mobile-1-soft-cards.html`（「柔卡」）；窄屏自動切換同桌面無回歸都用 CDP 實測過。
 
 ## Agent skills
 

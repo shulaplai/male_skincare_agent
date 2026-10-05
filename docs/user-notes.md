@@ -19,8 +19,9 @@
 # backend（一定要喺 backend/ 度行；.env 由 CWD 讀）
 cd backend && ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001
 
-# 想 embedder 唔會靜靜降級做 128 維（macOS 會清 temp dir）就加呢兩個 var：
-SKINCOACH_EMBEDDER_CACHE_DIR=./data/.fastembed-cache HF_HOME=./data/.hf-cache \
+# 想 embedder 唔會靜靜降級做 128 維（macOS 會清 temp dir）就加呢個 var
+# （fastembed 只認 FASTEMBED_CACHE_PATH／SKINCOACH_EMBEDDER_CACHE_DIR；HF_HOME 對佢冇作用）：
+SKINCOACH_EMBEDDER_CACHE_DIR=./data/.fastembed-cache \
   ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001
 
 # frontend（另開一個 terminal；:5173 proxy /api + /health → :8001）

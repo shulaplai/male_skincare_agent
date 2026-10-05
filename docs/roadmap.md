@@ -2,19 +2,19 @@
 
 > 目標：三個月後拎住一個 **真係用得、部署到、有 eval 數據** 嘅 AI Agent product 去見工（AI Agent Developer）。
 > 呢份係 v2：每個 phase 對照 `docs/status-vs-claims.md`（live）寫**完成度**，唔再寫「打算做」當做咗。
-> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 226 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
+> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 312 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
 
 ---
 
 ## Phase 0 — 地基 ✅
 - monorepo（backend + frontend + docs）、FastAPI + React+Vite+TS 骨架 ✅
-- Docker Compose + Dockerfile 🟡（v2 修咗：frontend nginx `/api` proxy、bind volume、corpus bake；`docker compose config` 通過，但 image 從來冇 build 過，狀態以 status #18 為準）
+- Docker Compose + Dockerfile 🟡（v2 修咗：frontend nginx `/api` + `/health` proxy、bind volume、corpus bake、`FASTEMBED_CACHE_PATH`；`docker compose config` 通過，但 image 從來冇 build／未 up 過 —— daemon 係開嘅（`docker info` → 27.4.0），未 build 係未試，唔係做唔到，狀態以 status #18 為準）
 - README + architecture + roadmap + AGENTS.md ✅
 - 舊 SKINFILE → `archive/skinfile/` 博物館 ✅
 
 ## Phase 1 — 數據層（local-first 核心）✅
 - SQLite schema：users / conversations / entries / photos / insights / timeline_events / chat_messages / products / chunks ✅（加 column 用 `_COLUMN_MIGRATIONS` auto-ALTER）
-- 相片壓縮落 file system、metadata 落 DB ✅
+- 相片壓縮落 file system、metadata 落 DB ✅（serve 端有 `?w=` 縮圖 whitelist `THUMB_WIDTHS`，UI 一律用縮圖 ＋ grid `loading="lazy"`）
 - 長期記憶規則落 SQL：fact / derived / preference + tag+direction reconcile（Q47）✅
 - Export/Import zip ✅
 - **demo environment**：`scripts/seed_demo.py` 起獨立 DEMO DB（Q10/Q19）✅
@@ -59,8 +59,9 @@
 - [ ] 真 vision smoke test（☁️ 開、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding reply
 - [ ] Reload 頁面 → thread 仲喺度
-- [ ] `pytest -q`（226 綠）+ `npm run typecheck` + `npm run build`
-- [ ] `eval.run_eval --fake` PASS（semantic baseline recall 100% / MRR 0.90；hybrid（runtime path）100% / 1.00；3 agent scenarios）
+- [ ] `cd backend && ./.venv/bin/python -m pytest -q`（**312 綠**）+ `npm run typecheck` + `npm run build`
+- [ ] `cd frontend && npm run ui:check`（**60 passed**）
+- [ ] `eval.run_eval --fake` PASS（semantic baseline recall 100% / MRR 0.90；hybrid（runtime path）100% / 1.00；**4** agent scenarios，其中 **3/4** 有 `expect_tool` gate）
 - [ ] `scripts/seed_demo.py` → demo DB 行得起（interview 零準備 demo 用）
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」
 - [ ] 錄 demo video（2–3 分鐘，跟 `docs/demo-script.md`）

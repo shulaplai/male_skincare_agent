@@ -67,4 +67,4 @@
 
 `.github/workflows/ci.yml` 有獨立 `eval` job：`python -m eval.run_eval --fake`，任何 FAIL → exit 1 → 唔可以 merge。
 
-Backend unit tests：`backend/tests/` 共 **226** 個，全綠（memory / rag / hybrid / agent / guardrails / eval / export / attributes / vision-consent / messages / self-report / correlation / preferences / API layers / ingredients / product-eval / guide / video）。
+Backend unit tests：`backend/tests/` 共 **312** 個，全綠（memory / rag / hybrid / agent / guardrails / eval / export / attributes / vision-consent / messages / self-report / correlation / preferences / API layers / ingredients / product-eval / guide / video）。

@@ -61,7 +61,8 @@ cp .env.example .env        # 填 SKINCOACH_DEEPSEEK_API_KEY（冇 key 都行 Fa
 
 # 前端
 cd ../frontend
-npm install && npm run dev    # http://localhost:5173（proxy /api → 8001）
+npm install && npm run dev    # http://localhost:5173（proxy /api 同 /health → 8001）
+npm run ui:check              # UI gate：typecheck + eslint + stylelint + 60 個 Playwright（snapshot／axe／互動／相片模糊／串流）
 
 # 自己 host 想新 conversation 自動開雲分析（可選）
 echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart backend
@@ -71,7 +72,7 @@ echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart bac
 # Interview demo：想個 UI 即刻有 90 日數據睇（獨立 DEMO DB，唔掂你真 data）
 cd backend && ./.venv/bin/python scripts/seed_demo.py
 SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn app.main:app --port 8001
-# 前端照常：cd ../frontend && npm run dev（:5173 proxy /api -> :8001）
+# 前端照常：cd ../frontend && npm run dev（:5173 proxy /api 同 /health -> :8001）
 ```
 
 ## 部署

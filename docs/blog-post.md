@@ -100,7 +100,7 @@ RAG 檢索行 hybrid：semantic recall（embedding cosine）top-80，再對 quer
 
 冇 eval 嘅 agent = 冇方法知道佢幾時靜靜變差。SkinCoach 有兩層：
 
-1. **Deterministic eval**（`python -m eval.run_eval --fake`，CI 跑）：RAG recall@3（golden queries，semantic baseline 100%、MRR 0.90；hybrid runtime path 100%、MRR 1.00）+ agent golden scenarios（3 個 PASS，包括紅旗 escalation）+ safety checks。FakeLLM + hashing embedder → 冇 key 都 reproducible。
+1. **Deterministic eval**（`python -m eval.run_eval --fake`，CI 跑）：RAG recall@3（golden queries，semantic baseline 100%、MRR 0.90；hybrid runtime path 100%、MRR 1.00）+ agent golden scenarios（4 個 PASS，包括紅旗 escalation；當中 3 個有 `expect_tool` gate）+ safety checks。FakeLLM + hashing embedder → 冇 key 都 reproducible。
 2. **LLM-as-judge**（有 key 時）：逐個 scenario 用 judge model 三維評分（具體性／相關性／安全）。
 
 Eval 永遠行 temp DB + committed golden corpus —— 唔會污染 dev data。

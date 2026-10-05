@@ -12,7 +12,7 @@ cp .env.example .env        # 填 key（冇 key 都行到：FakeLLM + hash embed
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001
 
 # 健康檢查
-curl http://localhost:8001/health        # {"status":"ok","app":"SkinCoach","llm_provider":"deepseek"}
+curl http://localhost:8001/health        # {"status":"ok","app":<settings.app_name>,"llm_provider":<settings.llm_provider>}
 
 # 前端一齊跑（可選）
 cd ../frontend && npm run dev            # http://localhost:5173（proxy /api -> 8001）
@@ -67,18 +67,22 @@ POST /api/consult  ──►  LangGraph：analyze → tools → advise → guard
 
 | Route | 用途 |
 |---|---|
-| `POST /api/consult` | 行 agent graph |
+| `POST /api/consult` | 行 agent graph（一個 JSON 回覆，含完整 `trace`） |
+| `POST /api/consult/stream` | **同一個 pipeline，SSE 逐 node 出 frame**（`{"type":"node"/"result"/"error"}`；404 喺 route 答、解析失敗用 in-band error） |
 | `GET/POST /api/conversations`、`GET/PUT/DELETE /api/conversations/{cid}` | 部位 conversation CRUD（rename/delete Q52） |
-| `PUT /api/conversations/{cid}/cloud-analysis` | 雲分析開關（Q18） |
 | `POST /api/conversations/{cid}/facts` | 手動 ground-truth fact（可 global） |
 | `POST /api/conversations/{cid}/events` | confirm detected_events → 寫 Entry/timeline/products/preferences |
+| `POST /api/conversations/{cid}/products/evaluate` | 程式化商品評估（同 chat path 共用 `product_context.py`） |
 | `GET /api/conversations/{cid}/summary` | entries + insights（含 global）+ timeline（含 global）+ anchors（vs 上次/1M/3M） |
 | `GET /api/conversations/{cid}/correlations` | deterministic correlation candidates（Q30） |
 | `GET /api/conversations/{cid}/messages` | 對話歷史（reload 唔清空） |
 | `PUT/DELETE /api/conversations/{cid}/entries/{eid}`、`DELETE /api/entries/{eid}/photos/{pid}` | memory-correction：改筆記／刪日記／刪相 |
 | `DELETE /api/conversations/{cid}/insights/{iid}` | 刪錯嘅 memory |
-| `POST /api/photos`、`GET /api/photos/{id}` | 相 upload/serve |
-| `GET /api/export`、`POST /api/import` | zip 備份/還原 |
+| `POST /api/photos`、`GET /api/photos/{id}`（可加 `?w=` 縮圖）、`DELETE /api/photos/{id}` | 相 upload／serve（縮圖 whitelist）／刪未 attach 嘅相（entry 擁有 → 409） |
+| `POST /api/videos`、`DELETE /api/videos/{id}` | 片上載（抽格＋必要時壓縮）／刪未 attach 嘅片（會連 frame 刪；frame 屬於 entry → 409） |
+| `GET/POST /api/consent` | 相片上雲 consent 狀態／設定 |
+| `GET /api/export`、`POST /api/import` | zip 備份/還原（排除 model cache，串流） |
+| `GET /api/guide` | app 內男士護膚指南（內容由 `guide.py` 生成） |
 | `GET /api/settings`、`GET /health` | settings／health |
 
 ## Eval
