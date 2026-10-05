@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 296 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 306 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -45,7 +45,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 296 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 306 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -224,6 +224,14 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **`llm._invoke` 個 retry 一定要帶糾正訊息**：只重試同一組 messages 唔夠（實測連續兩次都失敗）。retry 時 append `FORMAT_CORRECTION`；最多 3 次；仍然失敗就拋俾 `service.run_consult` 轉成 **HTTP 503 可讀訊息**（唔好裸 500、唔好造假分析）。
 - **macOS 冇 `timeout`**：要 `gtimeout`（coreutils）。我試過用 `timeout 120 python …` 做真-LLM 測試，三次都「失敗」—— 其實 exit 127 command not found，測試根本冇跑過。做 shell 測試要檢查 exit code，唔好只信「失敗/成功」字眼。
 - **`Entry` 只喺個 turn 有皮膚證據時才寫**：閘係 `SkinAnalysis.observes_skin`（LLM 判）`or vision_used`。以前每條訊息都當打卡，而 `ANALYZE_SYSTEM` 話「未提及就畀 0」→ 問一句產品問題就會用**全 0** 覆蓋當日讀數，而且因為「一日只准一個 agent event」而將假「改善」**永久凍結**（真打卡之後都改唔返）。`persist` 唔過閘就只寫 `ChatMessage`，`entry_written: false` 會入 trace。
+  ⚠️ **同一日第二/第三次打卡係 merge，唔係覆寫**（issue #21，政策 B，用戶揀）：
+  `Attribute.mentioned` 係「今次真係有講到／睇到」嘅訊號，`persist` 用
+  `attributes.merge_attributes()`（`mentioned=false` 沿用當日舊讀數）＋ `merge_metrics()`（按 key）＋
+  `merge_note()`（當日講過嘅全部保留，換行分隔）。memory 只為 `mentioned=true` 嘅 attribute 更新
+  —— 唔係嘅話會用一個用戶冇講過嘅假 0 去 strengthen（實測一次含糊訊息改動 6 條）。
+  `persist` trace 多一個 `attributes_kept`。`mentioned` **同 `observes_skin` 一樣唔可以入 `advise` prompt**
+  （model 會照讀欄位名）。`mentioned` **default True**：省略欄位（舊 payload／FakeLLM）就照舊覆寫，
+  唔會靜靜凍結當日。⚠️ `mentioned=false` **唔等於**「正常」——「睇過，冇事」係 `mentioned=true, severity=0`。
 - **`observes_skin` 唔可以漏入 `advise` 嘅 prompt**：真 LLM 會將欄位名照讀返俾用戶（「分析顯示 observes_skin=false」），而且將「唔係打卡」誤讀成「睇唔到皮膚」→ 叫用戶補相、**完全冇答佢問嘅問題**。`build_advise_prompt` 一定要 `pop` 走佢，並用廣東話描述情況。同埋 onboarding 引導塊**只喺 `observed` 時**才出。
 - **`imageio` 個 ffmpeg reader 只收真檔案路徑，唔收 `BytesIO`**（拆唔到，佢係 spawn 一個 ffmpeg subprocess 去讀檔）。而且 **writer 都唔收 BytesIO** —— 寫測試片一定要用 temp file。所以 `video.extract_frames()` 個簽名係 `(path)`，caller 要先 `save_video()` 落 disk。「本機儲片」呢個產品要求啱好同解碼器要求一致。
 - **抽格一定要平均分佈，唔可以 `[:max_frames]`**：實測過 3 秒片出 0.0–1.3s（全部偏喺片頭）。用戶橫掃塊面，後面嘅格先係唔同部位。而家係喺 survivors 之中等距揀。

@@ -27,6 +27,31 @@ class Attribute(BaseModel):
     # 0 = none/clear, 1 = mild, 2 = moderate, 3 = severe.
     severity: int = Field(ge=0, le=3)
     note: str = ""
+    #: Did THIS turn actually mention/see this attribute?
+    #:
+    #: `ANALYZE_SYSTEM` rates all six attributes every turn and says "未提及就畀 0",
+    #: so a severity of 0 means two very different things: "I looked and it is clear"
+    #: and "the user did not talk about this". Persist used to write the whole list on
+    #: every check-in, so 「今朝爆多咗兩粒」 (which mentions nothing else) replaced the
+    #: day's oiliness with 0 — and dragged the anchors, the derived memories and the
+    #: product verdict along with it (issue #21, measured on the live path).
+    #:
+    #: `mentioned=False` means "leave whatever the day already has". A photo the vision
+    #: model read sets it true for what it saw, so a photo check-in still rewrites the
+    #: attributes it can see.
+    #:
+    #: Defaults to True so an output that omits the field (older stored payloads,
+    #: FakeLLM fixtures) keeps the previous replace-the-day behaviour rather than
+    #: silently freezing the day.
+    mentioned: bool = Field(
+        default=True,
+        description=(
+            "呢個 turn 你有冇**真係講到／睇到**呢個 attribute？"
+            "相入面你睇到嘅 → true。用戶今次冇提、或者你只係靠估 → false（severity 照填 0）。"
+            "⚠️ `mentioned=false` 唔會覆寫當日已經記錄咗嘅讀數，"
+            "所以唔好將「唔確定」當成「正常 0」。"
+        ),
+    )
 
 
 class SkinAnalysis(BaseModel):

@@ -202,3 +202,83 @@ def anchor_comparisons(current: dict[str, int], entries: list[Entry], today: dat
                 row[name] = {"date": str(anchor.date), "old": old, "delta": sev - old}
         out.append(row)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Same-day merge (issue #21 policy B)
+# ---------------------------------------------------------------------------
+#
+# One `Entry` per day per conversation (doctrine: Entry = the day's structured
+# summary). A second check-in the same day used to replace `attributes` and
+# `metrics` wholesale, so a message that mentioned one attribute silently reset the
+# other five to 0 — the anchors, the derived memories and the product verdict all
+# read those values (measured: acne 2→1 flipped a product from `good` to `caution`
+# because `recommend.TRIGGER_FLOOR` is 2).
+#
+# Policy B: a later check-in only replaces the readings it actually mentioned.
+# `Attribute.mentioned` is the signal (the LLM says which attributes this turn is
+# about); an attribute it did not mention keeps the day's existing reading.
+
+
+def merge_attributes(existing: list[dict], incoming: list[dict]) -> tuple[list[dict], list[str]]:
+    """Same-day merge of the day's readings.
+
+    Returns `(merged, kept)` where `kept` lists the attribute keys carried over from
+    an earlier turn (useful in the run trace). Output order is the fixed
+    `ATTRIBUTE_KEYS` order, so the stored JSON stays stable.
+    """
+    old = {a["key"]: a for a in (existing or []) if a.get("key")}
+    new = {a["key"]: a for a in (incoming or []) if a.get("key")}
+    merged: list[dict] = []
+    kept: list[str] = []
+    for key in ATTRIBUTE_KEYS:
+        n = new.get(key)
+        o = old.get(key)
+        if n is not None and (n.get("mentioned", True) or o is None):
+            merged.append(dict(n))
+        elif o is not None:
+            merged.append(dict(o))
+            kept.append(key)
+        elif n is not None:
+            merged.append(dict(n))
+    return merged, kept
+
+
+def merge_metrics(existing: list[dict], incoming: list[dict]) -> list[dict]:
+    """Same-day merge of the display list, by metric key.
+
+    `Metric` keys are the model's own free text（「油光」「新暗瘡」）and are display-only
+    (they never feed change detection, memory or the timeline). Rows for things this
+    turn did not talk about are kept, so the day's card does not lose the morning's
+    observations — the same "唔講就唔抹" rule as the attributes above.
+    """
+    merged = [dict(m) for m in (existing or [])]
+    index = {m["key"]: i for i, m in enumerate(merged) if m.get("key")}
+    for m in incoming or []:
+        key = m.get("key")
+        if key and key in index:
+            merged[index[key]] = dict(m)
+        else:
+            merged.append(dict(m))
+            if key:
+                index[key] = len(merged) - 1
+    return merged
+
+
+def merge_note(existing: str, incoming: str) -> str:
+    """The day keeps everything the user said, in order (one Entry per day).
+
+    The old code assigned `entry.note = user_text`, so a later partial check-in erased
+    the morning's sentence — the same loss the readings suffered. Appending keeps the
+    day's note honest; the user can still edit it afterwards
+    (`PATCH /api/conversations/{cid}/entries/{eid}/note`).
+    """
+    old = (existing or "").strip()
+    new = (incoming or "").strip()
+    if not new or new == old:
+        return old or new
+    if not old:
+        return new
+    if new in old.split("\n"):
+        return old
+    return f"{old}\n{new}"

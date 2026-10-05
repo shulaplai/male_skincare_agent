@@ -266,6 +266,35 @@ function → parser `KeyError`。
 - reword 後同一條產品問題跑 **3/3 成功、0 次 parse 失敗**
   （改前：同一條問題 2 次入面 1 次爆）。
 
+## 6.2 同一日再打卡：只覆寫今次真係有提及嘅 attribute（政策 B，issue #21）
+
+§6 個閘只擋「完全唔觀察皮膚」嘅訊息。一條**部分觀察**嘅訊息（「今朝爆多咗兩粒」）
+仍然會整條覆寫當日 `Entry`，因為 `ANALYZE_SYSTEM` 對未提及嘅 attribute 一律畀 0。
+實測後果：acne 2→1、6 條 memory 用假 0 strengthen、`recommend.TRIGGER_FLOOR = 2`
+令商品評估由 `good` 變 `caution`。
+
+**決定**（用戶揀，純產品語意）：**B. 只覆寫今次真係有講嘅 attribute**。
+
+```
+analyze  →  每個 Attribute 多一個 `mentioned`
+            （今次真係講到／睇到 → true；「未提及所以畀 0」→ false）
+persist  →  entry.attributes = merge_attributes(舊, 今次)   ← mentioned=false 沿用舊讀數
+            entry.metrics    = merge_metrics(舊, 今次)      ← 按 metric key 合併
+            entry.note       = merge_note(舊, 今次)         ← 當日講過嘅全部保留（換行分隔）
+memory   →  只為 mentioned=true 嘅 attribute 更新（唔會用假 0 strengthen）
+trace    →  persist detail 多一個 `attributes_kept: ["oiliness", …]`
+```
+
+- `mentioned` **default True**：省略了呢個欄位（舊 payload／FakeLLM fixture）就照舊覆寫，
+  唔會靜靜凍結當日讀數。
+- 有相嘅 turn，vision 睇到嘅 attribute 都係 `true`，所以影相照樣覆寫。
+- `mentioned` 同 `observes_skin` 一樣**唔會入 `advise` prompt**（model 會照讀返個欄位名）。
+- 真實後果：相對講法（「爆多咗」）唔會再被當成絕對 severity 覆蓋其他讀數；
+  但 model 仍然可能將「爆多咗」評成一個絕對值 —— 呢個要睇 prompt 質素，唔係 merge 嘅責任。
+
+**regression test**：`tests/test_entry_merge.py`（`merge_*` 純函數 ＋ 行真 `graph.invoke`
+嘅兩次同日打卡；其中一條斷言冇提及嘅 memory row 一個字都冇變）。
+
 ## 7. 影片上載（`POST /api/videos`）嘅位置
 
 ```

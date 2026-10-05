@@ -28,7 +28,13 @@ _Avoid_: report、submission、打卡紀錄
 
 **Attribute**：
 固定六個之一（`acne`／`oiliness`／`redness`／`dryness`／`pores`／`texture`），每個 0–3 severity。change detect、persist、timeline、memory 全部只認佢。
+每次分析**六個都要評**；`mentioned` 講今次 turn 有冇真係講到／睇到佢。
 _Avoid_: 指標（指標係 Metric）、field、dimension、feature
+
+**Mentioned（今次有提及）**：
+一個 attribute 喺呢個 turn 係**真係有講到／睇到**（true）定純粹係「未提及所以畀 0」（false）。
+同一天再打卡時，`mentioned=false` 嘅**唔會覆寫**當日已有讀數（政策 B，issue #21）；memory 亦唔會為佢更新。唔係「冇事」——「冇事」係 `mentioned=true, severity=0`。
+_Avoid_: observed（同 `observes_skin` 撞）、detected、has_value
 
 **Severity**：
 一個 attribute 由 0（正常）到 3（嚴重）嘅讀數。**唔係分數** —— 冇加總、冇平均、冇「整體膚況」。
@@ -85,7 +91,7 @@ _Avoid_: score、certainty、probability、accuracy
 _Avoid_: request、chat、query、consultation
 
 **Analysis**：
-`analyze` 階段嘅結構化輸出：`summary`、`metrics`、`attributes`、`tool_calls`、`observes_skin`。
+`analyze` 階段嘅結構化輸出：`summary`、`metrics`、`attributes`（每個帶 `mentioned`）、`tool_calls`、`observes_skin`。
 _Avoid_: reading、assessment、diagnosis（呢個 app 唔診斷）
 
 **observes_skin**：

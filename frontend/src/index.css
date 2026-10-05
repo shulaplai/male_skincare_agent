@@ -1160,6 +1160,8 @@ body {
 .entry-note {
   font-size: var(--f-md);
   margin: 6px 0 10px;
+  /* 同一日再打卡會 append，句子之間係 \n（issue #21）—— 唔用 pre-line 就會連成一行 */
+  white-space: pre-line;
 }
 .entry-metrics {
   display: flex;

@@ -102,9 +102,13 @@ products rows: 0        with ingredients: 0
 
 ---
 
-### 2.5 ⚠️ 任何 chat 訊息都會覆蓋當日 `Entry` 嘅 attributes（**現有 bug，產品比較嘅前置 blocker**）
+### 2.5 ✅ 任何 chat 訊息都會覆蓋當日 `Entry` 嘅 attributes（**2026-10-05 已修，見 issue #21**）
 
-`graph.persist` 無條件覆寫：
+> **狀態**：兩個成因都已修 —— ① `persist` 唔再有皮膚證據就唔寫 `Entry`（`observes_skin` 閘）；
+> ② 同一日再打卡只覆寫**今次真係有提及**嘅 attribute（政策 B，`Attribute.mentioned`）。
+> 下面保留當時嘅實測記錄，做為 regression test 嘅來源（`tests/test_entry_merge.py`）。
+
+`graph.persist` 當時無條件覆寫：
 
 ```python
 entry.note = state["user_text"]
@@ -129,9 +133,11 @@ entry.attributes = [a.model_dump() for a in analysis.attributes]   # ← 覆蓋
 **唔係本文件引入**：而家打「唔唔」都一樣。但商品比較**本質上係純文字**，會頻密觸發，
 所以係「放喺 chat」嘅前置條件。
 
-**建議修法**（要你決定）：`persist` 只喺個 turn **帶有皮膚證據**時才寫 `Entry` ——
+**最後採用嘅修法**：`persist` 只喺個 turn **帶有皮膚證據**時才寫 `Entry` ——
 即有相，或者文字明確描述皮膚狀態。否則只寫 `ChatMessage`（display truth），唔寫
 `Entry`（data truth）。呢個符合 doctrine #5：`Entry` = 每日結構化摘要，冇摘要就唔應該有。
+再落一層：一日多過一次打卡時，`Attribute.mentioned=False` 嘅唔覆寫、`metrics` 按 key
+合併、`note` 保留當日全部（見 `docs/backend-flow.md` §6.1）。
 
 ## 3. Feature 設計
 

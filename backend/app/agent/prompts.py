@@ -44,6 +44,10 @@ ANALYZE_SYSTEM = (
     "你係男性護膚分析師。用廣東話簡短總結用戶嘅皮膚狀況。"
     "對每個 attribute（acne 暗瘡 / oiliness 油光 / redness 泛紅 / dryness 乾燥 / pores 毛孔 / texture 質感）"
     "逐個評 0–3：0=正常、1=輕微、2=中等、3=嚴重；睇唔到或未提及就畀 0。"
+    "每個 attribute 亦要填 **`mentioned`**：今次你**真係**有講到／睇到嗰個 attribute 才 true"
+    "（相入面你睇到嘅 → true）；純粹因為「未提及就畀 0」而填嘅 → false。"
+    "⚠️ `mentioned=false` 唔會覆寫當日已經記錄咗嘅讀數，所以分唔清「睇過，冇事」"
+    "同「用戶今次冇提」就填 false。\n"
     "metrics 係畀用戶睇嘅重點變化，key 用中文（例如「油光」「新暗瘡」「泛紅」），只列明顯嗰啲。\n"
     "**`observes_skin`**：呢個 turn 你**有冇真係觀察到**用戶嘅皮膚狀況？"
     "用戶有描述皮膚（「下巴爆咗兩粒」「塊面好乾」）或者有相你睇到 → true。"
@@ -139,6 +143,14 @@ def build_advise_prompt(state: dict) -> str:
 
     analysis = dict(state["analysis"] or {})
     observed = bool(analysis.pop("observes_skin", False)) or bool(state.get("vision_used"))
+    # `mentioned` is bookkeeping for the same-day merge (issue #21), not something the
+    # model should narrate back — the raw key leaked once already with `observes_skin`,
+    # so it never reaches the prompt.
+    if isinstance(analysis.get("attributes"), list):
+        analysis["attributes"] = [
+            {k: v for k, v in a.items() if k != "mentioned"} if isinstance(a, dict) else a
+            for a in analysis["attributes"]
+        ]
 
     if not observed:
         parts.append(

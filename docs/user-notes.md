@@ -65,7 +65,7 @@ cd frontend && npm run dev
 
 | 想試 | 步驟 | 而家狀態 |
 |---|---|---|
-| 同日讀數被覆蓋 | 同一日先打「下巴爆咗兩粒，T 字位好油」，再打多條含糊啲嘅（例如「今朝好似爆多咗」）→ 睇右欄指標由 2 變 1 | 未修 [#21](https://github.com/shulaplai/male_skincare_agent/issues/21) |
+| 同日讀數被覆蓋 | 同一日先打「下巴爆咗兩粒，T 字位好油」，再打多條含糊啲嘅（例如「今朝好似爆多咗」）→ 睇右欄指標由 2 變 1 | **已修**（2026-10-05）：再打卡只會覆寫今次真係有講嘅指標，其他沿用當日舊讀數；[#21](https://github.com/shulaplai/male_skincare_agent/issues/21) 已 close |
 | 事件 chip 消失 | 打「尋晚食咗辣底」→ 出 chip → **reload** | 已修，[#22](https://github.com/shulaplai/male_skincare_agent/issues/22) 已 close |
 | 相檔殘留 | 揀一張相（唔好送出）→ 撳 × → 睇 `backend/data/photos/` 有冇多咗檔案 | 已修，[#23](https://github.com/shulaplai/male_skincare_agent/issues/23)：撳 × 即刻刪，另外 24 小時 sweep 會執走關頁剩低嘅 |
 | iPhone HEIC | 由 iPhone 相簿直接上載（唔經 WhatsApp） | 已修成可讀 415；[#24](https://github.com/shulaplai/male_skincare_agent/issues/24) 已 close（決定唔做原生支援，理由記喺 `.out-of-scope/heic-native-support.md`） |

@@ -45,6 +45,9 @@ from .attributes import (
     build_change_lines,
     describe_attribute,
     direction_for,
+    merge_attributes,
+    merge_metrics,
+    merge_note,
     severity_map,
 )
 from .guardrails import apply_guardrails
@@ -360,6 +363,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             entry_reused = entry is not None
             photos_added = 0
             timeline_lines: list[str] = []
+            attributes_kept: list[str] = []  # 今次冇提及、保留當日舊讀數嘅 attribute
             insights_created = 0
             insights_strengthened = 0
             insights_superseded = 0
@@ -374,9 +378,17 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     entry = Entry(conversation_id=conv_id, date=today)
                     session.add(entry)
                     session.flush()  # assign entry.id before attaching photos
-                entry.note = state["user_text"]
-                entry.metrics = [m.model_dump() for m in analysis.metrics]
-                entry.attributes = [a.model_dump() for a in analysis.attributes]
+                # Same-day merge (issue #21 policy B, chosen by the user): a later
+                # check-in only replaces the attributes it actually mentioned. Before
+                # this, 「今朝爆多咗兩粒」 reset the other five attributes to 0 — and the
+                # anchors, the derived memories and the product verdict read those.
+                entry.attributes, attributes_kept = merge_attributes(
+                    entry.attributes or [], [a.model_dump() for a in analysis.attributes]
+                )
+                entry.metrics = merge_metrics(
+                    entry.metrics or [], [m.model_dump() for m in analysis.metrics]
+                )
+                entry.note = merge_note(entry.note or "", state["user_text"])
 
             # Photos attach to the day's entry once (dedupe by file name); only
             # photos that actually exist on disk are linked (no dangling rows).
@@ -430,7 +442,14 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             #
             # Gated on `observes_skin` too: without it, asking about a product produced
             # a permanent「暗瘡：正常」memory for a user who never reported any skin state.
+            #
+            # And gated on `mentioned` (issue #21): the analysis rates all six
+            # attributes every turn with「未提及就畀 0」, so a memory for an attribute the
+            # user did NOT talk about would have been "strengthened" with a 0 it never
+            # earned (measured before the fix: 6 of them on one vague message).
             for attr in analysis.attributes if observes_skin else []:
+                if not attr.mentioned:
+                    continue
                 direction = direction_for(attr.severity)
                 candidate = make_derived(
                     new_id(),
@@ -538,6 +557,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                             "entry_written": observes_skin,
                             "entry_reused": entry_reused,
                             "attributes": len(analysis.attributes) if observes_skin else 0,
+                            "attributes_kept": attributes_kept,
                             "photos_added": photos_added,
                             "timeline_lines": len(timeline_lines),
                             "insights_created": insights_created,

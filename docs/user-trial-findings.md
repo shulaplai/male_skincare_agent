@@ -174,7 +174,7 @@ IS VISIBLE … There is no text input field, no send button…」）。
 
 ## 4. P2（明顯磨擦／資料質量）
 
-### P2-1 同日 Entry 被後一條含糊訊息整條覆蓋（**未修，要你決定**）
+### P2-1 同日 Entry 被後一條含糊訊息整條覆蓋（**已修，2026-10-05，issue #21**）
 
 **實測鏈條**（trial DB，全部真 LLM）：
 
@@ -192,6 +192,14 @@ IS VISIBLE … There is no text input field, no send button…」）。
 **點解唔自己修**：`observes_skin` 閘門只擋「完全唔觀察皮膚」嘅訊息；一條**部分觀察**嘅訊息
 應該點同當日已有讀數合併（取 max？只覆蓋有講嘅 attribute？分早晚兩次紀錄？）係**產品語意決定**，
 唔應該由 agent 揀。→ issue [#21](https://github.com/shulaplai/male_skincare_agent/issues/21)。
+
+**已修（2026-10-05，政策 B）**：用戶揀「只覆寫今次真係有講嘅 attribute」。`Attribute` 多一個
+`mentioned` 訊號（LLM 逐個 attribute 答今次有冇真係講到／睇到），`persist` 用
+`merge_attributes`／`merge_metrics`／`merge_note`（`backend/app/agent/attributes.py`）合併當日
+`Entry`，memory 亦只為 `mentioned=true` 嘅 attribute 更新。`persist` trace 多一個
+`attributes_kept` 睇得到邊幾個沿用舊讀數。實測同一條鏈：第二步之後 entry 係
+`{acne: 3, oiliness: 1}`（唔再變 0）、note 保留兩句、`insights_strengthened: 1`（唔再 6）。
+Regression test：`backend/tests/test_entry_merge.py`。詳見 `docs/backend-flow.md` §6.2。
 
 ### P2-2 「我留意到…✅ 記低」chips reload 就冇（**未修，要你決定**）
 
