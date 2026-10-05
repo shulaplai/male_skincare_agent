@@ -15,10 +15,29 @@ export function severityText(sev: number): string {
   return { 0: '正常', 1: '輕微', 2: '中等', 3: '嚴重' }[sev] ?? '—'
 }
 
+/**
+ * 問候語跟住用戶自己部機嘅時間行（audit §7）：以前 19:5x、夜晚 11 點都係「早晨呀」，
+ * 用戶會覺得個 app 唔知時間。連 icon 一齊回，免得 JSX 再判斷一次。
+ */
+export function greeting(now: Date = new Date()): { text: string; icon: 'sun' | 'moon' } {
+  const h = now.getHours()
+  if (h >= 5 && h < 12) return { text: '早晨呀', icon: 'sun' }
+  if (h >= 12 && h < 18) return { text: '午安', icon: 'sun' }
+  if (h >= 18 && h < 23) return { text: '晚上好', icon: 'moon' }
+  return { text: '夜深喇', icon: 'moon' }
+}
+
+/** 時間一律交俾 `Intl`（audit §7）：手寫 `padStart` 只係喺單一語言下啱。 */
+const TIME_FMT = new Intl.DateTimeFormat('zh-HK', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
 export function hhmm(iso: string): string {
   const d = new Date(`${iso}Z`)
   if (Number.isNaN(d.getTime())) return iso
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return TIME_FMT.format(d)
 }
 
 export function ymd(iso: string): string {

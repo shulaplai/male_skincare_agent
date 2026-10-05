@@ -685,6 +685,39 @@ def delete_unattached_photo(photo_id: str, db: Session = Depends(get_session)) -
     return {"status": "ok", "deleted": photo_id}
 
 
+@app.delete("/api/videos/{video_id}")
+def delete_unattached_video(video_id: str, db: Session = Depends(get_session)) -> dict:
+    """Delete a clip the user picked but never sent (issue #27).
+
+    `POST /api/videos` writes the clip, its `Video` row and its sampled frames the moment
+    the file is picked, so removing the composer chip used to leave all of it on disk
+    until the whole conversation was deleted. It is the sibling of the picked-photo leak
+    fixed in #23, and `sweep_orphan_photos` cannot cover it on purpose: `Video.frames` is
+    on that sweep's protected list, exactly so a clip waiting to be sent keeps its frames.
+
+    Same rule as `DELETE /api/photos/{id}`: a clip whose frames an entry already
+    references answers 409, because that deletion has to remove the rows the journal
+    renders — not just the file.
+    """
+    clip = db.query(Video).filter_by(id=video_id).first()
+    if clip is None:
+        raise HTTPException(status_code=404, detail="video not found")
+    frames = list(clip.frames or [])
+    if any(db.query(Photo).filter_by(path=f"photos/{fid}.jpg").first() for fid in frames):
+        raise HTTPException(
+            status_code=409,
+            detail="呢條片已經屬於某一日嘅記錄，要喺嗰日嘅「記錄」度刪。",
+        )
+    for fid in frames:
+        _delete_photo_file(f"photos/{fid}.jpg")
+    # `delete_video` knows both spellings (`<id>.mp4` and the re-encoded `<id>.c.mp4`);
+    # building the path by hand would miss a compressed clip.
+    delete_video(video_id)
+    db.delete(clip)
+    db.commit()
+    return {"status": "ok", "deleted": video_id, "frames_removed": len(frames)}
+
+
 @app.get("/api/consent")
 def get_consent(db: Session = Depends(get_session)) -> dict:
     """One-time photo consent state (2026-10-01: cloud-only, consent asked once).

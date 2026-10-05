@@ -25,7 +25,7 @@ export function useInsightActions(cid: string, reload: () => void): InsightActio
     api
       .deleteInsight(cid, insight.id)
       .then(reload)
-      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`刪除失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   return { removeInsight }

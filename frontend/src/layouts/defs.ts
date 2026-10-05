@@ -16,6 +16,8 @@ export interface ShellProps {
   onDeleteConversation: (c: Conversation) => void
   onSend: (text: string, photos: { id: string; path: string }[]) => void
   onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
+  /** 「重試」一則送出失敗嘅訊息（audit §7）：重用原句再送，唔會多出一條。 */
+  onRetryMessage: (conversationId: string, msgId: string) => void
 }
 
 /** 新結構 shell 內部嘅 scene（home 係各 shell 自己嘅主畫面）。 */

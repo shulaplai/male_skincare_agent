@@ -23,7 +23,7 @@ export function useEntryActions(cid: string, reload: () => void): EntryActions {
     api
       .editEntryNote(cid, entry.id, note)
       .then(reload)
-      .catch((e: Error) => toast(`儲存失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`儲存失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   const removeEntry = async (entry: RecordEntry) => {
@@ -37,7 +37,7 @@ export function useEntryActions(cid: string, reload: () => void): EntryActions {
     api
       .deleteEntry(cid, entry.id)
       .then(reload)
-      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`刪除失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   const removePhoto = async (entry: RecordEntry, photoPath: string) => {
@@ -53,7 +53,7 @@ export function useEntryActions(cid: string, reload: () => void): EntryActions {
     api
       .deleteEntryPhoto(entry.id, photoId)
       .then(reload)
-      .catch((e: Error) => toast(`刪相失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`刪相失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   return { saveNote, removeEntry, removePhoto }

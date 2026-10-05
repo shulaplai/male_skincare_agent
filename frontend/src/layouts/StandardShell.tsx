@@ -69,6 +69,7 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
                 loading={p.loadingThread}
                 onSelectConversation={p.onSelectConversation}
                 onConfirmEvents={p.onConfirmEvents}
+                onRetryMessage={p.onRetryMessage}
               />
               <RightPanel conversation={active} refreshKey={p.refreshKey} />
             </div>

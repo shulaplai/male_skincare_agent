@@ -3438,3 +3438,27 @@ textarea:focus {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* ---- 失敗氣泡嘅「重試」掣（audit §7）----
+   以前 backend 一死（或者 503），用戶打嘅嗰句就淨係換嚟一句英文錯誤，
+   冇任何方法再送一次。而家原句留住，撳一下就用同一句再試（`retryMessage`）。
+   顏色跟 `.msg.coach.err .bubble` 嘅 `--warn`，一眼睇得出係同一個失敗狀態。 */
+.retry {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s2);
+  min-height: var(--tap);
+  padding: 0 var(--s4);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--warn);
+  font-family: var(--sans);
+  font-size: var(--f-sm);
+  font-weight: 800;
+  cursor: pointer;
+}
+.retry:hover { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.retry .ic { margin-right: 0; }

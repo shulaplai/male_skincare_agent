@@ -37,7 +37,7 @@ export function useSummary(cid: string, refreshKey = 0): SummaryState {
       .catch((e: Error) => {
         if (!alive) return
         setSummary(null)
-        setError(e.message || '載入失敗')
+        setError(api.readableError(e))
       })
       .finally(() => {
         if (alive) setLoading(false)

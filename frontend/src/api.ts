@@ -48,6 +48,22 @@ async function parse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/**
+ * Turn any thrown value into a line that belongs in a Cantonese UI.
+ *
+ * `fetch` rejects with a bare `TypeError: Failed to fetch` when the backend is down, and
+ * that raw English was leaking into the message thread (`出錯：Failed to fetch`). Any
+ * error we did not write ourselves is a bug report waiting to happen, not a sentence to
+ * show; callers get a generic Chinese line and the raw text stays in the console.
+ */
+export function readableError(e: unknown): string {
+  const isOffline = e instanceof TypeError || (e instanceof Error && /fetch|network/i.test(e.message))
+  if (isOffline) return '連唔到後端，檢查 network／backend 起咗未？'
+  const msg = e instanceof Error ? e.message : String(e)
+  // Our own `parse`/XHR errors are already written for the user (`HTTP 503`, 「上傳失敗」…).
+  return /^[A-Za-z]/.test(msg) ? `系統出錯（${msg}）` : msg
+}
+
 export async function listConversations(): Promise<ApiConversation[]> {
   return parse(await fetch('/api/conversations'))
 }
@@ -238,6 +254,17 @@ export async function deleteEntryPhoto(entryId: string, photoId: string): Promis
  */
 export async function deleteUnattachedPhoto(photoId: string): Promise<{ status: string }> {
   return parse(await fetch(`/api/photos/${photoId}`, { method: 'DELETE' }))
+}
+
+/**
+ * Delete a clip the user picked but never sent (issue #27).
+ *
+ * Uploading a clip immediately writes the file, its `Video` row and every sampled frame,
+ * and `sweep_orphan_photos` keeps `Video.frames` on purpose (a clip waiting to be sent
+ * must keep them) — so nothing cleaned up after 「撳 ×」 except deleting the conversation.
+ */
+export async function deleteUnattachedVideo(videoId: string): Promise<{ status: string }> {
+  return parse(await fetch(`/api/videos/${videoId}`, { method: 'DELETE' }))
 }
 
 export async function deleteInsight(cid: string, insightId: string): Promise<{ status: string }> {

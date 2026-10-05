@@ -253,6 +253,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                 loading={p.loadingThread}
                 onSelectConversation={p.onSelectConversation}
                 onConfirmEvents={p.onConfirmEvents}
+                onRetryMessage={p.onRetryMessage}
               />
             </div>
           </div>

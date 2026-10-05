@@ -26,7 +26,7 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
       .then((s) => setEntries(s.entries))
       .catch((e: Error) => {
         setEntries([])
-        setError(e.message || '載入失敗')
+        setError(api.readableError(e))
       })
       .finally(() => setLoading(false))
   }, [conversation.id])
@@ -46,7 +46,7 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
         reload()
         toast('筆記已更新')
       })
-      .catch((err: Error) => toast(`儲存失敗：${err.message}`, { tone: 'err' }))
+      .catch((err: Error) => toast(`儲存失敗：${api.readableError(err)}`, { tone: 'err' }))
   }
 
   const onDeleteEntry = async (e: RecordEntry) => {
@@ -63,7 +63,7 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
         reload()
         toast(`已刪除 ${e.date} 嘅紀錄`)
       })
-      .catch((err: Error) => toast(`刪除失敗：${err.message}`, { tone: 'err' }))
+      .catch((err: Error) => toast(`刪除失敗：${api.readableError(err)}`, { tone: 'err' }))
   }
 
   /* Photo row id == 檔名 id（route 按 path 搵 row）。 */
@@ -82,7 +82,7 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
         reload()
         toast('已刪除呢張相')
       })
-      .catch((err: Error) => toast(`刪相失敗：${err.message}`, { tone: 'err' }))
+      .catch((err: Error) => toast(`刪相失敗：${api.readableError(err)}`, { tone: 'err' }))
   }
 
   return (

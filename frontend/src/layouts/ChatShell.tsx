@@ -65,6 +65,7 @@ export function ChatShell(p: ShellProps) {
             loading={p.loadingThread}
             onSelectConversation={p.onSelectConversation}
             onConfirmEvents={p.onConfirmEvents}
+            onRetryMessage={p.onRetryMessage}
           />
           <RightPanel conversation={active} refreshKey={p.refreshKey} />
         </>

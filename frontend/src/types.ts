@@ -41,6 +41,16 @@ export interface DetectedEvent {
   product_name?: string
 }
 
+/**
+ * 送一次 consult 要嘅嘢，原句保留到失敗為止 —— 「重試」就係用返同一個 payload。
+ * 相用 id（`/api/consult` 收 `photo_ids`），唔需要 `path`。
+ */
+export interface ConsultAttempt {
+  text: string
+  photos: string[]
+  video?: { duration: number; frames: number }
+}
+
 export interface Message {
   id: string
   role: 'user' | 'coach'
@@ -57,6 +67,10 @@ export interface Message {
   events?: DetectedEvent[]
   pending?: boolean
   error?: boolean
+  /** 錯誤氣泡指向佢失敗咗嘅用戶訊息（撳「重試」時重用返嗰條，唔會出多一條）。 */
+  retryOf?: string
+  /** 失敗／離線時留住原句：backend 一返嚟就可以原句重送（audit §7）。 */
+  retry?: ConsultAttempt
 }
 
 export interface MemoryItem {

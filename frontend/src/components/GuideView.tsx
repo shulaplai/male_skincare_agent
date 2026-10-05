@@ -193,7 +193,7 @@ export function GuideView({ onBack }: { onBack?: () => void }) {
         setGuide(g)
         setActive(g.sections[0]?.id ?? '')
       })
-      .catch((e: Error) => alive && setError(e.message || '載入失敗'))
+      .catch((e: Error) => alive && setError(api.readableError(e)))
     return () => {
       alive = false
     }

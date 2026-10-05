@@ -103,7 +103,7 @@ export function RightPanel({ conversation, refreshKey }: Props) {
         load()
         toast('已刪除呢條記憶')
       })
-      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`刪除失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   return (

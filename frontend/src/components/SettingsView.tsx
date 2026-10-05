@@ -31,7 +31,7 @@ export function SettingsView(props: Props) {
     api
       .getSettings()
       .then(setSettings)
-      .catch((e: Error) => setSettingsErr(e.message))
+      .catch((e: Error) => setSettingsErr(api.readableError(e)))
     api
       .health()
       .then(() => setConn('ok'))

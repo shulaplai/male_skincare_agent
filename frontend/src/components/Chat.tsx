@@ -6,6 +6,7 @@ import { useTheme } from '../theme'
 import { Icon } from './Icon'
 import { Skeleton } from './ui/Skeleton'
 import { BodyPartMenu } from './ui/BodyPartMenu'
+import { greeting } from '../format'
 
 interface Props {
   conversation: Conversation
@@ -17,6 +18,8 @@ interface Props {
   online: boolean
   onSelectConversation: (id: string) => void
   onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
+  /** 送失敗／離線嗰句可以原句重試（audit §7）——以前用戶打嘅字冇咗下文。 */
+  onRetryMessage: (conversationId: string, msgId: string) => void
 }
 
 function splitAdvice(a: string): { lead: string; rest: string } {
@@ -61,10 +64,12 @@ function Bubble({
   m,
   onConfirm,
   onMediaLoad,
+  onRetry,
 }: {
   m: Message
   onConfirm?: (msgId: string, evs: DetectedEvent[]) => void
   onMediaLoad?: () => void
+  onRetry?: (msgId: string) => void
 }) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
   /* ⚠️ class 名唔可以照抄 role：CSS 嘅左右分邊係寫 `.msg.me`（`row-reverse` +
@@ -84,6 +89,11 @@ function Bubble({
           <Icon name="triangle-alert" size={15} /> 呢個情況建議轉介皮膚科醫生
         </div>}
         {m.text}
+        {m.error && m.retry && onRetry && (
+          <button type="button" className="retry" onClick={() => onRetry(m.id)}>
+            <Icon name="refresh-cw" size={13} /> 重試
+          </button>
+        )}
         {m.clip && (
           <span className="clip-bubble" title="已上傳嘅皮膚影片">
             <Icon name="play" size={13} /> 皮膚影片{m.clip.duration ? ` · ${m.clip.duration.toFixed(0)} 秒` : ''}
@@ -141,8 +151,11 @@ export function Chat({
   online,
   onSelectConversation,
   onConfirmEvents,
+  onRetryMessage,
 }: Props) {
   const { toggle } = useTheme()
+  /* 問候語每次 render 重算：用戶可能開住個 app 由朝早坐到夜晚。 */
+  const hello = greeting()
   const [draft, setDraft] = useState('')
   const [attached, setAttached] = useState<{ id: string; path: string }[]>([])
   const [uploading, setUploading] = useState(false)
@@ -150,6 +163,8 @@ export function Chat({
   /* 用戶上傳嘅片：UI 上係「一條片 + 上載進度」。⛔️ 唔會顯示「抽咗 6 張相」、
      壓縮、格數呢啲內部實作（2026-10-01 決定）。`frames` 只用嚟內部送出。 */
   const [clip, setClip] = useState<{
+    /** server 嘅片 id：放棄條片時要佢先刪得到 disk 上面嘅檔案（issue #27） */
+    videoId: string | null
     url: string
     name: string
     duration: number
@@ -162,6 +177,10 @@ export function Chat({
      *  之前見到 media error 其實係我自己嘅測試檔係 0 byte（見 AGENTS.md）。 */
     previewFailed: boolean
   } | null>(null)
+  /* 換 conversation 嘅 effect 只可以依賴 `conversation.id`（加 `clip` 會令佢每次狀態變就
+     行），所以用 ref 拎最新嘅片 id 去刪上一個部位放棄咗嘅片。 */
+  const clipIdRef = useRef<string | null>(null)
+  clipIdRef.current = clip?.videoId ?? null
   const fileRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -204,6 +223,10 @@ export function Chat({
     setAttached([])
     setUploading(false)
     setUploadErr(null)
+    // 轉部位＝放棄未送出嘅片，同「撳 ×」一樣要真刪：相有 24 小時 sweep 包底，片冇
+    // （issue #27）。
+    const stranded = clipIdRef.current
+    if (stranded) api.deleteUnattachedVideo(stranded).catch(() => {})
     setClip(null)
   }, [conversation.id])
 
@@ -233,9 +256,19 @@ export function Chat({
     fonts?.ready.then(() => pinToBottom()).catch(() => {})
   }, [])
 
+  /** 放棄未送出嘅片一定要真刪：`sweep_orphan_photos` 刻意保住 `Video.frames`，所以
+   *  呢個係唯一嘅網（issue #27 —— 以前淨係 `setClip(null)`，條片、`Video` row 同啲格
+   *  就留到成個對話被刪為止）。失敗唔擋用戶：唔通就係個檔留多陣。 */
+  const dropClip = () => {
+    const id = clip?.videoId
+    if (id) api.deleteUnattachedVideo(id).catch(() => {})
+    setClip(null)
+  }
+
   const submit = () => {
     const t = draft.trim()
-    if (!t && attached.length === 0) return
+    // 一條片自己都算內容：以前淨係掛咗片、冇打字就撳發送會靜靜地冇反應。
+    if (!t && attached.length === 0 && !clip) return
     if (sending || uploading) return
     // 片：用戶睇到嘅係一條片，所以文字同 UI 都唔會提「抽咗幾多張相」
     const fallback = clip ? '（已上傳皮膚影片）' : '（已上傳皮膚相）'
@@ -254,16 +287,29 @@ export function Chat({
     // those photos are what the agent sees. `video/quicktime` (iPhone) has no extension
     // match for `accept`, so the MIME type is the check, not the filename.
     if (f.type.startsWith('video/')) {
+      // 換另一條片＝原本嗰條已經放棄，同「撳 ×」一樣要真刪（issue #27）。
+      if (clip?.videoId) api.deleteUnattachedVideo(clip.videoId).catch(() => {})
       // 本地預覽：上載期間用戶見到自己嗰條片同進度，唔會只係呆等（用戶回報）。
       const url = URL.createObjectURL(f)
-      setClip({ url, name: f.name, duration: 0, frames: [], state: 'uploading', pct: null, previewFailed: false })
+      setClip({
+        videoId: null,
+        url,
+        name: f.name,
+        duration: 0,
+        frames: [],
+        state: 'uploading',
+        pct: null,
+        previewFailed: false,
+      })
       api
         .uploadVideo(conversation.id, f, (pct) => setClip((c) => (c ? { ...c, pct } : c)))
         .then((v) =>
-          setClip((c) => (c ? { ...c, duration: v.duration, frames: v.frames, state: 'ready', pct: null } : c)),
+          setClip((c) =>
+            c ? { ...c, videoId: v.video_id, duration: v.duration, frames: v.frames, state: 'ready', pct: null } : c,
+          ),
         )
         .catch((err: Error) => {
-          setUploadErr(err.message || '上傳失敗')
+          setUploadErr(api.readableError(err))
           setClip(null)
         })
         .finally(() => setUploading(false))
@@ -271,7 +317,7 @@ export function Chat({
       api
         .uploadPhoto(f)
         .then((p) => setAttached((prev) => [...prev, p]))
-        .catch((err: Error) => setUploadErr(err.message || '上傳失敗'))
+        .catch((err: Error) => setUploadErr(api.readableError(err)))
         .finally(() => setUploading(false))
     }
     e.target.value = ''
@@ -308,7 +354,7 @@ export function Chat({
 
       <div className="thread" ref={threadRef} onScroll={onThreadScroll}>
         <div className="hello">
-          <Icon name="sun" size={16} /> 早晨呀，今日{conversation.bodyPart}感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會
+          <Icon name={hello.icon} size={16} /> {hello.text}，今日{conversation.bodyPart}感覺點？可以影張相，或者直接話我知食咗咩、用咗咩，我會
           <b>一路記住</b>幫你追蹤。
         </div>
         {loading && messages.length === 0 && <Skeleton lines={3} />}
@@ -321,6 +367,7 @@ export function Chat({
                 m={m}
                 onConfirm={(mid, evs) => onConfirmEvents(conversation.id, mid, evs)}
                 onMediaLoad={pinToBottom}
+                onRetry={(mid) => onRetryMessage(conversation.id, mid)}
               />
             </div>
           )
@@ -404,7 +451,7 @@ export function Chat({
               className="x"
               title="移除"
               aria-label="移除皮膚影片"
-              onClick={() => setClip(null)}
+              onClick={dropClip}
             >
               ×
             </button>

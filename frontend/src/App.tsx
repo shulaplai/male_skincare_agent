@@ -9,7 +9,7 @@ import { Shell } from './layouts/Shells'
 import { ThemeProvider } from './theme'
 import * as api from './api'
 import { fromServerMessage } from './format'
-import type { Conversation, DetectedEvent, Message } from './types'
+import type { ConsultAttempt, Conversation, DetectedEvent, Message } from './types'
 import type { ShellProps } from './layouts/defs'
 
 let localId = 1
@@ -64,7 +64,7 @@ function AppInner() {
     api
       .grantConsent(true)
       .then((r) => setConsent(r.granted))
-      .catch((e: Error) => setConsentErr(e.message || '未知錯誤'))
+      .catch((e: Error) => setConsentErr(api.readableError(e)))
       .finally(() => setConsentBusy(false))
   }, [])
 
@@ -148,47 +148,17 @@ function AppInner() {
     setActiveId(conv.id)
   }
 
-  const sendMessage = (
-    text: string,
-    photos: { id: string; path: string }[],
-    video?: { duration: number; frames: number },
-  ) => {
-    if (!active) return
-    if (sending) return // guard against double-submit while a consult is running
-    const cid = active.id
-    const pid = photos[0]?.id
-    const userMsg: Message = {
-      id: local(),
-      role: 'user',
-      text,
-      time: '現在',
-      date: new Date().toISOString().slice(0, 10),
-      // 片：只出「🎬 皮膚影片」chip；抽格出嚟嘅相唔會顯示（內部實作）
-      clip: video ? { duration: video.duration } : undefined,
-      photo: !video && pid ? `/api/photos/${pid}` : undefined,
-      pending: true,
-    }
-    setMessages((prev) => ({ ...prev, [cid]: [...(prev[cid] ?? []), userMsg] }))
-
-    if (!online) {
-      // Offline fallback: echo locally, clearly marked (no fake demo content).
-      window.setTimeout(() => {
-        const reply: Message = {
-          id: local(),
-          role: 'coach',
-          text: '後端未連線：訊息只記錄喺呢個 session，未存入日記。請起返 backend 再試。',
-          time: '現在',
-          date: new Date().toISOString().slice(0, 10),
-          error: true,
-        }
-        setMessages((prev) => ({ ...prev, [cid]: [...(prev[cid] ?? []).filter((x) => x.id !== userMsg.id), { ...userMsg, pending: false }, reply] }))
-      }, 400)
-      return
-    }
-
+  /**
+   * 送一次 consult：成功就入分析氣泡，失敗就入錯誤氣泡（帶返 `retry`，所以用戶
+   * 撳「重試」可以原句再送，唔使重新打過）。
+   *
+   * 失敗句以前係 `出錯：${e.message}`，backend 一死就漏 `Failed to fetch` 呢啲英文
+   * 原文入廣東話對話 —— 而家一律經 `api.readableError`（audit §7）。
+   */
+  const runConsult = (cid: string, payload: ConsultAttempt, userMsg: Message) => {
     setSending(true)
     api
-      .consult(cid, text, photos.map((p) => p.id), video)
+      .consult(cid, payload.text, payload.photos, payload.video)
       .then((res) => {
         const reply: Message = {
           id: local(),
@@ -208,14 +178,16 @@ function AppInner() {
         }))
         setRefreshKey((k) => k + 1)
       })
-      .catch((e: Error) => {
+      .catch((e: unknown) => {
         const reply: Message = {
           id: local(),
           role: 'coach',
-          text: `出錯：${e.message || '未知錯誤'}`,
+          text: `出錯：${api.readableError(e)}`,
           time: '現在',
           date: new Date().toISOString().slice(0, 10),
           error: true,
+          retryOf: userMsg.id,
+          retry: payload,
         }
         setMessages((prev) => ({
           ...prev,
@@ -223,6 +195,78 @@ function AppInner() {
         }))
       })
       .finally(() => setSending(false))
+  }
+
+  /** 離線：照 echo，但明講冇存到，一樣留返「重試」掣（起返 backend 就送得出）。 */
+  const offlineReply = (cid: string, userMsg: Message, payload: ConsultAttempt) => {
+    window.setTimeout(() => {
+      const reply: Message = {
+        id: local(),
+        role: 'coach',
+        text: '後端未連線：訊息只記錄喺呢個 session，未存入日記。請起返 backend 再試。',
+        time: '現在',
+        date: new Date().toISOString().slice(0, 10),
+        error: true,
+        retryOf: userMsg.id,
+        retry: payload,
+      }
+      setMessages((prev) => ({
+        ...prev,
+        [cid]: [...(prev[cid] ?? []).filter((x) => x.id !== userMsg.id), { ...userMsg, pending: false }, reply],
+      }))
+    }, 400)
+  }
+
+  const sendMessage = (
+    text: string,
+    photos: { id: string; path: string }[],
+    video?: { duration: number; frames: number },
+  ) => {
+    if (!active) return
+    if (sending) return // guard against double-submit while a consult is running
+    const cid = active.id
+    const pid = photos[0]?.id
+    const payload: ConsultAttempt = { text, photos: photos.map((p) => p.id), video }
+    const userMsg: Message = {
+      id: local(),
+      role: 'user',
+      text,
+      time: '現在',
+      date: new Date().toISOString().slice(0, 10),
+      // 片：只出「🎬 皮膚影片」chip；抽格出嚟嘅相唔會顯示（內部實作）
+      clip: video ? { duration: video.duration } : undefined,
+      photo: !video && pid ? `/api/photos/${pid}` : undefined,
+      pending: true,
+    }
+    setMessages((prev) => ({ ...prev, [cid]: [...(prev[cid] ?? []), userMsg] }))
+    if (!online) {
+      // Offline fallback: echo locally, clearly marked (no fake demo content).
+      offlineReply(cid, userMsg, payload)
+      return
+    }
+    runConsult(cid, payload, userMsg)
+  }
+
+  /** 「重試」：重用原本嗰條用戶訊息（唔會出多一條），清走舊錯誤氣泡再送一次。 */
+  const retryMessage = (cid: string, errMsgId: string) => {
+    if (sending) return
+    const errMsg = (messages[cid] ?? []).find((m) => m.id === errMsgId)
+    const payload = errMsg?.retry
+    const userId = errMsg?.retryOf
+    if (!payload || !userId) return
+    const target = (messages[cid] ?? []).find((m) => m.id === userId)
+    if (!target) return
+    setMessages((prev) => ({
+      ...prev,
+      [cid]: (prev[cid] ?? [])
+        .filter((m) => m.id !== errMsgId)
+        .map((m) => (m.id === userId ? { ...m, pending: true } : m)),
+    }))
+    if (!online) {
+      offlineReply(cid, target, payload)
+      return
+    }
+    runConsult(cid, payload, target)
   }
 
   const confirmEvents = (cid: string, msgId: string, events: DetectedEvent[]) => {
@@ -240,7 +284,7 @@ function AppInner() {
         }))
         setRefreshKey((k) => k + 1)
       })
-      .catch((e: Error) => toast(`記低失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`記低失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   const renameConversation = (c: Conversation) => {
@@ -259,7 +303,7 @@ function AppInner() {
         setConversations((prev) => prev.map((x) => (x.id === c.id ? { ...x, bodyPart: r.body_part } : x)))
         toast(`已改名做「${r.body_part}」`)
       })
-      .catch((e: Error) => toast(`改名失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`改名失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   const deleteConv = async (c: Conversation) => {
@@ -284,7 +328,7 @@ function AppInner() {
         setRefreshKey((k) => k + 1)
         toast(`已刪除「${c.bodyPart}」`)
       })
-      .catch((e: Error) => toast(`刪除失敗：${e.message}`, { tone: 'err' }))
+      .catch((e: Error) => toast(`刪除失敗：${api.readableError(e)}`, { tone: 'err' }))
   }
 
   if (consent === false) {
@@ -315,6 +359,7 @@ function AppInner() {
     onDeleteConversation: deleteConv,
     onSend: sendMessage,
     onConfirmEvents: confirmEvents,
+    onRetryMessage: retryMessage,
   }
 
   return (

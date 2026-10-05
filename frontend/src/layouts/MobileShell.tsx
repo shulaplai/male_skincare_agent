@@ -61,6 +61,7 @@ export function MobileShell({ p, tabs }: Props) {
             loading={p.loadingThread}
             onSelectConversation={p.onSelectConversation}
             onConfirmEvents={p.onConfirmEvents}
+            onRetryMessage={p.onRetryMessage}
           />
         )}
         {scene === 'records' && <RecordsView conversation={active} />}
