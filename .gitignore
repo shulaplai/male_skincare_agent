@@ -27,3 +27,6 @@ frontend/playwright-report/
 
 # DSH vision 工具嘅 artifact（唔係專案內容）
 .dsh-vision-router/
+
+# learn/ 教材嘅 HTML 預覽係產生嘅（睇法：./backend/.venv/bin/python learn/preview.py）
+learn/_preview/
