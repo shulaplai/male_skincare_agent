@@ -146,6 +146,13 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
         return {
             "analysis": analysis.model_dump(),
             "vision_used": vision,
+            # Declared into state, not only into the trace detail below:
+            # `build_advise_prompt` reads it to decide whether the model may claim to
+            # have seen a photo, and to add the「下次影相／拍片」nudge on a non-first
+            # text-only check-in. It lived in the trace alone for a while, so both
+            # reads silently saw `None` on the real path while the prompt tests passed
+            # by constructing the key themselves (state.py has the full note).
+            "vision_reason": vision_reason,
             "trace": [
                 _step(
                     "analyze",

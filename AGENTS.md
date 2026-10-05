@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 275 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 278 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -45,7 +45,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 275 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 278 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -189,6 +189,10 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
   `--accent-deep` / `--bg` token，改 token 要重跑。Maskable 安全圈（中央 80%）要量過（現時 203.3 < 204.8）。
 - **AI 抽出嘅自報事件一定要 persist 落 coach payload**（issue #22）：`Advice.detected_events`（diet／product_start／product_stop）係飲食／產品嘅**唯一入口**，用戶只會順口講。`persist` 要寫入 `ChatMessage.payload["detected_events"]`，`format.ts` 要 restore 返 —— 以前只存在 browser live state，reload 就冇，用戶永遠確認唔到，因果時間線亦冇料。另外確認之後要標 `payload["events_applied"]`（`main._mark_events_applied`：有 `message_id` 用 id，session 內新訊息用事件內容配對），否則 reload 會再出同一個 chip，撳兩次就寫兩次。
 - **`RECORDING_GUIDE` 嘅文字有兩份**：`app/agent/prompts.py`（AI 喺對話講）同 `app/guide.py`「點樣記錄最準確」一節（app 內指南）。兩邊講同一件事 —— **改一邊要改另一邊**。當中「拍片／講出嚟嘅聲唔會記錄」係產品事實（抽格會丟音軌），唔可以為咗好聽而刪。
+  ⚠️ **`build_advise_prompt` 讀 `state["vision_reason"]`，所以 `analyze` 一定要將佢寫入 state**（唔可以只放入 trace detail）。2026-10-05 實測：佢本來只存在於 trace，`AgentState` 完全冇聲明過，所以 `state.get("vision_reason")` 喺真路徑永遠係 `None` ——「非首次純文字打卡就提佢下次影相／拍片」呢個 nudges **從來冇去到 model**，而 `AGENTS.md` 一路當佢有效。同時 `saw_photo` 嗰句靜靜降級成 `bool(vision_used)`。
+  點解 test 捉唔到：`test_prompt_recording_guide.py` 同 `test_prompt_photo_claims.py` 係用**手砌嘅 state dict**（裏面已經有 `vision_reason`）去 call prompt 函數 —— 佢哋證明「格式正確」，但從來冇檢查有冇人寫入過嗰個 key。**呢個係同上面兩條 eval 陷阱一模一樣嘅形狀：test 自己造出 production 永遠造唔出嘅嘢。**
+  網：`tests/test_vision_reason_state.py` —— 行真 `graph.invoke`，用一個會記錄 prompt 嘅 stub 去斷言 nudges 真係出現（同埋首次打卡**唔**應該出現）。已驗證會紅：拎走 `analyze` 嗰行 `"vision_reason": ...` → 2 個 test 即刻紅，訊息直接講「analyze 冇將 vision_reason 寫入 state」。
+  ⚠️ 寫 assert 之前先問：「我係唔係自己造咗個 production 造唔出嘅輸入？」同類真例子：`tests/test_upload_errors.py` 嗰句 `assert not list(...) if dir.exists() else True` 因為條件表達式優先次序而**永遠唔會紅**（已改成先斷言目錄狀態、再斷言內容）。
 - **Chat bubble 嘅 class 名唔可以照抄 `role`**：`role` 係 `user|coach`，但 CSS 嘅左右分邊係 `.msg.me`（`row-reverse` + `margin-left: auto`）／`.a.me`。直接寫 `msg ${m.role}` 會出 `msg user`，**永遠 match 唔到** —— 實測 390px 全部 bubble 都由 x=57 開始，用戶自己講嘅嘢同 AI 一樣靠左。`Chat.tsx` 一定要做 `role → me/coach` mapping。
 - **`.thread` 係內部 scroll 容器，唔係 window scroll**：所以 `Chat.tsx` 要自己「跟住最新一句」（`useLayoutEffect` ＋ `onScroll` pinned ＋ `<img onLoad>`——相係 async 載入，載入完 scrollHeight 又變，唔重新 pin 就會停喺中間）。用戶自己向上睇歷史時**唔可以**搶佢位置。
 - **高度鏈用 `html, body, #root, .app { height: 100% }`，唔用 `100dvh`**（2026-10-01 改）：dvh 係動態值，Chrome Android 喺 nested scroller（我哋 `.thread`）捲動時會收起 URL bar、dvh 跟住變，而 app 本身唔 scroll（`overflow: hidden`）→ re-layout 落後，底部 tab bar 下面就出現一條空位（用戶回報）。`%` 鏈跟 layout viewport 就唔會變。`viewport-fit=cover` 照留（`env(safe-area-inset-*)` 要用）。
@@ -255,4 +259,6 @@ Issues 同 spec 住喺 GitHub Issues（`shulaplai/male_skincare_agent`），一�
 
 ### Domain docs
 
-**Single-context**：`CONTEXT.md` + `docs/adr/` 喺 repo root（冇 monorepo signals）。See `docs/agents/domain.md`。⚠️ `CONTEXT.md` 同 `docs/adr/` **而家仲未有** —— `/domain-modeling` 會 lazily 建立。喺佢存在之前，domain 詞彙嘅實情係散落喺呢個檔（見 `docs/agents/domain.md` 最後一節：規則同歷史混埋一齊）。
+**Single-context**：`CONTEXT.md`（39 個詞、44 個 `_Avoid_` 清單）＋ `docs/adr/0001-0010` 喺 repo root，2026-10-05 用 `/domain-modeling` 建好。See `docs/agents/domain.md`。
+⚠️ **寫新 code 之前先讀 `CONTEXT.md` 嘅 `_Avoid_` 清單**：每一個都係呢個 repo 真嘅撞過嘅混淆（`Metric` 唔係 `Attribute`；`scene` 唔係 `tab`；`severity` 唔係分數；一條片唔係六張相；consent 唔等於模糊）。`docs/adr/` 係**唔應該再被重新討論**嘅決定 —— 同 ADR 衝突就要明講，唔可以靜靜做返相反嘅事。
+⚠️ `AGENTS.md` 呢個「陷阱」列表係**歷史**（真撞過嘅 bug），唔係規則；兩者以前混埋一齊，所以 `CONTEXT.md` 最後嗰節特別列出「呢個 domain 唔存在嘅嘢」。

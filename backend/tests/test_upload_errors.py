@@ -59,7 +59,17 @@ def test_photo_upload_is_415_not_500(tmp_path, monkeypatch):
     assert "HEIC" in detail, detail
     assert "最相容" in detail, "the message must tell the user what to do"
     # Nothing half-written is left behind for a rejected upload.
-    assert not list((tmp_path / "photos").glob("*.jpg")) if (tmp_path / "photos").exists() else True
+    #
+    # ⚠️ 呢句本來係 `assert not list(...) if exists() else True` —— 條件表達式嘅
+    # 優先次序令目錄唔存在時成句等於 `assert True`，即係**永遠唔會紅**。而「目錄
+    # 唔存在」正好就係「乜都冇寫低」嘅情況，所以佢喺最需要檢查嘅時候靜靜通過。
+    # 寫法：先斷言目錄狀態，再斷言內容。
+    photos = tmp_path / "photos"
+    leftovers = list(photos.glob("*.jpg")) if photos.exists() else []
+    assert leftovers == [], f"rejected upload left files behind: {leftovers}"
+    assert not photos.exists() or not any(photos.iterdir()), (
+        "被拒嘅上載唔應該喺 disk 留低任何嘢（包括非 .jpg）"
+    )
 
 
 # ---------------------------------------------------------------------------

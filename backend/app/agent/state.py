@@ -26,6 +26,17 @@ class AgentState(TypedDict, total=False):
     # cloud analysis. analyze refuses to send photos when it is False.
     cloud_analysis: bool
     vision_used: bool
+    # *Why* vision did or did not contribute: `photo_unreadable | vision_error | used |
+    # consent_off | fake_llm | no_photo`. Declared here because two consumers read it —
+    # `build_advise_prompt` decides whether the model may claim to have seen a photo,
+    # and whether a non-first text-only check-in gets the「下次影相／拍片」nudge.
+    #
+    # ⚠️ It used to be computed in `analyze` and dropped into the **trace detail
+    # only**, never returned into state. So `state.get("vision_reason")` was always
+    # `None` on the real path (the nudge never reached the model, and AGENTS.md
+    # documented it as working), while the prompt tests passed because they
+    # hand-built the key in a dict. Declaring it makes write and reads drift-proof.
+    vision_reason: str
     # 用戶上傳嘅係一段短片（唔係相）：`{"duration": 12.4, "frames": 6}`。
     # 前端／主觀上係「一條片」——抽格係內部實作，prompt 要講「條片」而唔好數格。
     clip: dict | None
