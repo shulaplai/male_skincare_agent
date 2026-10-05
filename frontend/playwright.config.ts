@@ -35,9 +35,15 @@ export default defineConfig({
     launchOptions: { args: ['--force-color-profile=srgb', '--font-render-hinting=none'] },
   },
   webServer: {
-    command: 'npx vite --port 5180 --strictPort',
+    // `--host 127.0.0.1` 唔可以省：喺 GitHub runner 上面 `localhost` 會解析成 ::1，
+    // vite 就只會 bind IPv6，而 Playwright 係 poll 127.0.0.1（CI 第一次跑就係咁樣
+    // 60 秒 timeout）。寫死 IPv4，兩邊環境都一樣。
+    command: 'npx vite --host 127.0.0.1 --port 5180 --strictPort',
     url: 'http://127.0.0.1:5180',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    // CI 冷機第一次 compile 得比較慢；本機 227ms 起好，畀 2 分鐘保險。
+    timeout: 120_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
