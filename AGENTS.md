@@ -241,8 +241,18 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - Debug／observability：`state["trace"]` + `graph.stream()` + `/api/consult` 回 trace + `data/runs.jsonl`（`POST /api/consult` 同 `trace_consult.py` 都寫；`run_log_enabled` 預設 True，路徑 `./data/runs.jsonl` 跟 CWD）；`scripts/trace_consult.py` 一 command 睇 5 個 node；靜默失敗（vision／tool／embedder fallback）已改為 log + trace；`prompts.TOOL_GUIDE` 修好「真 LLM 唔識叫 tool」嘅結構性 bug（見 status #26）。
 - UI 結構四選一（層面：介面結構）：`chat`（原本）／`journal`（皮膚日記 feed）／`dash`（進度儀表板）／`mobile`（手機版，**窄屏 ≤760px 自動**）—— Settings「介面結構」揀，`localStorage skc-layout` persist，`?layout=chat|journal|dash|mobile` 可 preview；四套共用同一批 view 元件（Chat / RecordsView / ProgressView / SettingsView + blocks），feature parity（詳 status-vs-claims #25）。手機版樣式揀咗 `design/mobile-1-soft-cards.html`（「柔卡」）；窄屏自動切換同桌面無回歸都用 CDP 實測過。
 
-## Agent skills（issue tracker）
+## Agent skills
 
-- **Issue tracker**：`docs/agents/issue-tracker.md` —— 呢個 repo 嘅 issue 住喺 GitHub Issues（`shulaplai/male_skincare_agent`），一律用 `gh` CLI。`/wayfinder` 嘅 map／ticket／blocking／frontier 操作寫喺該檔嘅「Wayfinding operations」一節（map ＝ `wayfinder:map` label 嗰個 issue，tickets 係佢嘅 sub-issues，blocking 用 GitHub native dependencies）。
-- **Wayfinder map**：`gh issue list --label wayfinder:map` 搵得到。而家有一個 in-flight 嘅 effort 喺度逐行審計 `docs/status-vs-claims.md` 嘅 claim —— **改 claims 表之前，先睇該 map 嘅 Decisions-so-far**，唔好當表上嘅 ✅ 已經獨立驗證過。
-- **未 configure 嘅部分**：`/setup-matt-pocock-skills` 未跑齊，所以 triage label 詞彙（`docs/agents/triage-labels.md`）同 domain docs（`CONTEXT.md` + `docs/adr/`）仲未有。要用 `/triage` 或者 domain-modeling 就補跑。
+### Issue tracker
+
+Issues 同 spec 住喺 GitHub Issues（`shulaplai/male_skincare_agent`），一律用 `gh` CLI。See `docs/agents/issue-tracker.md`（連 `/wayfinder` 嘅 map／ticket／blocking／frontier 操作）。
+
+**Wayfinder map**：`gh issue list --label wayfinder:map` 搵得到。而家有一個 in-flight 嘅 effort 喺度逐行審計 `docs/status-vs-claims.md` 嘅 claim —— **改 claims 表之前，先睇該 map 嘅 Decisions-so-far**，唔好當表上嘅 ✅ 已經獨立驗證過。
+
+### Triage labels
+
+五個 canonical triage role 用**預設名**（`needs-triage`／`needs-info`／`ready-for-agent`／`ready-for-human`／`wontfix`）。See `docs/agents/triage-labels.md`。⚠️ 呢批同 GitHub 預設嘅 `bug`／`enhancement` 係兩套嘢，唔好混。
+
+### Domain docs
+
+**Single-context**：`CONTEXT.md` + `docs/adr/` 喺 repo root（冇 monorepo signals）。See `docs/agents/domain.md`。⚠️ `CONTEXT.md` 同 `docs/adr/` **而家仲未有** —— `/domain-modeling` 會 lazily 建立。喺佢存在之前，domain 詞彙嘅實情係散落喺呢個檔（見 `docs/agents/domain.md` 最後一節：規則同歷史混埋一齊）。
