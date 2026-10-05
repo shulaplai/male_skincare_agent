@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -23,7 +23,7 @@ from app.agent.schemas import DetectedEvent, ProductNarrative
 from app.agent.service import run_consult
 from app.config import settings
 from app.db import get_session, init_db
-from app.export import export_zip, import_zip
+from app.export import import_zip, iter_export_zip
 from app.guide import build_guide
 from app.models import (
     ChatMessage,
@@ -137,9 +137,16 @@ def health() -> dict:
 
 @app.get("/api/export")
 def export() -> Response:
-    """Download the full local record (SQLite + photos) as a zip."""
-    return Response(
-        content=export_zip(),
+    """Download the full local record (SQLite + photos + clips) as a zip.
+
+    Streams from a temp file. It used to hand `Response` the whole archive from
+    `io.BytesIO` — so with the embedder cache living inside `data/` the body was ~1 GB,
+    built in RAM and then copied again by `getvalue()`. Measured: the route returned
+    **0 bytes in 45 s**. `app.export.iter_export_zip` also skips the model caches; the
+    module docstring has the numbers.
+    """
+    return StreamingResponse(
+        iter_export_zip(),
         media_type="application/zip",
         headers={"Content-Disposition": "attachment; filename=skincoach.zip"},
     )

@@ -13,6 +13,13 @@ const LAYOUTS = ['chat', 'journal', 'dash', 'mobile'] as const
 const SCENES = ['home', 'chat', 'records', 'progress', 'settings', 'guide'] as const
 
 async function settle(page: import('@playwright/test').Page, query: string) {
+  /* ⚠️ 先凍結「今日」再導覽 —— 唔做嘅話 snapshot 會**隨住真實日期腐爛**。
+     實測：baseline 係 2026-10-01 影嘅，當時 fixture 嗰日就係「今日」，所以
+     `MobileHome`／`JournalHome` 個日期 chip 出「今天 · 星期四」；到 10-05 再跑就變成
+     「2026-10-01 · 星期四」→ 3 個 snapshot 無故紅燈，同你改咗咩完全無關。
+     `setFixedTime` 令 `Date.now()`／`new Date()` 固定，但**timer 照跑**（唔似
+     `clock.install()` 會停），所以 webfont／動效嗰啲 timeout 唔會卡死。 */
+  await page.clock.setFixedTime(new Date('2026-10-01T09:00:00+08:00'))
   await page.goto(query)
   await page.waitForLoadState('networkidle')
   // Webfont 載入完先影：`font-display: swap` 會令文字高度變，影早咗就 flaky（實測 3% 像素差）

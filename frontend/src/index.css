@@ -6,6 +6,17 @@
   padding: 0;
 }
 
+/* 呢個 app 係手機優先，所以兩樣手機細節要明寫：
+   - `touch-action: manipulation`：取消雙擊縮放嘅 300ms 等待，撳掣即刻有反應
+     （實測改之前 `getComputedStyle(body).touchAction === 'auto'`）；
+   - `-webkit-tap-highlight-color`：唔設就會用 WebKit 預設嘅**藍色**高亮
+     （實測 `rgba(51, 181, 229, 0.4)`），同呢個 app 嘅玫瑰／米色系完全撞。
+     收成近乎透明，視覺回饋交返俾 `:active` 同 `:focus-visible`。 */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* 手機 full-screen app 嘅高度鏈：`html → body → #root → .app` 一律 `100%`。
    ⚠️ 唔用 `100dvh`（雖然佢處理 URL bar 最靚）：dvh 係**動態**值，Chrome Android
    喺 nested scroller（即係我哋 `.thread`）捲動時會收起 URL bar、dvh 跟住變，而
@@ -104,6 +115,8 @@ body {
   color: var(--faint);
 }
 .convo-head .add {
+  /* 真 `<button>`（以前係 `<span onClick>`）：reset 瀏覽器 default padding 先置中到「＋」。 */
+  padding: 0;
   width: 24px;
   height: 24px;
   border-radius: 8px;
@@ -124,7 +137,9 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 13px;
+  /* padding 搬咗落 `.convo-open`：咁樣「撳得嘅範圍」就係成行（62px 高），
+     唔係得入面個 40px 內容盒。 */
+  padding: 0;
   border-radius: 14px;
   cursor: pointer;
   border: 1px solid transparent;
@@ -159,6 +174,11 @@ body {
   font-size: var(--f-md);
   font-weight: 700;
   color: var(--text);
+  /* 部位名係用戶自己打嘅，可以好長 → 一定要有 ellipsis，唔好撐爆 sidebar。
+     （配 `.convo-open` 長期留白 58px 俾 rename／delete 兩個掣。） */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .convo.active .name {
   color: var(--accent-deep);
@@ -314,6 +334,12 @@ body {
 /* 通用「切換部位」：以前 ShellTop 嗰個 `.switch` **冇任何 rule**，高度跟 line-height = 22px
    （同一課：唔好以為有 class 就等於有樣式）。 */
 .switch {
+  /* 真 `<button>`（以前係 `<span onClick>`）：reset default，否則 border／background
+     會跟住 OS 主題變。 */
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
@@ -321,7 +347,6 @@ body {
   font-family: var(--mono);
   font-size: var(--f-xs);
   color: var(--muted);
-  cursor: pointer;
   white-space: nowrap;
 }
 .chathead .switch {
@@ -549,6 +574,22 @@ body {
 }
 .photo.thumb .reveal {
   padding: 3px 7px;
+  font-size: var(--f-xs);
+}
+/* 記錄／日記／今日嘅方形縮圖格。**尺寸故意唔喺度定** —— 由外層（`.entry-photos img`、
+   `.jm-photos .photo-cell img`、手機 media query）照舊決定，`<span class="photo">` 係
+   inline-block 所以會貼住張相大細。喺度寫 `width: 100%` 會同外層 selector 打
+   specificity 仗，而且要記住幾時贏幾時輸。 */
+.photo.grid {
+  /* `display: block`：`.photo` base 係 `inline-block`，喺 `.photo-cell` 入面會多出
+     inline-block 嘅 baseline 空隙（實測 cell 86×92 vs wrapper 86×86，即係每格白食
+     6px 高）。grid 版只出現喺 flex 格仔度，block 唔會影響排法。 */
+  display: block;
+  margin-top: 0;
+  border-radius: 10px;
+}
+.photo.grid .reveal {
+  padding: 5px 10px;
   font-size: var(--f-xs);
 }
 .card {
@@ -992,7 +1033,17 @@ body {
   z-index: 30;
 }
 .dropdown-item {
+  /* 真 `<button>`（以前係 `<div onClick>`，鍵盤完全撳唔到）—— reset 到一樣嘅樣，
+     另加 44px 高嘅觸控目標。 */
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap);
   padding: 9px 11px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
   border-radius: 9px;
   font-size: var(--f-sm);
   cursor: pointer;
@@ -1015,7 +1066,10 @@ body {
   border-radius: 11px;
   border: 1px solid var(--line);
 }
-.attach i {
+.attach .x {
+  /* 真 `<button>`（以前係 `<i onClick>`：鍵盤撳唔到、讀屏冇名）。 */
+  padding: 0;
+  border: 0;
   position: absolute;
   top: -7px;
   right: -7px;
@@ -1240,10 +1294,55 @@ body {
 .metric .v.neutral { color: var(--muted); }
 .chip.neutral { background: var(--panel); color: var(--muted); }
 .convo { position: relative; }
-.convo-actions { display: none; gap: 2px; align-items: center; }
-.convo:hover .convo-actions { display: inline-flex; }
-.convo-actions i { font-style: normal; cursor: pointer; padding: 1px 4px; border-radius: 4px; font-size: var(--f-xs); }
-.convo-actions i:hover { background: var(--panel); }
+/* `.convo-open` 係真 `<button>`（以前成行係 `<div onClick>`，鍵盤／讀屏都用唔到），
+   要 reset 到同以前一模一樣嘅樣，而且撐滿行先保持「撳邊度都揀到」嘅手感。
+   `padding-right` 係**長期**留位俾右邊兩個 action —— 以前 `display:none` → hover 才
+   `inline-flex`，一 hover 就會推走個名（layout shift）。 */
+.convo-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 58px 12px 13px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.convo-actions {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+/* 「改名／刪除」以前係 `<i onClick>`（鍵盤撳唔到）。而家係真 button，用 `opacity`
+   隱藏而唔係 `display:none` —— 唔係嘅話佢哋永遠入唔到 tab order。 */
+.convo-actions button {
+  min-height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 6px;
+  font-size: var(--f-xs);
+  cursor: pointer;
+  opacity: 0;
+}
+.convo:hover .convo-actions button,
+.convo:focus-within .convo-actions button {
+  opacity: 1;
+}
+.convo-actions button:hover { background: var(--panel); color: var(--text); }
 
 /* ---- records: memory-correction actions (Q52) ---- */
 .entry-date { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1271,10 +1370,21 @@ body {
 .photo-cell { position: relative; display: inline-block; }
 .photo-cell img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; display: block; }
 .photo-x {
-  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
-  border-radius: 50%; background: #c0392b; color: var(--card); font-size: var(--f-xs); font-style: normal;
-  display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1;
+  /* 真 `<button>`（以前係 `<i onClick>`，鍵盤完全撳唔到）。視覺上仲係 18px 圓點，
+     但**撳得到嘅範圍係 44×44**：`::before` 畫嗰粒圓點，button 自己撐到 `--tap`。
+     撳錯有得救：`useEntryActions.removePhoto` 一定要經 confirm。 */
+  position: absolute; top: -6px; right: -6px;
+  width: var(--tap); height: var(--tap);
+  padding: 0; border: 0; background: none; cursor: pointer;
 }
+.photo-x::before {
+  content: '×';
+  position: absolute; left: 0; top: 0; width: 18px; height: 18px;
+  border-radius: 50%; background: #c0392b; color: var(--card); font-size: var(--f-xs);
+  font-style: normal;
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+}
+.photo-x:hover::before { background: var(--danger); }
 .hint { font-size: var(--f-xs); color: var(--muted); margin: 4px 0 12px; }
 
 /* ---- global scope + memory delete ---- */
@@ -1284,7 +1394,11 @@ body {
 }
 .mem .t { position: relative; padding-right: 0; display: flex; align-items: center; gap: 4px; }
 .mem-x {
+  /* 真 `<button>`（以前係 `<i onClick>`：鍵盤撳唔到，即係鍵盤用戶修正唔到記憶）。 */
+  border: 0;
+  background: none;
   min-height: var(--tap);
+  min-width: var(--tap);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1623,8 +1737,20 @@ body {
   background: rgba(25, 12, 18, 0.42);
   display: flex;
   justify-content: flex-end;
+
+  /* 蓋住成個畫面嘅 overlay：捲到盡唔好傳落後面嘅頁面（iOS rubber-band）。 */
+  overscroll-behavior: contain;
+}
+.jm-drawer-backdrop {
+  /* 蓋住 veil 嘅隱形真按鈕（撳背景 = 閂 drawer）。 */
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
 }
 .jm-drawer {
+  position: relative;
   width: min(700px, 100%);
   height: 100%;
   background: var(--panel);
@@ -1656,10 +1782,13 @@ body {
   font-size: var(--f-md);
 }
 .jm-drawer-x {
+  /* 真 `<button>`（以前係 `<i onClick>`）。 */
+  padding: 0;
+  border: 0;
   font-style: normal;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: var(--tap);
+  min-height: var(--tap);
   border-radius: 10px;
   display: grid;
   place-items: center;
@@ -2964,6 +3093,10 @@ textarea:focus {
   }
 }
 .clip-chip .x {
+  /* 真 `<button>`（以前係 `<i onClick>`）。 */
+  padding: 0;
+  border: 0;
+  background: none;
   position: absolute;
   top: 0;
   right: 0;
@@ -3064,6 +3197,9 @@ textarea:focus {
   align-items: flex-end;
   z-index: 60;
   animation: fade var(--t-fast) var(--ease);
+
+  /* 蓋住成個畫面嘅 overlay：捲到盡唔好傳落後面嘅頁面（iOS rubber-band）。 */
+  overscroll-behavior: contain;
 }
 @keyframes fade {
   from {
@@ -3265,6 +3401,9 @@ textarea:focus {
   z-index: 80;
   padding: var(--s4);
   animation: fade var(--t-fast) var(--ease);
+
+  /* 蓋住成個畫面嘅 overlay：捲到盡唔好傳落後面嘅頁面（iOS rubber-band）。 */
+  overscroll-behavior: contain;
 }
 .lightbox-backdrop {
   position: absolute;

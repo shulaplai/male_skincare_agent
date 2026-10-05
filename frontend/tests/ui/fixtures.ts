@@ -12,10 +12,17 @@
 
 export const CONVERSATION_ID = 'fixtureconv0000000000000000000000'
 
-/** 假相片（64×86 PNG，用代碼生成）：唔會用真用戶相，但畫面要見到 blur＋顯示掣。 */
+/** 假相片（64×86 PNG，用代碼生成）：唔會用真用戶相，但畫面要見到 blur＋顯示掣。
+ *
+ * ⚠️ 圖案一定要**硬邊、高對比**。舊版係一塊低對比漸變（實測 67 色、channel std ≈ 10），
+ * `blur(15px)` 對佢嘅影響只有平均 3.2/255 —— 低過 Playwright 嘅像素門檻，所以
+ * 「皮膚相冇模糊」嗰個真 bug 喺 3 個 scene 出街，snapshot gate **一樣綠燈**。
+ * 而家係 8px 棋盤格（3 色），模糊影響 79/255，一改就紅。
+ * 要重做：Pillow 畫 8px 棋盤格 → PNG → base64（見 `docs/ui-plan.md`）。
+ */
 export const PHOTO_ID = 'f'.repeat(32)
 const PHOTO_PNG_B64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABWCAIAAADwhAcPAAAChUlEQVR42u1aQW/TMBR+i7Y2TZAmNa3ND9hW6IBdVsEmfjyHFVY4oAk0FFHuddJMqrSEbRzMIaOEJU2o7SV29SwfGqd++T7le89+zttinydgctvmnBtNwALD2zY3nQCghFBCshIynYDhDFBCGIXkJYTrwEb6wDWb5Qef0KcGRKGYzQDALcJ6vfqWLutAzJhLKQAUmk1vxWz25z+aSSgOmEtopUGX0Jgxl1C9JJQEzCH0P605hMYBc1RwsBSiX2uKQ2gSMJ3yATE70k9XIKGfYdDpEwE7nT5JwqDTJ5jQyMunobnqfEDGiBwAlBAAALDzs+Vv8uZtzRISnxxM7nHv7g0WU/9+8PwMAMjrahq3Udj2+pIMLAAu1pfoV3OrNALCT192S3hqti2m/u7eIK+Nkn4bzVtej0szsMTmhZMxVHEIJ+NV0++ieavbA3n4XGkUKnwP+XZ3NW91e5rmxEsOqU8/MP7rKgKAna6n8KFbP8bvxGbOP74vuVv4Kna6njE58WLq90animN+YRgV9h8vjy/TvNGpChet7lI5sTc6AYDo04f8YG1Hrgok5B2fPLZONvlwdxNO5hp7B7H/9e9Zy+BF3VFIsmfRp2RE90JNtORf9CWDOvpACVABDtqVGqyLx/go1IAT2weHq9DYB4frbyWakJC9P7z5fpkfFADTmITs/WHJpRlbiXYGNMdSAyw1wFIDLDUw1olV79UuL9IfzvDIMB9Ivl3kmTjPj8zYCz1An2Wl77FKXR8xGg+j3PCFjBuxDtjPXq01ruOxij14CQA3/pfs5WPnG+ol1E5x17VJxO/EWH6PEsKEBnNilBBGIcyJsfweoxCuAyghjEKYD6CEDG2/AXiecmUj+rhpAAAAAElFTkSuQmCC'
+  'iVBORw0KGgoAAAANSUhEUgAAAEAAAABWCAIAAADwhAcPAAABGElEQVR42u2aMQ6DMAxFAfUIPUovwNq5E9fo0omBvddg4g5cqEOlbp26VkqCLGHjWHreQEH8lzh2vqB9XK5NLqZ1zt4f+6Gq8V0TPAAAAAAAfKP9ft4h6n1pPCkEAAAAALCvD+AHSCEAAAAAP4AfIIUAAAAA/IBV/S49G9IPTOss4aw9hXQZfPaAIkP4TXyym9HXc/m/PN9vlZZRifrsnXpTqKTVgkHND8hVprm0pz90x8y93TpwFgIAANWQdCvdjqa/Atv6tmuojx8QdmLh3Dv4gewrU61GZyGdw9zYD+kMGSmmCimtWGAARfVqe8BF+kEAFqL5PkAVAgAAAADgfyFSCAAAAAAAP0AKAQAAAADgB0ghAADwjR9PDLOBIWdWywAAAABJRU5ErkJggg=='
 
 export const CONVERSATIONS = [
   { id: CONVERSATION_ID, body_part: '面部皮膚', icon: '🧔', cloud_analysis: true },
@@ -80,12 +87,16 @@ export const SUMMARY = {
         { key: 'oiliness', severity: 2, note: 'T 字位反光' },
         { key: 'acne', severity: 1, note: '下巴一粒' },
       ],
-      photos: [], products: [],
+      /* ⚠️ 要有相：`entries[].photos` 以前係空 array，所以「記錄」／日記／今日
+         三個 scene 喺 snapshot 同 a11y gate 眼入面**根本冇相**。結果 2026-10-01
+         嗰個「相冇模糊」嘅真 bug 喺呢三頁出街，而 51 個 snapshot 全綠 ——
+         網冇窿，只係個網冇蓋到嗰度。 */
+      photos: [`photos/${PHOTO_ID}.jpg`], products: [],
     },
     {
       id: 'e1', date: '2026-09-30', note: '', metrics: [],
       attributes: [{ key: 'oiliness', severity: 3, note: '' }, { key: 'acne', severity: 2, note: '' }],
-      photos: [], products: [],
+      photos: [`photos/${PHOTO_ID}.jpg`], products: [],
     },
   ],
   insights: [

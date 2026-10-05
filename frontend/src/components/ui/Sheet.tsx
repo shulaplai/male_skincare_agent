@@ -46,7 +46,28 @@ export function Sheet({
     const el = sheetRef.current?.querySelector<HTMLElement>('input, textarea, .btn')
     el?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      /* Focus trap：冇呢段，Tab 會行到 `.scrim` 後面被蓋住嘅頁面控制項 —— 用戶睇住
+         sheet 但 focus 已經走咗去後面（讀屏尤其迷失）。`aria-modal="true"` 只係聲明，
+         瀏覽器唔會自動幫你 trap。 */
+      const nodes = sheetRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href]',
+      )
+      if (!nodes || nodes.length === 0) return
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      const here = document.activeElement
+      if (e.shiftKey && (here === first || !sheetRef.current?.contains(here))) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (here === last || !sheetRef.current?.contains(here))) {
+        e.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => {

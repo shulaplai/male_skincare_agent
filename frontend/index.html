@@ -6,10 +6,34 @@
          env(safe-area-inset-*)，底部 tab bar／輸入框會縮落 iOS home indicator 下面。 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>SkinCoach</title>
+    <meta
+      name="description"
+      content="男士護膚紀錄：影相或拍片打卡，AI 分析膚況，逐日追蹤、累積記憶。所有資料只存喺你自己部機。"
+    />
+    <!-- 加到主畫面（2026-10-01 加）：以前完全冇 manifest／apple-touch-icon，所以 iPhone
+         「加入主畫面」出嘅係一張網站截圖當 icon，而且一開就係 Safari（有網址欄）。
+         iOS **唔會**用 manifest 決定 icon —— 佢只認 `apple-touch-icon` 同
+         `apple-mobile-web-app-capable`，所以兩套都要有。 -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.png" sizes="64x64" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SkinCoach" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- 兩套主題各一個（`prefers-color-scheme` 版本留俾未載入 JS 前嘅第一眼）；下面段
+         inline script 會即刻按 localStorage 覆蓋成用戶真正揀嘅主題，`theme.tsx` 亦會
+         喺每次切換時更新 —— 唔做就係「日間模式但狀態欄係深色」。 -->
+    <meta name="theme-color" content="#faf3f0" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1419" media="(prefers-color-scheme: dark)" />
     <script>
       try {
-        if (localStorage.getItem('skc-theme') === 'dark') {
-          document.documentElement.setAttribute('data-theme', 'dark')
+        var dark = localStorage.getItem('skc-theme') === 'dark'
+        if (dark) document.documentElement.setAttribute('data-theme', 'dark')
+        var metas = document.querySelectorAll('meta[name="theme-color"]')
+        for (var i = 0; i < metas.length; i++) {
+          metas[i].removeAttribute('media')
+          metas[i].setAttribute('content', dark ? '#1c1419' : '#faf3f0')
         }
       } catch (e) {}
     </script>

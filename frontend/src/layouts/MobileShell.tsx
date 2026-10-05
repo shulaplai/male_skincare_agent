@@ -80,13 +80,15 @@ export function MobileShell({ p, tabs }: Props) {
         )}
       </div>
 
-      <nav className="mob-tabs" role="tablist" aria-label="手機版導覽">
+      {/* 唔用 `role="tablist"`／`role="tab"`：ARIA tabs 要配 `aria-controls` +
+          roving tabindex + 左右方向鍵，做半套比唔做更差（讀屏會宣布「tab」但方向鍵
+          冇反應）。普通 `<button>` + `aria-current` 已經完全可用。 */}
+      <nav className="mob-tabs" aria-label="手機版導覽">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
-            role="tab"
-            aria-selected={scene === t.key}
+            aria-current={scene === t.key ? 'page' : undefined}
             className={scene === t.key ? 'active' : ''}
             onClick={() => setScene(t.key)}
           >

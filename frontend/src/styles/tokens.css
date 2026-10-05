@@ -19,6 +19,10 @@
  */
 
 :root {
+  /* 話俾瀏覽器知呢一頁用邊套 scheme：影響 **native** 捲軸、`<input>`／`<select>` 嘅
+     預設樣、以及 iOS 嘅 overscroll 底色。以前完全冇設（`getComputedStyle(html).colorScheme
+     === 'normal'`），所以暗色模式下捲軸同下拉仍然係白色。 */
+  color-scheme: light;
   /* ---------- 顏色（light） ---------- */
   --bg: #faf3f0;
   --panel: #fdf7f5;
@@ -88,6 +92,7 @@
 }
 
 [data-theme='dark'] {
+  color-scheme: dark;
   --bg: #1c1419;
   --panel: #241a20;
   --card: #2c2127;

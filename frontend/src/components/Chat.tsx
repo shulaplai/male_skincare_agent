@@ -5,6 +5,7 @@ import type { Conversation, DetectedEvent, Message } from '../types'
 import { useTheme } from '../theme'
 import { Icon } from './Icon'
 import { Skeleton } from './ui/Skeleton'
+import { BodyPartMenu } from './ui/BodyPartMenu'
 
 interface Props {
   conversation: Conversation
@@ -161,7 +162,6 @@ export function Chat({
      *  之前見到 media error 其實係我自己嘅測試檔係 0 byte（見 AGENTS.md）。 */
     previewFailed: boolean
   } | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -205,7 +205,6 @@ export function Chat({
     setUploading(false)
     setUploadErr(null)
     setClip(null)
-    setMenuOpen(false)
   }, [conversation.id])
 
   /* 對話一入嚟就要見到最新嗰句：`.thread` 係內部 scroll 容器（唔係 window scroll），
@@ -286,34 +285,21 @@ export function Chat({
         <div className="cur">
           <span className="part">{conversation.icon}</span>
           <h1>{conversation.bodyPart}</h1>
-          <div className="dropdown">
-            <span className="switch" onClick={() => setMenuOpen((v) => !v)}>
-              切換部位 ▾
-            </span>
-            {menuOpen && (
-              <div className="dropdown-menu">
-                {conversations.map((c) => (
-                  <div
-                    key={c.id}
-                    className={`dropdown-item${c.id === conversation.id ? ' active' : ''}`}
-                    onClick={() => {
-                      onSelectConversation(c.id)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    {c.icon} {c.bodyPart}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* 一份共用實作（以前 ShellTop 同呢度各寫一份 `<span onClick>`，兩邊都鍵盤撳唔到）。 */}
+          <BodyPartMenu
+            key={conversation.id}
+            conversations={conversations}
+            activeId={conversation.id}
+            onSelect={onSelectConversation}
+            className="chathead-menu"
+          />
         </div>
         <div className="head-actions">
           <div className={`status${online ? '' : ' offline'}`} title={online ? 'Agent 在線' : '離線模式'}>
             <span className="pulse" />
             <span className="sb">{online ? 'Agent 在線' : '離線模式'}</span>
           </div>
-          <button className="theme" onClick={toggle} title="切換日/夜模式">
+          <button className="theme" onClick={toggle} title="切換日/夜模式" aria-label="切換日/夜模式">
             <span className="sun"><Icon name="sun" size={17} /></span>
             <span className="moon"><Icon name="moon" size={17} /></span>
           </button>
@@ -365,13 +351,15 @@ export function Chat({
               Measured: coverage comes from camera *movement*, not clip length — a 20 s
               static clip de-duplicates down to a single frame, a 10 s pan yields all 6.
               The hint has to reach the user before they film, so it rides the button. */}
-          <span
+          <button
+            type="button"
             className="iconbtn"
             title="影相／錄片（片最多 20 秒；錄嗰陣鏡頭慢慢掃過成塊肌）"
+            aria-label="影相／錄片"
             onClick={() => fileRef.current?.click()}
           >
             <Icon name="camera" size={20} />
-          </span>
+          </button>
         </div>
         {clip && (
           <span className={`clip-chip${clip.state === 'uploading' ? ' uploading' : ''}`}>
@@ -411,22 +399,29 @@ export function Chat({
                 <em>已加入，撳「發送」交俾教練分析</em>
               )}
             </span>
-            <i
+            <button
+              type="button"
               className="x"
               title="移除"
+              aria-label="移除皮膚影片"
               onClick={() => setClip(null)}
             >
               ×
-            </i>
+            </button>
           </span>
         )}
         {attached.map((a) => (
           <span key={a.id} className="attach ok">
             <BlurPhoto src={`/api/photos/${a.id}`} alt="預覽" variant="thumb" />
             <i className="ok-mark"><Icon name="check" size={12} /></i>
-            <i className="x" onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}>
+            <button
+              type="button"
+              className="x"
+              aria-label="移除呢張相"
+              onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+            >
               ×
-            </i>
+            </button>
           </span>
         ))}
         {uploadErr && <span className="chip upload-err">
@@ -446,6 +441,7 @@ export function Chat({
           /* 短 placeholder：長版喺手機（16px 字）會自己 wrap 成兩行，令輸入框一開
              就 72px 高、白白食咗 11% 螢幕。提示已經喺上面個 welcome bubble 講咗。 */
           placeholder={`問${conversation.bodyPart}教練任何嘢…`}
+          aria-label={`同${conversation.bodyPart}教練對話`}
         />
         <button className="send" onClick={submit} disabled={busy} aria-label="發送" title="發送（Enter）">
           {sending ? (

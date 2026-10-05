@@ -20,6 +20,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    /* `theme-color` 要跟手改：iOS standalone（加到主畫面）同 Android Chrome 都用佢做
+       狀態欄／工具列底色，唔改就會「日間模式但狀態欄係深色」。`index.html` 有兩個帶
+       `media` 嘅 tag + 一段 inline script 處理首次載入，呢度處理之後每次切換。 */
+    for (const m of document.querySelectorAll('meta[name="theme-color"]')) {
+      m.setAttribute('content', theme === 'dark' ? '#1c1419' : '#faf3f0')
+    }
     try {
       localStorage.setItem('skc-theme', theme)
     } catch {

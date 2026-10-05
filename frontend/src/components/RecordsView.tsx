@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import * as api from '../api'
 import { ATTRIBUTE_META, severityText } from '../format'
 import type { Conversation, RecordEntry } from '../types'
+import { BlurPhoto } from './BlurPhoto'
 import { Icon } from './Icon'
 import { useConfirm } from './ui/Confirm'
 import { useToast } from './ui/Toast'
@@ -117,7 +118,13 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
             </div>
             {editingId === e.id ? (
               <div className="note-edit">
-                <textarea value={draft} onChange={(ev) => setDraft(ev.target.value)} rows={2} placeholder="當日筆記（文字）" />
+                <textarea
+                  value={draft}
+                  onChange={(ev) => setDraft(ev.target.value)}
+                  rows={2}
+                  placeholder="當日筆記（文字）"
+                  aria-label={`${e.date} 當日筆記`}
+                />
                 <div className="note-actions">
                   <button className="btn ghost small" onClick={() => setEditingId(null)}>
                     取消
@@ -150,10 +157,16 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
                   const id = p.split('/').pop()?.replace('.jpg', '')
                   return (
                     <span className="photo-cell" key={p}>
-                      <img src={`/api/photos/${id}`} alt="" />
-                      <i className="photo-x" title="刪除呢張相" onClick={() => onDeletePhoto(e, p)}>
-                        ×
-                      </i>
+                      {/* 皮膚相一律經 `BlurPhoto` —— 呢度以前係裸 `<img>`，即係「記錄」
+                          tab 全部自拍都係全清（見 `BlurPhoto` docstring）。 */}
+                      <BlurPhoto src={`/api/photos/${id}`} alt={`${e.date} 皮膚相`} variant="grid" />
+                      <button
+                        type="button"
+                        className="photo-x"
+                        aria-label={`刪除 ${e.date} 呢張相`}
+                        title="刪除呢張相"
+                        onClick={() => onDeletePhoto(e, p)}
+                      />
                     </span>
                   )
                 })}

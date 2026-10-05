@@ -169,9 +169,15 @@ export function RightPanel({ conversation, refreshKey }: Props) {
                       {kindLabel[m.kind] ?? m.kind}
                       {m.scope === 'global' && <span className="scope-badge"><Icon name="globe" size={12} /> 全局</span>}
                       {m.id && (
-                        <i className="mem-x" title="刪除呢條記憶（修正）" onClick={() => onDeleteInsight(m)}>
+                        <button
+                          type="button"
+                          className="mem-x"
+                          title="刪除呢條記憶（修正）"
+                          aria-label={`刪除記憶：${m.text}`}
+                          onClick={() => onDeleteInsight(m)}
+                        >
                           ×
-                        </i>
+                        </button>
                       )}
                     </div>
                     <div className="txt">{m.text}</div>

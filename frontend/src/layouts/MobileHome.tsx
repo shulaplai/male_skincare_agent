@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { BlurPhoto } from '../components/BlurPhoto'
 import { LevelDots, MemoryList } from '../components/blocks'
 import { useInsightActions } from '../hooks/useInsightActions'
 import { useSummary } from '../hooks/useSummary'
@@ -174,9 +175,13 @@ export function MobileHome({ p, nav }: HomeProps) {
                       const id = ph.split('/').pop()?.replace('.jpg', '')
                       return (
                         <span className="photo-cell" key={ph}>
-                          <a href={`/api/photos/${id}`} target="_blank" rel="noreferrer">
-                            <img src={`/api/photos/${id}`} alt="" />
-                          </a>
+                          {/* 「今日」tab 係手機一開就見到嘅畫面 —— 以前呢度係裸 `<img>`
+                              包 `<a target="_blank">`，即係全部自拍全清、撳一下開原圖。 */}
+                          <BlurPhoto
+                            src={`/api/photos/${id}`}
+                            alt={`${e.date} 皮膚相`}
+                            variant="grid"
+                          />
                         </span>
                       )
                     })}

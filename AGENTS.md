@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 273 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 275 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -22,7 +22,7 @@ cd frontend
 npm run typecheck    # tsc --noEmit，一定要過
 npm run build        # typecheck + vite build
 npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行）
-npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（34 snapshot + axe 12（淺／暗）＋ 5 互動）
+npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（40 snapshot + axe 12（淺／暗）＋ 5 互動 ＋ 4 相片模糊）
 npm run ui:update    # UI 改動**預期之內**時更新 baseline snapshot（要逐個解釋）
 npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :5173/:5174）
 ```
@@ -45,13 +45,16 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 273 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 275 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
-| `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture，含一張代碼生成嘅假相）、`snapshots.spec.ts`（41 張：4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
+| `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
 | `frontend/src/styles/tokens.css` | **唯一值來源**：顏色（全部量過 WCAG）、字級 scale（下限 12px）、spacing／radius／tap／動效時長 ＋ `prefers-reduced-motion` 全域 rule | 唔好喺 `index.css` 加新 raw hex／新尺寸 |
 | `frontend/src/components/ui/` | 基礎元件：`Icon`（Lucide registry，35 個）、`Sheet`、`Confirm`（promise 式 `useConfirm()`）、`Toast`、`Skeleton`、`Lightbox` | 新 UI 一律用呢批，唔好返去 `window.prompt/alert` |
+| `frontend/public/` | **PWA 靜態資產**（Vite 會原封複製到網站根目錄，唔入 bundle）：`manifest.json` ＋ `icon-192`／`icon-512`／`apple-touch-icon.png`／`favicon.png` | 由 `frontend/scripts/generate_icons.py` 產生（Pillow），唔好手改 PNG |
+| `frontend/scripts/generate_icons.py` | 產生上面嗰批 icon（跑法：由 repo root `./backend/.venv/bin/python frontend/scripts/generate_icons.py`） | 改 `--accent-deep`／`--bg` token 之後要重跑 |
 | `learn/` | **AI agent 入門課程（教材，唔屬於 app）**：9 章 markdown（§06 係「點樣寫自己嘅 eval」）＋ 10 個可執行實驗（`learn/labs/`，FakeLLM ＋ 臨時 DB）＋ `walkthrough-lab03.md`（逐格 trace 導讀）＋ `exercises.md`（習題）。給「識 Python 但未接觸過 AI」嘅人。跑法 `./backend/.venv/bin/python learn/labs/lab03_agent_loop.py` | 改 app 之後如果教材講錯咗（行號／行為），要同步；課程唔可以引入 app 冇嘅嘢。§06 引 `eval/*.py` 行號，改 eval 要一齊改 |
+| `docs/ux-audit-round2.md` | **第二輪 UX／UI 審計（2026-10-05）**：兩個 P0（相冇模糊、匯出壞）＋ 三個 P1（桌面導覽唔入 URL、鍵盤用唔到、冇 PWA）＋ **gate 盲點清單**（點解全部 gate 綠燈但問題出街）。全部有實測數字 | 改 UI／gate 之前先睇 §6 |
 | `docs/ui-plan.md` | **手機版 UI／UX 審計 ＋ 四階段計劃**：Phase 0（工具／gate）已完成；5 個決定已經用戶逐項批（Lucide 統一、保守動效、自寫 Sheet/Toast、完整字級 scale）。量到嘅 tap target／字級／對比度問題列咗喺度，Phase 1–3 逐項修 | 開工前先睇 |
 | `docs/` | architecture / **backend-flow**（由請求到 DB 嘅完整流程 + 真/Fake LLM 分別）/ roadmap / demo-script / blog-outline / eval-report-sample / status-vs-claims / product-eval-plan / open-findings | 見 `docs/status-vs-claims.md` 對照；**改 pipeline 要同步 `backend-flow.md`**（佢引 `file:line`） |
 | `design/mobile-v2-round1.html` | **手機版 v2 樣板（2026-10-01，等緊用戶批）**：11 個手機框（5 scene ＋ 指南 ＋ 狀態 ＋ Sheet／Toast ＋ 影片上載 ＋ 暗色）＋ token 對照表。單一檔案、假數據、唔喺 Vite build 範圍 | 批之前唔好照住改 app；批准後 Phase 1–3 就照佢做 |
@@ -116,6 +119,8 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **`.chat` 一定要有 `min-height: 0`，`.shell-scene` 嘅 child 一定要 `flex: 1 1 auto; min-height: 0`**（真實 bug，用戶喺 iPhone 上撞到）：`.chat` 同時係 `.shell-chat`（grid）同 `.shell-scene`（flex column）嘅 item，兩個容器都會將 `min-height: auto` 解析成「內容高度」→ 長 thread 唔會喺 `.thread` 內部 scroll，而係撐爆容器（390×844 實測 `.chat` 4237px／grid row 4523px、`.thread` scrollable 0、`.compose` top 4221），再加 `.app.layout-mobile { overflow: hidden }` = **冇任何方法 scroll、輸入框永遠摸唔到**。同 `.app > * { min-height: 0 }` 係同一個 family，只係喺再落一層 —— 加新 shell／改 scene 容器時要一齊 check。⚠️ 「`scrollWidth == innerWidth`、冇溢出」**唔等於**「撳得到」：驗窄屏一定要**長內容 ＋ 量 `.compose` 喺唔喺 viewport 內 ＋ 真 wheel gesture**。
 - **Scene（tab）= page，唔係 `useState`**：`hooks/useSceneRoute.ts` 將 scene 寫入 URL（`?scene=chat`、home 唔寫），`pushState` + `popstate`。有 tab 嘅 shell（`MobileShell`／`StandardShell`）都一定要用佢 —— 以前係 local state，撳完 tab 一 reload 就跌返第一頁（真實用戶回報）。
   ⚠️ URL 驗證要用 `defs.SHELL_SCENES`（**所有** scene）而唔係 `tabs.map(t => t.key)`：`guide` 冇 tab 但一樣係一個 page，只認 tab 名就會令 `?scene=guide` reload 靜靜跌返第一頁（真實撞過）。
+  ⚠️ **四個 shell 都要用，包 `ChatShell`。** 2026-10-05 實測：`ChatShell` 一直係 `useState`，所以闊屏（default 結構）撳「皮膚記錄」URL 唔變、**reload 跌返對話**、瀏覽器上一頁去咗舊 URL、`?scene=guide` 完全冇反應。`ChatShell` 唔 render `home`，所以要 `CHAT_VIEWS` 過濾（唔係嘅話 `?scene=home` 四個 branch 都唔中 = 一片空白）。
+  `sceneHref()`／`linkClick()` 係畀 `<a href>` 用嘅（見下面「導覽一定要有 href」）。
 - **片＝一條片，唔係「6 張相」**（2026-10-01 用戶指示）：抽格／壓縮係 backstage 實作，**唔可以 leak 俾用戶**。
   UI 端：上載期間喺 composer 出「🎬 皮膚影片 + 真進度條」（`api.uploadVideo` 用 **XHR** 因為 `fetch` 冇 upload progress），
   **唔會**逐格出縮圖、冇「抽咗 6 張相／已壓縮 MB／格太似」文案；送出後對話只出中性 chip（`Message.clip`）。
@@ -134,7 +139,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
 - **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
 - **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
-- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：51 個 Playwright test（31 snapshot × 4 layout × 6 scene × 手機/桌面 ＋ P1-4 長 thread 回歸 ＋ 760/761 斷點 ＋ 影片上載）＋ axe WCAG 2.1 AA。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：55 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊）＋ axe WCAG 2.1 AA（淺／暗）。
   ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
   ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
   ⚠️ snapshot flaky 嘅源頭通常係 **webfont swap**：`settle()` 一定要 `await document.fonts.ready`，
@@ -143,7 +148,45 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **block comment 入面唔可以出現「星號＋斜線」**：我自己中過兩次 —— 寫 `` `**/api/**` `` 呢個 glob 嘅時候，
   中間嘅星號＋斜線會提早閂咗 JSDoc，後面嘅文字變成 code → eslint `no-unused-expressions`
   （而且報錯行數係**註解入面**，好難睇得出）。要寫 glob 就用文字描述（`fixtures.ts` 開頭有寫法示範）。
+- **撳得到嘅嘢一定要係真 `<button>` 或 `<a href>`**：2026-10-05 掃 `src/**/*.tsx` 揾到 **17 處** `<span onClick>`／`<i onClick>`／`<div onClick>`（`Chat.tsx` 影相掣同切換部位、`RecordsView`／`JournalHome`／`blocks.tsx`／`RightPanel.tsx` 嘅刪除、`Sidebar` 嘅改名／刪除同成行對話…）。全部**入唔到 tab order、冇 Enter／Space、讀屏唔知撳得**。實測 Tab 40 次：一次都去唔到 sidebar nav（因為 `<a>` 冇 `href`），即係**純鍵盤用戶入唔到設定／記錄**。
+  ⚠️ **axe 唔會報**：冇任何 axe 規則要求 `<a onClick>`／`<span onClick>` focusable。所以「0 violations」唔等於「用得到」。
+  規則：動作 → `<button>`（＋`aria-label`，尤其 icon-only）；導覽 → `<a href>`（`sceneHref()` 產生，`linkClick()` 處理修飾鍵）；modal／drawer 背景 → 真 `<button>` backdrop（同 `ui/Sheet.tsx` 一樣）；`<i>`／`<span>` 唔可以有 onClick。
+  ⚠️ 用 `opacity` 而唔係 `display: none` 去收起一個按鈕（`display:none` 會令佢跌出 tab order，永遠 focus 唔到）。
+  ⚠️ 下拉請用 `components/ui/BodyPartMenu.tsx`（一份共用；**唔好**用 `role="listbox"`／`role="tablist"` 就算，ARIA 要配 roving tabindex + 方向鍵，做半套比唔做更差）。
+  ⚠️ 自己寫量度 script 時，selector 一定要包 `<i>`／`<span>`／`[onclick]`：第一輪「0 個 < 44px tap target」就係因為只查 `button, a[href], input…`，所以 `.photo-x`（18px）同嗰批 `<i onClick>` **完全冇量到**。
 - **相片一律先模糊（`components/BlurPhoto.tsx`）**：皮膚相係自拍，`<img>` 直接出清等於行過嘅人一眼睇晒。`BlurPhoto` 每次 render 都由模糊開始（唔記「睇過」），要撳「顯示」先清；`alt` 亦要跟狀態改。呢個係 UI 遮蓋，同 consent（相可唔可以上雲）係兩件事，兩樣都要。
+  ⚠️ **2026-10-05 實測：呢條規則一度只有 `Chat.tsx` 遵守。** `RecordsView`／`MobileHome`／`JournalHome`
+  三個地方係裸 `<img>`，`JournalHome` 仲包住 `<a href="/api/photos/…" target="_blank">` —— 撳一下
+  就喺新 tab 開**原圖**。量到 3 個 scene 共 **42 張相、0 張有 blur**（`getComputedStyle(img).filter
+  === 'none'`）、28 張喺 anchor 入面；而 **51 個 snapshot 全綠**（原因見下一個陷阱）。
+  公告板格仔用 `variant="grid"`；加新 UI 出相之前，問一句「呢張相有冇經 `BlurPhoto`？」，
+  而 `frontend/tests/ui/photos.spec.ts` 就係答嗰句嘅網。
+- **UI gate 有盲點，而且盲點係靜嘅**：2026-10-05 嗰批 P0／P1 全部係「過齊所有 gate 之後出街」。
+  逐個原因（全部實測）：
+  1. **snapshot 睇唔到 blur**：`fixtures.ts` 嘅假相本來係低對比漸變（67 色、channel std ≈ 10），
+     `blur(15px)` 只改到平均 **3.2/255**，低過 Playwright 門檻 → 已換成 8px 棋盤格（**79/255**）。
+  2. **fixture 根本冇相**：`SUMMARY.entries[].photos` 係 `[]`，所以「記錄」／日記／今日三個 scene
+     喺 gate 眼入面從來冇相（`/api/photos/*` 只出現喺 chat message 度）→ 已加相。
+  3. **snapshot 會隨真實日期腐爛**：baseline 2026-10-01 影，當時 fixture 嗰日就係「今日」→ chip 出「今天」；
+     2026-10-05 再跑變「2026-10-01」→ 3 個 snapshot 無故紅燈（實測 `390-mobile-home` 日期字 ink 91px → 150px）
+     → `settle()` 加咗 `page.clock.setFixedTime(new Date('2026-10-01T09:00:00+08:00'))`。
+     ⚠️ 用 `setFixedTime`，唔係 `clock.install()`：後者會令 timer 停，webfont／動效嗰啲 timeout 會卡死。
+  4. **axe 捉唔到「撳唔到」**、**`test_export` 嘅 `tmp_path` 太乾淨**、**自己寫嘅量度 selector 漏 `<i>`**：
+     見上面各自嗰條。
+  ➡️ 通則：**「有 test」唔等於「量到你改嘅嘢」**。加檢查之後，一定要**反轉條件證明佢會紅**
+     （今輪就係暫時將 `RecordsView` 還原做裸 `<img>`，睇到 `Error: 有相冇經 BlurPhoto` 才收貨）。
+- **加到主畫面（PWA）metadata 一定要成套做**：2026-10-05 之前 `index.html` 完全冇 manifest／
+  favicon／apple-touch-icon／theme-color／description —— 對手機為主嘅 app 具體後果係
+  「加入主畫面」用網站截圖做 icon，而且一開係 Safari（有網址欄）。
+  ⚠️ **iOS Safari 唔用 manifest 決定 icon／standalone**：佢只認 `apple-touch-icon` 同
+  `apple-mobile-web-app-capable`。兩套都要寫（`manifest.json` 係畀 Android／桌面 Chrome／install prompt）。
+  ⚠️ `theme-color` 要跟 `data-theme`（唔係 `prefers-color-scheme`）：`index.html` 放兩個帶 `media` 嘅 tag
+  處理首屏，再喺 inline script 同 `theme.tsx` 跟 localStorage／切換更新 —— 唔做就係「日間模式但狀態欄深色」。
+  ⚠️ `color-scheme`（`tokens.css`）同 `touch-action: manipulation` ＋ `-webkit-tap-highlight-color`
+  （`index.css` `html`）都係呢一組。之前 `colorScheme === 'normal'`（暗色模式捲軸仍然係白）、
+  `touchAction === 'auto'`、tap highlight 係 WebKit 預設藍 `rgba(51,181,229,0.4)`。
+  ⚠️ Icon 係 `frontend/scripts/generate_icons.py`（Pillow）產生，**唔好手畫 binary**；顏色跟
+  `--accent-deep` / `--bg` token，改 token 要重跑。Maskable 安全圈（中央 80%）要量過（現時 203.3 < 204.8）。
 - **AI 抽出嘅自報事件一定要 persist 落 coach payload**（issue #22）：`Advice.detected_events`（diet／product_start／product_stop）係飲食／產品嘅**唯一入口**，用戶只會順口講。`persist` 要寫入 `ChatMessage.payload["detected_events"]`，`format.ts` 要 restore 返 —— 以前只存在 browser live state，reload 就冇，用戶永遠確認唔到，因果時間線亦冇料。另外確認之後要標 `payload["events_applied"]`（`main._mark_events_applied`：有 `message_id` 用 id，session 內新訊息用事件內容配對），否則 reload 會再出同一個 chip，撳兩次就寫兩次。
 - **`RECORDING_GUIDE` 嘅文字有兩份**：`app/agent/prompts.py`（AI 喺對話講）同 `app/guide.py`「點樣記錄最準確」一節（app 內指南）。兩邊講同一件事 —— **改一邊要改另一邊**。當中「拍片／講出嚟嘅聲唔會記錄」係產品事實（抽格會丟音軌），唔可以為咗好聽而刪。
 - **Chat bubble 嘅 class 名唔可以照抄 `role`**：`role` 係 `user|coach`，但 CSS 嘅左右分邊係 `.msg.me`（`row-reverse` + `margin-left: auto`）／`.a.me`。直接寫 `msg ${m.role}` 會出 `msg user`，**永遠 match 唔到** —— 實測 390px 全部 bubble 都由 x=57 開始，用戶自己講嘅嘢同 AI 一樣靠左。`Chat.tsx` 一定要做 `role → me/coach` mapping。
@@ -183,7 +226,10 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **`MEDICAL_TERMS` 要同時有 `tretinoin` 同 `isotretinoin`**：`isotretinoin` 唔包含 `tretinoin`（反過來才對），只寫後者就會漏咗 topical tretinoin 產品。
 - **`compress_video` 會改條片個名**：寫 `<id>.c.mp4` 而唔係 `<id>.mp4`。`video_file()` / `delete_video()` 兩個 spelling 都認；**唔好自己砌 `data_dir / v.path`**，否則壓縮過嘅片既搵唔到亦刪唔到（`DELETE` 會靜靜報「冇嘢刪」）。
 - **大細上限係 100MB（`video.MAX_BYTES`），唔係「無限」**：文檔寫過「冇上限」係錯嘅。<40MB 原檔留、40–100MB 自動重編碼、>100MB 回 **413** 加可讀訊息。`check_size()` 係喺串流途中逐 1MB 驗，唔會先寫滿成個檔。
-- **`export_zip()` 用 `rglob`，所以片一直在 zip 入面**：文檔寫過「匯出唔包含片」係錯嘅（`tests/test_export.py::test_export_includes_stored_clips` 封住）。
+- **`export_zip()` 會 `rglob` 成個 data dir —— 所以一定要排除 cache**：片一直在 zip 入面（文檔寫過「唔包含片」係錯，`tests/test_export.py::test_export_includes_stored_clips` 封住）。但 **2026-10-05 實測**：fastembed 嘅 ONNX model cache 就住喺 `data/`（`SKINCOACH_EMBEDDER_CACHE_DIR=./data/.fastembed-cache`，另加一份 `.hf-cache`），所以「匯出數據」實際會行 **71 個檔案、1070.5 MB，其中 962 MB（90%）係同一個 235 MB model blob ×2**；ONNX 壓唔縮（deflate ratio 0.92），所以 `GET /api/export` **45 秒 0 bytes**（放到 50.5 秒才返），而 953 MB zip 建喺 heap 再被 `getvalue()` 複製一次 ≈ 1 GB。真 user data 只有 ~72 MB。
+  而家：`EXPORT_SKIP_DIRS`（`.fastembed-cache`／`.hf-cache`／`__pycache__`／`.cache`）＋ `iter_export_zip()` 串流（temp file，1 MB 一 chunk）＋ route 用 `StreamingResponse` → 實測 **66.1 MB、5.6 秒**。
+  ⚠️ 舊 test 捉唔到，因為三個 test 都係 `data_dir = tmp_path`（空目錄，`rglob` 瞬間完）。加 cache 相關嘢一定要喺 fixture **plant** 一個假 cache 落去。
+  ⚠️ `skincoach.db.bak`（35.7 MB 舊快照）**故意留喺** archive（係真 user data），所以 66 MB 有一半係佢。
 - **`delete_conversation` 一定要喺 cascade 之前收集檔案路徑**：`db.delete(c)` cascade 一行之後就冇嘢可以查。實測過冇呢步：上載一張相 → 刪 conversation → `.jpg` 仍然喺 disk（route docstring 寫住 "permanently delete … all its records"）。另外 `Video.frames` 入面嘅格係**未 attach 都可能存在**（用戶淨係上載冇問），所以 frame id 都要當檔案路徑刪。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。
 
