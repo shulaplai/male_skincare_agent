@@ -14,6 +14,8 @@ interface Props {
   messages: Message[]
   loading: boolean
   sending: boolean
+  /** 串流期間要顯示嘅步驟（audit §7）；null 就用原本嗰句「約 5–10 秒」。 */
+  stage?: string | null
   onSend: (text: string, photos: { id: string; path: string }[], video?: { duration: number; frames: number }) => void
   online: boolean
   onSelectConversation: (id: string) => void
@@ -149,6 +151,7 @@ export function Chat({
   messages,
   loading,
   sending,
+  stage,
   onSend,
   online,
   onSelectConversation,
@@ -380,7 +383,10 @@ export function Chat({
             {/* `role="status"` + `aria-live="polite"`：screen reader 會讀出「教練諗緊…」，
                 但唔會搶焦點（以前係完全冇提示，用戶以為壞咗）。 */}
             <div className="bubble typing" role="status" aria-live="polite">
-              <span className="pulse" aria-hidden /> 教練諗緊…（睇相＋分析＋建議，約 5–10 秒）
+              <span className="pulse" aria-hidden />
+              {/* 後端逐個 node 報返嚟（SSE）之前，照舊老實講要等幾久；報咗之後就
+                  改成講「而家做緊咩」，令 5.5 秒唔再係一片空白（audit §7）。 */}
+              {stage ?? '教練諗緊…（睇相＋分析＋建議，約 5–10 秒）'}
             </div>
           </div>
         )}

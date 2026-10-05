@@ -135,6 +135,80 @@ export async function consult(
   )
 }
 
+/** 串流期間後端報嘅每個 node 行完咗（`node` 係 graph 嘅 node 名，`ms` 係佢用咗幾久）。 */
+export interface ConsultNodeEvent {
+  node: string
+  ms?: number
+}
+
+/**
+ * Same consult as `consult()`, but the reply no longer arrives as one 5.5-second lump
+ * (audit §7): the server walks analyze → tools → advise → guardrail → persist and sends
+ * one `data:` frame per finished node, then a final `result` frame with exactly the same
+ * payload `consult()` returns.
+ *
+ * `onNode` is called for each node so the UI can name what is happening. If the browser
+ * or a proxy gives us no stream body, this falls back to the plain POST rather than
+ * failing — a missing nicety must not cost the user their message.
+ */
+export async function consultStream(
+  conversationId: string,
+  text: string,
+  photoPaths: string[],
+  video: { duration: number; frames: number } | undefined,
+  onNode: (e: ConsultNodeEvent) => void,
+): Promise<ConsultResult> {
+  const body = JSON.stringify({
+    conversation_id: conversationId,
+    text,
+    photo_paths: photoPaths,
+    video: video ?? null,
+  })
+  const res = await fetch('/api/consult/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+  if (!res.ok) {
+    // Same sentence the non-streaming path would throw (HTTP 404 ／ 422 …).
+    let detail = `HTTP ${res.status}`
+    try {
+      const parsed = await res.json()
+      if (typeof parsed?.detail === 'string') detail = parsed.detail
+    } catch {
+      /* non-json body */
+    }
+    throw new Error(detail)
+  }
+  if (!res.body) return consult(conversationId, text, photoPaths, video)
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let result: ConsultResult | null = null
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    // SSE frames are separated by a blank line; a partial tail stays in `buffer`.
+    let sep = buffer.indexOf('\n\n')
+    while (sep !== -1) {
+      const block = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+      const line = block.split('\n').find((l) => l.startsWith('data:'))
+      if (line) {
+        const event = JSON.parse(line.slice('data:'.length).trim())
+        if (event.type === 'node') onNode({ node: event.node, ms: event.ms })
+        else if (event.type === 'result') result = event as ConsultResult & { type: string }
+        else if (event.type === 'error') throw new Error(String(event.detail))
+      }
+      sep = buffer.indexOf('\n\n')
+    }
+  }
+  if (!result) throw new Error('串流中途斷咗（後端冇回最終結果）')
+  return result
+}
+
 export async function uploadPhoto(file: File): Promise<{ id: string; path: string }> {
   const fd = new FormData()
   fd.append('file', file)

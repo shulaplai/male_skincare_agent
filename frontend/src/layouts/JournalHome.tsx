@@ -249,6 +249,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                 conversations={p.conversations}
                 messages={messages}
                 sending={p.sending}
+                stage={p.stage}
                 onSend={p.onSend}
                 online={p.online}
                 loading={p.loadingThread}

@@ -37,6 +37,20 @@ function LayoutHost({ p }: { p: ShellProps }) {
  * `AppInner`，而 `App` 淨係負責掛 providers（次序：theme → toast → layout）。
  * 以前所有嘢都喺 `App` 度，想用 `useToast()` 就會拿到 context 嘅 default（靜靜冇反應）。
  */
+/**
+ * Graph node → 顯示緊嘅一句（audit §7 串流）。
+ *
+ * 字串放喺前端：後端負責講「邊個 node 行完」，用邊句嘢講係 UI 嘅事。
+ * `persist` 之後回覆已經出咗，所以最後一步唔會停留得耐。
+ */
+const STAGE_TEXT: Record<string, string> = {
+  analyze: '睇緊你講嘅同相…',
+  tools: '查緊相關知識同記憶…',
+  advise: '寫緊建議…',
+  guardrail: '檢查安全…',
+  persist: '記低今次…',
+}
+
 function AppInner() {
   const { toast } = useToast()
   const confirm = useConfirm()
@@ -47,6 +61,8 @@ function AppInner() {
   const [online, setOnline] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [sending, setSending] = useState(false)
+  /* 串流期間顯示緊嘅步驟（audit §7）：後端逐個 node 報返嚟先改名。 */
+  const [stage, setStage] = useState<string | null>(null)
   const [loadingThread, setLoadingThread] = useState(false)
   /* 一次性相片同意：`null` = 未知（載入緊）。未同意之前唔會 render app —— 因為
      「全雲端」之下冇本地模式，用戶冇得「唔同意但照用」。後端一樣擋。 */
@@ -157,8 +173,12 @@ function AppInner() {
    */
   const runConsult = (cid: string, payload: ConsultAttempt, userMsg: Message) => {
     setSending(true)
+    // 一撳就有句嘢講（唔好再等 5.5 秒先有反應），之後每個 node 行完就換一句。
+    setStage(STAGE_TEXT.analyze)
     api
-      .consult(cid, payload.text, payload.photos, payload.video)
+      .consultStream(cid, payload.text, payload.photos, payload.video, (e) =>
+        setStage(STAGE_TEXT[e.node] ?? null),
+      )
       .then((res) => {
         const reply: Message = {
           id: local(),
@@ -194,7 +214,10 @@ function AppInner() {
           [cid]: [...(prev[cid] ?? []).filter((x) => x.id !== userMsg.id), { ...userMsg, pending: false }, reply],
         }))
       })
-      .finally(() => setSending(false))
+      .finally(() => {
+        setSending(false)
+        setStage(null)
+      })
   }
 
   /** 離線：照 echo，但明講冇存到，一樣留返「重試」掣（起返 backend 就送得出）。 */
@@ -351,6 +374,7 @@ function AppInner() {
     messages,
     online,
     sending,
+    stage,
     loadingThread,
     refreshKey,
     onSelectConversation: setActiveId,

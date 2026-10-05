@@ -8,6 +8,8 @@ export interface ShellProps {
   messages: Record<string, Message[]>
   online: boolean
   sending: boolean
+  /** 串流期間嘅步驟一句（null = 未有 node 報返嚟）。 */
+  stage: string | null
   loadingThread: boolean
   refreshKey: number
   onSelectConversation: (id: string) => void

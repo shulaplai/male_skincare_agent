@@ -1,5 +1,6 @@
 """FastAPI entrypoint."""
 import datetime
+import json
 import logging
 import time
 import uuid
@@ -21,7 +22,7 @@ from app.agent.product_context import profile_inputs, summarise_evaluation
 from app.agent.product_eval import evaluate_product
 from app.agent.prompts import PRODUCT_EVAL_SYSTEM, build_product_eval_prompt
 from app.agent.schemas import DetectedEvent, ProductNarrative
-from app.agent.service import run_consult
+from app.agent.service import open_consult, run_consult, stream_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import import_zip, iter_export_zip
@@ -375,6 +376,41 @@ def consult(req: ConsultRequest) -> dict:
     """Run the LangGraph agent: analyze -> tools -> advise -> guardrail -> persist."""
     return run_consult(
         req.conversation_id, req.text, req.photo_paths, clip=req.video.model_dump() if req.video else None
+    )
+
+
+@app.post("/api/consult/stream")
+def consult_stream(req: ConsultRequest) -> StreamingResponse:
+    """Same consult, reported per node over SSE (audit §7: the 5.5 s silence).
+
+    Measured: the reply used to arrive in one lump after a median 5.46 s, with the UI
+    only able to say 「約 5–10 秒」. The graph already walks five nodes in order, so each
+    finished node is now an event the browser can name: 睇相 → 查知識庫 → 寫建議 →
+    檢查 → 記低. The frames are `data: {"type": "node"|"result"|"error", …}` — one JSON
+    object per frame, no custom event names, so a client parser is a split on a blank line.
+
+    `open_consult` runs *here*, not inside the generator: a 404 must be a real status
+    code, and after the first SSE byte the status is already on the wire.
+    """
+    photo_paths = req.photo_paths or []
+    clip = req.video.model_dump() if req.video else None
+    cloud_analysis = open_consult(req.conversation_id, photo_paths)
+
+    def frames():
+        for kind, payload in stream_consult(
+            req.conversation_id, req.text, cloud_analysis, photo_paths, clip
+        ):
+            event = {"type": "error", "detail": payload} if kind == "error" else {"type": kind, **payload}
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        frames(),
+        media_type="text/event-stream",
+        headers={
+            # nginx／reverse proxy 唔好 buffer 住成個 response（會等於冇串流）
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 

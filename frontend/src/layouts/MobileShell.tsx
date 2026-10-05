@@ -56,6 +56,7 @@ export function MobileShell({ p, tabs }: Props) {
             conversations={p.conversations}
             messages={p.messages[active.id] ?? []}
             sending={p.sending}
+            stage={p.stage}
             onSend={p.onSend}
             online={p.online}
             loading={p.loadingThread}

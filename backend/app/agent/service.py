@@ -68,12 +68,21 @@ def write_run_log(conversation_id: str, text: str, result: dict) -> None:
         logger.warning("run log 寫唔入（%s）：%s", settings.run_log_path, e)
 
 
-def run_consult(
-    conversation_id: str,
-    text: str,
-    photo_paths: list[str] | None = None,
-    clip: dict | None = None,
-) -> dict:
+# 同一個字串同時用喺兩條路：POST 嘅 503 body 同 SSE 嘅 `error` frame。
+# 兩邊講同一句話，先至唔會出現「串流過嘅失敗訊息唔同」呢種分歧。
+CONSULT_PARSE_FAILED = (
+    "我今次分析唔到（模型回覆格式唔啱，試過糾正都唔成功）。"
+    "你嘅紀錄冇被改動 —— 請再試一次，或者換個講法。"
+)
+
+
+def open_consult(conversation_id: str, photo_paths: list[str] | None) -> bool:
+    """查 conversation ＋ 決定相可唔可以出機，回 `cloud_analysis`。
+
+    由 `run_consult` 拆出嚟，因為 SSE route 一定要喺寫任何 header **之前**答 404
+    （一旦開始串流，status code 已經送咗，之後淨係可以用 in-band `error` frame）。
+    所以 404 同 consent 判斷只有呢一個 implementation，兩條路都行佢。
+    """
     session = SessionLocal()
     try:
         conv = session.query(Conversation).filter_by(id=conversation_id).first()
@@ -94,27 +103,56 @@ def run_consult(
                 bool(conv.cloud_analysis),
                 user_consent,
             )
+        return cloud_analysis
     finally:
         session.close()
 
-    graph = build_graph(
+
+def _build_consult_graph():
+    return build_graph(
         llm=get_llm("text"),
         vision_llm=get_llm("vision"),
         session_factory=SessionLocal,
         embedder=_get_embedder(),
     )
+
+
+def _consult_state(
+    conversation_id: str,
+    text: str,
+    photo_paths: list[str] | None,
+    clip: dict | None,
+    cloud_analysis: bool,
+) -> dict:
+    return {
+        "conversation_id": conversation_id,
+        "user_text": text,
+        "photo_paths": photo_paths or [],
+        # `{"duration": 12.4, "frames": 6}` 當用戶上載嘅係片（唔係相）。
+        # 有呢個 flag，prompt 才會叫 model 講「條片」而唔係「幾張相」。
+        "clip": clip,
+        "cloud_analysis": cloud_analysis,
+        "trace": [],
+    }
+
+
+def _finish_consult(conversation_id: str, text: str, result: dict) -> dict:
+    result["vision_used"] = bool(result.get("vision_used"))
+    write_run_log(conversation_id, text, result)
+    return result
+
+
+def run_consult(
+    conversation_id: str,
+    text: str,
+    photo_paths: list[str] | None = None,
+    clip: dict | None = None,
+) -> dict:
+    cloud_analysis = open_consult(conversation_id, photo_paths)
+    graph = _build_consult_graph()
     try:
         result = graph.invoke(
-            {
-                "conversation_id": conversation_id,
-                "user_text": text,
-                "photo_paths": photo_paths or [],
-                # `{"duration": 12.4, "frames": 6}` 當用戶上傳嘅係片（唔係相）。
-                # 有呢個 flag，prompt 才會叫 model 講「條片」而唔係「幾張相」。
-                "clip": clip,
-                "cloud_analysis": cloud_analysis,
-                "trace": [],
-            }
+            _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis)
         )
     except OutputParserException as e:
         # The model kept answering in the wrong shape even after the corrective retry.
@@ -122,13 +160,44 @@ def run_consult(
         # user's skin record. The detail is readable, unlike a bare 500 — and it promises
         # only what is true (nothing was written; `persist` never ran).
         logger.error("consult failed: model output could not be parsed: %s", e)
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "我今次分析唔到（模型回覆格式唔啱，試過糾正都唔成功）。"
-                "你嘅紀錄冇被改動 —— 請再試一次，或者換個講法。"
-            ),
-        ) from e
-    result["vision_used"] = bool(result.get("vision_used"))
-    write_run_log(conversation_id, text, result)
-    return result
+        raise HTTPException(status_code=503, detail=CONSULT_PARSE_FAILED) from e
+    return _finish_consult(conversation_id, text, result)
+
+
+def stream_consult(
+    conversation_id: str,
+    text: str,
+    cloud_analysis: bool,
+    photo_paths: list[str] | None = None,
+    clip: dict | None = None,
+):
+    """`run_consult` 做嘅同一件事，但逐個 node 報出嚟（SSE 用）。
+
+    Yield `("node", {"node": name, "ms": ms})` 每次一個 graph node 行完
+    （analyze → tools → advise → guardrail → persist），最後 yield
+    `("result", dict)`，個 dict 同 `run_consult` 回嘅一模一樣（前端照舊 render）。
+    失敗就 yield `("error", CONSULT_PARSE_FAILED)` 然後收工 —— HTTP status 冇得改，
+    所以錯誤一定要 in-band 講。
+
+    `cloud_analysis` 由 caller 傳入（route 已經行咗 `open_consult`），令 404 可以
+    喺串流開始之前就係一個真 HTTP status。
+    """
+    graph = _build_consult_graph()
+    state = _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis)
+    final: dict = state
+    try:
+        # 兩個 mode 一齊要：「updates」話我知邊個 node 行完咗，「values」最後一個
+        # chunk 就係完整 state（唔使自己重現 Annotated list 嘅 reducer）。
+        for mode, chunk in graph.stream(state, stream_mode=["updates", "values"]):
+            if mode == "updates":
+                for node, update in chunk.items():
+                    steps = (update or {}).get("trace") or []
+                    ms = steps[-1].get("ms") if steps else None
+                    yield "node", {"node": node, "ms": ms}
+            else:
+                final = chunk
+    except OutputParserException as e:
+        logger.error("consult failed: model output could not be parsed: %s", e)
+        yield "error", CONSULT_PARSE_FAILED
+        return
+    yield "result", _finish_consult(conversation_id, text, final)

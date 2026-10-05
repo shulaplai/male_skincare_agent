@@ -8,12 +8,50 @@
 
 | 入口 | 位置 | 用途 |
 |---|---|---|
-| `POST /api/consult` | `app/main.py:335` | 產品路徑。UI 每次 send 都係呢個 |
+| `POST /api/consult` | `app/main.py:374` | 產品路徑。UI 每次 send 都係呢個 |
+| `POST /api/consult/stream` | `app/main.py:382` | 同一件事，但 SSE 逐個 node 報進度（UI 而家行呢個） |
 | `scripts/trace_consult.py` | CLI | Debug。預設 temp DB + FakeLLM；`--real` 用真 LLM |
 | `python -m eval.run_eval` | `eval/run_eval.py` | Eval。temp DB；`--fake` 用 FakeLLM |
 
 三個入口最後都係 **`service.run_consult` 或者 `build_graph(...).invoke(...)`** ——
 即係共用同一套 5 個 node。
+
+## 1.1 `POST /api/consult/stream`：同一個 pipeline，兩個 transport
+
+串流**唔係**第二套邏輯：`service.stream_consult()` 同 `run_consult()` 一樣行
+`open_consult()`（404 ＋ consent 判斷）、`_build_consult_graph()`、`_consult_state()`，
+最後一樣 `_finish_consult()`（`vision_used` ＋ `write_run_log`）。唯一分別係
+`graph.invoke()` 變 `graph.stream(state, stream_mode=["updates", "values"])`：
+
+- `updates` → 邊個 node 行完（`analyze`／`tools`／`advise`／`guardrail`／`persist`），
+  連佢自己嗰句 `trace[].ms`；
+- `values` → 最後嗰個 chunk 就係完整 state（唔使自己重現 `Annotated` list reducer）。
+
+出街嘅 frames 係一個 JSON 一個 frame：
+
+```
+data: {"type":"node","node":"analyze","ms":2513}
+data: {"type":"node","node":"tools","ms":41}
+…
+data: {"type":"result", … 同 POST /api/consult 一模一樣嘅 payload …}
+data: {"type":"error","detail":"我今次分析唔到（…）"}   ← 失敗時代替 result
+```
+
+⚠️ **三條唔可以踩嘅規則**：
+
+1. **404 一定要喺 route 度答**（`open_consult()` 喺 `StreamingResponse` 之前行）。
+   一開始寫 frame，HTTP status 就已經送出咗，之後只可以用 in-band `error`。
+2. **解析失敗唔可以 raise 503**（同 `run_consult` 唔同）：`OutputParserException`
+   喺 generator 度 catch，出 `error` frame，內容同 503 body 共用同一個常數
+   `service.CONSULT_PARSE_FAILED`，唔可以有兩句唔同嘅失敗訊息。
+3. **`nginx.conf` 要 `proxy_buffering off`**：nginx 預設儲夠 buffer 先轉發，咁樣
+   逐個 frame 送就等於冇串流（本機 Vite proxy 冇呢個問題，所以只會喺 Docker 撞到）。
+
+前端 `api.consultStream()` 自己 parse frame；`res.body` 唔存在（舊瀏覽器／代理冇
+stream）就 fallback 去 `consult()`。`App.tsx` 每個 node 換一句顯示文字，字串放喺
+前端（後端只講「邊個 node」）。測試：`tests/test_consult_stream.py`（6 個，包括
+「404 唔可以係 200 串流」同「串流路徑都要寫 run log」）、
+`frontend/tests/ui/consult-stream.spec.ts`（2 個）。
 
 ## 2. HTTP 請求路徑（逐步）
 
