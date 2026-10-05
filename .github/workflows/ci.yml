@@ -51,5 +51,17 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Stylelint
+        run: npm run stylelint
       - name: Build
         run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      # The pixel baselines are macOS-only (`*-darwin.png`), so CI runs the part of
+      # the UI gate that cannot drift by platform: axe (light + dark), interactions,
+      # photo blur and consult streaming. `npm run ui:test` on a mac still compares
+      # all 40 screenshots; `--ignore-snapshots` only skips those comparisons.
+      - name: UI gate (a11y + interactions, no pixel snapshots)
+        run: npx playwright test --ignore-snapshots

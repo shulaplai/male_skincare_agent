@@ -3,7 +3,7 @@
 > 狀態：**階段 1／2／3a 已實作並驗證（2026-09）**；階段 3b／4／5 未做。
 > 已落嘅：S1＋S8（guardrail 掃 `reply`、劑量改 regex）、S2（eval scenario isolation＋`seed_days`）、
 > `app/agent/ingredients.py`、`recommend.py`（規則表）、`product_eval.py`，同 `POST /api/conversations/{cid}/products/evaluate`。
-> 另外 `GET /api/guide`（男士護膚基本資料）已做。test 數 77 → **312**（2026-10-05 實測；backend gate 仲有 `npm run ui:check` 60 個 Playwright）。
+> 另外 `GET /api/guide`（男士護膚基本資料）已做。test 數 77 → **317**（2026-10-05 實測；backend gate 仲有 `npm run ui:check` 60 個 Playwright）。
 > 寫喺度嘅每個「現況」都係實際 grep／跑過，唔係估。冇改過嘅行會寫明「未改」。
 > 相關 open items：`docs/open-findings.md`（S1／S2 出處）、status-vs-claims #25（UI 結構，同本文件無關）。
 
@@ -407,7 +407,7 @@ def is_recognised(key: str) -> bool
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 312 passed
+./.venv/bin/python -m pytest -q                    # 317 passed
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 # mutation check：把 :56 改返只掃 items，上面 test 1/2 必須 FAIL（唔係綠）
 ```
@@ -502,7 +502,7 @@ cd backend
 
 | 檢查 | 方法 | 期望 |
 |---|---|---|
-| 後端冇回歸 | `./.venv/bin/python -m pytest -q` | 312 passed |
+| 後端冇回歸 | `./.venv/bin/python -m pytest -q` | 317 passed |
 | eval gate 冇回歸 | `./.venv/bin/python -m eval.run_eval --fake` | exit 0 |
 | **商品評估唔寫 Entry** | 呼叫 `/products/evaluate` 前後 `SELECT COUNT(*) FROM entries` | **一樣**（呢個係最重要嘅一條） |
 | 商品評估唔寫 products | 前後 `SELECT COUNT(*) FROM products` | 一樣 |
