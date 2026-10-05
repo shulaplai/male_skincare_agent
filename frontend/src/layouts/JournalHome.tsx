@@ -196,11 +196,11 @@ export function JournalHome({ p, nav }: HomeProps) {
 
       <aside className="jm-side">
         <section>
-          <h3>AI 記得你</h3>
+          <h2>AI 記得你</h2>
           {summary && <MemoryList items={summary.insights} onDelete={removeInsight} />}
         </section>
         <section>
-          <h3>因果時間線</h3>
+          <h2>因果時間線</h2>
           {summary && <TimelineList events={summary.timeline} />}
         </section>
         <p className="hint">時間線／記憶會同「教練對話」右欄同步 —— 真數據，冇 demo。</p>

@@ -107,7 +107,7 @@ function Bubble({
               {m.vision_used ? '已睇相分析（雲端）' : '文字分析（未睇相）'}
             </div>
             <div className="card">
-              <h4>{m.analysis.title}</h4>
+              <h2>{m.analysis.title}</h2>
               <div className="metrics">
                 {m.analysis.metrics.map((mm) => (
                   <div className="metric" key={mm.key}>
@@ -438,7 +438,7 @@ export function Chat({
                     aria-valuemin={0}
                     aria-valuemax={100}
                   >
-                    <i style={{ width: clip.pct === null ? '100%' : `${clip.pct}%` }} />
+                    <i style={{ transform: clip.pct === null ? undefined : `scaleX(${clip.pct / 100})` }} />
                   </span>
                   <em>上載緊…{clip.pct !== null ? ` ${clip.pct}%` : ''}（唔使等，可以繼續打字）</em>
                 </>

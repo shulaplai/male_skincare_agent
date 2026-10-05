@@ -109,7 +109,7 @@ export function RightPanel({ conversation, refreshKey }: Props) {
   return (
     <aside className="right">
       <div className="panel-head">
-        <h3>{conversation.bodyPart}</h3>
+        <h2>{conversation.bodyPart}</h2>
       </div>
 
       {state === 'err' && <p className="empty small">連唔到 backend。</p>}
@@ -117,7 +117,7 @@ export function RightPanel({ conversation, refreshKey }: Props) {
       {state === 'ok' && summary && (
         <>
           <div>
-            <h3>皮膚指標</h3>
+            <h2>皮膚指標</h2>
             {latest && (latest.attributes ?? []).length > 0 ? (
               <div className="attr-list">
                 {ATTRIBUTE_KEYS.map((key) => {
@@ -158,7 +158,7 @@ export function RightPanel({ conversation, refreshKey }: Props) {
           </div>
 
           <div>
-            <h3>AI 記得你</h3>
+            <h2>AI 記得你</h2>
             {summary.insights.length === 0 ? (
               <EmptyState small icon="sparkles">未有記憶。</EmptyState>
             ) : (
@@ -196,7 +196,7 @@ export function RightPanel({ conversation, refreshKey }: Props) {
           </div>
 
           <div>
-            <h3>因果時間線</h3>
+            <h2>因果時間線</h2>
             {summary.timeline.length === 0 ? (
               <EmptyState small icon="clipboard-list">未有事件。自報嘅飲食／產品同明顯皮膚變化會喺度累積。</EmptyState>
             ) : (

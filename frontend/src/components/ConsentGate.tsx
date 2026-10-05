@@ -19,7 +19,7 @@ export function ConsentGate({ busy, error, onAgree }: Props) {
     <div className="app layout-chat">
       <main tabIndex={0} role="region" aria-label="同意聲明" className="view full consent-gate">
         <div className="consent-card">
-          <h2>開始之前，需要你同意一件事</h2>
+          <h1>開始之前，需要你同意一件事</h1>
           <ul>
             <li>
               你上載嘅 <b>皮膚相會送去雲端 vision 模型</b>（DeepSeek）分析，先睇得出暗瘡、油光、泛紅、

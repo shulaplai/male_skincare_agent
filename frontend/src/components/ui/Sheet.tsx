@@ -85,7 +85,7 @@ export function Sheet({
       <button className="scrim-backdrop" aria-label="取消並關閉" onClick={onClose} />
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={sheetRef}>
         <span className="grab" aria-hidden />
-        <h3>{title}</h3>
+        <h2>{title}</h2>
         {body && <div className="sheet-body">{body}</div>}
         {children}
         <button className={`btn wide ${tone === 'danger' ? 'danger solid' : 'primary'}`} onClick={onConfirm}>

@@ -9,14 +9,15 @@ import { Icon } from '../components/Icon'
 import { Skeleton } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 
+/* 一格 = 一個真正嘅 `<td>`：呢個比較表以前用 span 砌，報讀器見唔到行列關係。 */
 function AnchorCell({ v, now }: { v: AnchorInfo | null; now: number }) {
-  if (!v) return <span className="anchor-cell none">—</span>
+  if (!v) return <td className="anchor-cell none">—</td>
   const cls = v.delta === 0 ? 'same' : v.delta > 0 ? 'bad' : 'good'
   const arrow = v.delta === 0 ? '→' : v.delta > 0 ? '↑' : '↓'
   return (
-    <span className={`anchor-cell ${cls}`} title={`${v.date}：${v.old}/3 → ${now}/3`}>
+    <td className={`anchor-cell ${cls}`} title={`${v.date}：${v.old}/3 → ${now}/3`}>
       {arrow} {Math.abs(v.delta)}
-    </span>
+    </td>
   )
 }
 
@@ -54,7 +55,7 @@ export function DashHome({ p, nav }: HomeProps) {
 
       <div className="dash-grid">
         <section className="dash-card today">
-          <h3>今日皮膚狀態{latest ? ` · ${latest.date}` : ''}</h3>
+          <h2>今日皮膚狀態{latest ? ` · ${latest.date}` : ''}</h2>
           {loading ? (
             <Skeleton lines={2} />
           ) : !latest || (latest.attributes ?? []).length === 0 ? (
@@ -81,7 +82,7 @@ export function DashHome({ p, nav }: HomeProps) {
         </section>
 
         <section className="dash-card trends">
-          <h3>指標趨勢（0–3 級）</h3>
+          <h2>指標趨勢（0–3 級）</h2>
           {loading ? (
             <Skeleton lines={2} />
           ) : entries.length === 0 ? (
@@ -104,7 +105,7 @@ export function DashHome({ p, nav }: HomeProps) {
         </section>
 
         <section className="dash-card anchors">
-          <h3>同基準比較</h3>
+          <h2>同基準比較</h2>
           {loading ? (
             <Skeleton lines={2} />
           ) : anchors.length === 0 ? (
@@ -112,34 +113,38 @@ export function DashHome({ p, nav }: HomeProps) {
               未有得比較。記錄夠 3 日以上，最新一日就會同上次／約 1 個月前／約 3 個月前比較（±7 日內最接近嗰日）。
             </p>
           ) : (
-            <div className="anchor-table">
-              <div className="anchor-row head">
-                <span className="k">指標</span>
-                <span className="now">最新</span>
-                <span className="anchor-cell">vs 上次</span>
-                <span className="anchor-cell">vs 1M</span>
-                <span className="anchor-cell">vs 3M</span>
-              </div>
-              {anchors.map((a: AttributeAnchor) => (
-                <div className="anchor-row" key={a.key}>
-                  <span className="k">{a.label}</span>
-                  <span className="now">{a.severity}/3</span>
-                  <AnchorCell v={a.prev} now={a.severity} />
-                  <AnchorCell v={a.month} now={a.severity} />
-                  <AnchorCell v={a.quarter} now={a.severity} />
-                </div>
-              ))}
-            </div>
+            <table className="anchor-table">
+              <thead>
+                <tr className="anchor-row head">
+                  <th scope="col" className="k">指標</th>
+                  <th scope="col" className="now">最新</th>
+                  <th scope="col" className="anchor-cell">vs 上次</th>
+                  <th scope="col" className="anchor-cell">vs 1M</th>
+                  <th scope="col" className="anchor-cell">vs 3M</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anchors.map((a: AttributeAnchor) => (
+                  <tr className="anchor-row" key={a.key}>
+                    <th scope="row" className="k">{a.label}</th>
+                    <td className="now">{a.severity}/3</td>
+                    <AnchorCell v={a.prev} now={a.severity} />
+                    <AnchorCell v={a.month} now={a.severity} />
+                    <AnchorCell v={a.quarter} now={a.severity} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </section>
 
         <section className="dash-card corr">
-          <h3>相關性觀察（自動偵測 · 唔等於因果）</h3>
+          <h2>相關性觀察（自動偵測 · 唔等於因果）</h2>
           <CorrelationList corr={corr} loading={corrLoading} />
         </section>
 
         <section className="dash-card mem">
-          <h3>AI 記得你</h3>
+          <h2>AI 記得你</h2>
           {summary ? (
             <MemoryList items={summary.insights} onDelete={removeInsight} />
           ) : (
@@ -148,7 +153,7 @@ export function DashHome({ p, nav }: HomeProps) {
         </section>
 
         <section className="dash-card timeline">
-          <h3>因果時間線</h3>
+          <h2>因果時間線</h2>
           {summary ? <TimelineList events={summary.timeline} /> : <Skeleton lines={2} />}
         </section>
       </div>

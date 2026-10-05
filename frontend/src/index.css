@@ -128,7 +128,7 @@ body {
   cursor: pointer;
   font-size: var(--f-md);
   line-height: 1;
-  transition: 0.15s;
+  transition: background-color 0.15s;
 }
 .convo-head .add:hover {
   background: var(--accent-soft);
@@ -203,7 +203,7 @@ body {
   align-items: center;
   gap: 8px;
   justify-content: center;
-  transition: 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 .new-convo:hover {
   border-color: var(--accent);
@@ -600,7 +600,7 @@ body {
   margin-top: 6px;
   box-shadow: var(--shadow);
 }
-.card h4 {
+.card :is(h2, h4) {
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--f-md);
@@ -694,7 +694,7 @@ body {
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: 0.15s;
+  transition: border-color 0.15s, color 0.15s;
 }
 .iconbtn:hover {
   border-color: var(--accent);
@@ -718,7 +718,7 @@ body {
   font-size: var(--f-md);
   font-family: var(--sans);
   outline: none;
-  transition: 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 /* 自適應輸入框：高度由 `Chat.tsx` 量 scrollHeight 寫 inline style（上限 132px），
    呢度只負責「唔准手動 resize、超過就自己 scroll、同發送掣高度對齊」。 */
@@ -870,7 +870,7 @@ body {
 .sc-metrics .m .v.bad {
   color: var(--warn);
 }
-.right h3 {
+.right :is(h2, h3) {
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--f-sm);
@@ -1231,7 +1231,7 @@ body {
 
 /* ---- live right panel (Q9B) ---- */
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.panel-head h3 { margin: 0; }
+.panel-head :is(h2, h3) { margin: 0; }
 .attr-list { display: flex; flex-direction: column; gap: 6px; }
 .attr { display: flex; align-items: center; gap: 8px; font-size: var(--f-sm); }
 .attr .k { width: 44px; }
@@ -1408,8 +1408,19 @@ body {
 .mem-x:hover { color: var(--danger); }
 
 /* ---- anchor comparison table (Q12) ---- */
-.anchor-table { display: flex; flex-direction: column; gap: 2px; }
-.anchor-row { display: flex; align-items: center; gap: 8px; font-size: var(--f-xs); padding: 3px 0; }
+/* 真 `<table>`（audit §7「表格語意」）：以前係 div／span 砌嘅格，報讀器聽唔到
+   「邊一欄係 vs 上次」。`border-collapse` + 右邊 padding 代替 flex 嘅 gap，
+   所以睇落一樣（snapshot 會睇住）。⛔️ 唔好再加 `display: flex` 落 `tr`／`td`，
+   噉樣會連表格語意一齊拆走。 */
+.anchor-table { width: 100%; border-collapse: collapse; font-size: var(--f-xs); }
+.anchor-table th,
+.anchor-table td {
+  padding: 3px 8px 3px 0;
+  text-align: start;
+  font-weight: inherit;
+}
+.anchor-table th:last-child,
+.anchor-table td:last-child { padding-right: 0; }
 .anchor-row .k { width: 52px; font-weight: 600; }
 .anchor-row .now { width: 44px; }
 .anchor-cell { width: 72px; }
@@ -1417,7 +1428,7 @@ body {
 .anchor-cell.bad { color: var(--danger); }
 .anchor-cell.same { color: var(--muted); }
 .anchor-cell.none { color: var(--muted, #aaa); }
-.anchor-row.head { font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--line); }
+.anchor-row.head th { font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--line); }
 
 /* ---- correlation observations (Q30) ---- */
 .corr-block { margin: 2px 0; }
@@ -1702,7 +1713,7 @@ body {
   gap: 18px;
   transition: background 0.35s;
 }
-.jm-side section h3 {
+.jm-side section :is(h2, h3) {
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--f-sm);
@@ -1849,7 +1860,7 @@ body {
   box-shadow: var(--shadow);
   min-width: 0;
 }
-.dash-card h3 {
+.dash-card :is(h2, h3) {
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--f-md);
@@ -1895,7 +1906,7 @@ body {
   flex-direction: column;
   gap: 9px;
   font-family: var(--sans);
-  transition: 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .layout-opt:hover {
   border-color: var(--accent);
@@ -2427,7 +2438,7 @@ textarea:focus {
   padding: 16px 17px;
   box-shadow: var(--shadow);
 }
-.mob-card h3 {
+.mob-card :is(h2, h3) {
   font-family: var(--serif);
   font-weight: 600;
   font-size: var(--f-md);
@@ -2865,7 +2876,7 @@ textarea:focus {
   box-shadow: var(--shadow);
   cursor: pointer;
   font-family: var(--sans);
-  transition: 0.15s;
+  transition: border-color 0.15s;
 }
 .guide-entry-btn:hover {
   border-color: var(--accent);
@@ -2944,7 +2955,7 @@ textarea:focus {
   padding: 26px 24px;
   box-shadow: var(--shadow);
 }
-.consent-card h2 {
+.consent-card :is(h1, h2) {
   font-family: var(--serif);
   font-size: 21px;
   margin-bottom: 14px;
@@ -3072,9 +3083,12 @@ textarea:focus {
 }
 .clip-bar i {
   display: block;
+  width: 100%;
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-deep));
-  transition: width 0.2s;
+  /* 進度用 `scaleX()`（compositor 搞得掂）而唔係 `width`（每格都要 layout）。 */
+  transform-origin: left center;
+  transition: transform 0.2s;
 }
 /* 瀏覽器未報進度之前：不確定態（來回掃）而唔係假裝 0% */
 .clip-bar.unknown i {
@@ -3242,7 +3256,7 @@ textarea:focus {
   background: var(--line);
   align-self: center;
 }
-.sheet h3 {
+.sheet :is(h2, h3) {
   font-family: var(--serif);
   font-size: var(--f-lg);
   font-weight: 600;
@@ -3332,18 +3346,25 @@ textarea:focus {
   padding: var(--s4);
 }
 .skel {
+  position: relative;
+  overflow: hidden;
   height: 14px;
   border-radius: 7px;
-  background: linear-gradient(90deg, var(--line), var(--panel), var(--line));
-  background-size: 200% 100%;
+  background: var(--line);
+}
+/* 閃光用 `transform` 掃一個 pseudo-element：`background-position` 每格都要 repaint
+   成個 block，loader 一多就係 main thread 上嘅免費開支。 */
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--panel), transparent);
+  transform: translateX(-100%);
   animation: sk 1.4s linear infinite;
 }
 @keyframes sk {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
+  to {
+    transform: translateX(100%);
   }
 }
 /* 空態：統一一個樣（icon + 一句 + 一個行動掣） */

@@ -40,6 +40,11 @@ const FALLBACK = 'chat'
 export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd, onNavigate, onRename, onDelete, compact }: Props) {
   return (
     <aside className={`side${compact ? ' compact' : ''}`}>
+      {/* 每個 scene 都要有一個 `<h1>`：chat 結構冇 `ShellTop`（body part 嗰個 h1 喺嗰度），
+          而 axe 嘅 `heading-order` 係 **best-practice** rule、唔在 wcag tag 入面，所以
+          12 條 axe test 捉唔到（2026-10-05 實測：記錄／進度／設定／指南頁嘅第一個
+          heading 係 h2）。`tests/ui/a11y.spec.ts`「heading 層級」就係補呢個盲點。 */}
+      <h1 className="sr-only">{NAV.find((n) => n.key === view)?.label ?? '教練對話'}</h1>
       <div className="brand">
         <span className="dot" />
         <div>

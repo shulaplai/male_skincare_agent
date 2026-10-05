@@ -162,6 +162,7 @@ reload 保持、Back 真係返上一頁、`?scene=guide` 出到指南（3806）�
 | **axe 捉唔到「撳唔到」** | 冇規則要求 `<a onClick>`／`<span onClick>` focusable |
 | **`test_export` 嘅 `tmp_path` 太乾淨** | 真 data dir 有 962 MB model cache，test 嗰個係空目錄 |
 | **自己寫嘅量度漏 `<i>`／`<span>`** | 第一輪「0 個 < 44px tap target」係查 `button, a[href], input, …` —— `<i onClick>` 唔喺 selector 入面，所以完全冇量到 |
+| **axe 捉唔到標題層級** | `a11y.spec.ts` 只 `withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa'])`，而 `heading-order` 係 axe 嘅 **best-practice** rule、唔在呢四個 tag 入面 → `ShellTop` 個 `<h1>` 之後直接 `<h3>`，12 條 axe test 一路綠燈 |
 
 **修法（今輪一齊做）**：
 1. `frontend/tests/ui/photos.spec.ts`（**新**，4 個 test）：直接斷言每個 scene
@@ -173,29 +174,41 @@ reload 保持、Back 真係返上一頁、`?scene=guide` 出到指南（3806）�
 3. `snapshots.spec.ts` 嘅 `settle()` 加 `page.clock.setFixedTime('2026-10-01T09:00+08:00')`
    —— 固定「今日」，timer 照跑（唔用 `clock.install()`，佢會停 timer）。
 4. `export` 加 2 個 test，其中一個**刻意 plant** cache 目錄。
+5. `a11y.spec.ts` 加「heading 層級」2 個 test（**唔靠 axe**，自己行 DOM）：
+   桌面 1280×900 四個 shell × 六個 scene ＋ 手機 390×844 六個 scene，
+   規則 = 第一個**可見** heading 要係 `h1`、之後每級最多深一級。
+   已驗證**會紅**：未修之前 `chat` 結構嘅記錄／進度／設定／指南頁第一個 heading 係 `h2`。
 
-## 7. 冇做（仍然開住）
+## 7. 進度（2026-10-05 晚更新）
+
+### 已修
+
+| 項目 | 修咗咩 |
+|---|---|
+| 離線 retry | `api.ts` 加 `readableError()`：`TypeError`／`Failed to fetch` →「連唔到後端，檢查 network／backend 起咗未？」；其餘非中文 raw message 包成「系統出錯（…）」。`src/` 15 處 raw `.message` 全部改走。失敗氣泡加「重試」掣，重用原本 payload（唔會出多一條用戶訊息） |
+| 失敗訊息保留 | 同一個 session 內：失敗嗰條 user 氣泡仍然喺 thread，錯誤氣泡有「重試」。⚠️ **reload 之後仍然冇** —— 失敗嗰次冇寫入 DB，要真保留就要將 user message 落地 |
+| 時間感知問候 | `format.ts` 加 `greeting()`（5–12 早晨呀／12–18 午安／18–23 晚上好／其餘 夜深喇，配 sun／moon icon）。Snapshot 靠 `clock.setFixedTime('2026-10-01T09:00+08:00')` 固定喺「早晨呀」，所以冇 churn |
+| `Intl.DateTimeFormat` | `format.ts` `hhmm()` 改用 `Intl.DateTimeFormat('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })`。實測 local midnight 出 `00:00`（唔會 `24:00`），同手寫 `padStart` 逐個 case 一致 |
+| 表格語意 | `ProgressView`／`DashHome` 基準比較表由 `div`／`span` 改成真 `<table>` + `<thead>` + `<th scope="col">`／`<th scope="row">`；`.anchor-table` 改 `border-collapse` 代替 flex gap（⛔️ 唔可以再喺 `tr`／`td` 加 `display:flex`，會連語意一齊拆）。量度：**362×70**（以前 flex **362×74**，差 2 條 2px gap）→ 5 個 snapshot 只係表格以下整體**上移 4px**（逐帶比對 MAE 0.00，冇其他像素變化） |
+| 標題層級 | section 標題全部 `h3` → `h2`（DashHome 6／JournalHome 2／MobileHome 3／RightPanel 4／Sheet 1）、分析卡 `h4` → `h2`、ConsentGate `h2` → `h1`；`index.css` 8 個 selector 放寬成 `:is(h2,h3)`。chat 結構冇 `ShellTop`，所以 Sidebar 補一個 `sr-only` `h1`（每個 scene 一個） |
+| 動效 | `.clip-bar i` 由動 `width` 改 `transform: scaleX()`（`Chat.tsx` 跟住改）、`.skel` 由動 `background-position` 改掃 `.skel::after` 嘅 `translateX`、6 處 `transition: 0.15s` 寫明真正變嘅 property |
+
+### 仍然開住
 
 | 項目 | 為咩 |
 |---|---|
 | `/api/consult` 串流 | 真實中位 **5.46 s**（最慢 7.36 s）先出第一個字。UI 已經老實講「約 5–10 秒」＋ `aria-live`，但 `graph.stream()` 同逐 node `trace` 已經喺度，串流係最大嘅體感槓桿。要改 API 形狀（SSE）＋前端，係一個獨立 project |
 | 相縮圖 | 手機首頁為咗 98×98 嘅格下載 **605.9 KB** 相（真相 768×1024 / ~65 KB ×14）。Pillow 已經裝，但要有 `/api/photos/{id}?w=` 或預生成縮圖 + `srcset` |
 | `loading="lazy"` ＋ `<img width/height>` | 14 張相全部 eager、冇尺寸 → CLS。清單一長就線性變差 |
-| 離線 retry | backend 一死，UI 出 `Failed to fetch（請確認 backend 已起）`（**英文 raw TypeError 漏入廣東話 UI**），而且**冇重試掣** —— 起返 backend 都要自己 reload |
-| 失敗訊息保留 | consult 失敗（例如 503）之後，用戶打嘅字冇喺任何地方留底，reload 就冇，亦冇 retry |
-| 時間感知問候 | `Chat.tsx` 永遠「早晨呀」，晚上 11 點都一樣 |
-| `Intl.DateTimeFormat` | `format.ts` 手寫 `padStart`；單一語言所以風險低 |
-| 表格語意 | `ProgressView` 嘅 anchor 比較用 `div` 砌，唔係 `<table>`／`th[scope]` |
-| 標題層級 | `ShellTop` 個 `<h1>` 之後直接 `<h3>`（跳咗 h2） |
-| 動效 | `.clip-bar i` 動 `width`、`.skel` 動 `background-position`（唔係 compositor-friendly）；8 處 `transition: 0.15s` 冇寫明 property |
 
 ## 8. Gate 現況（修完）
 
 ```
-backend:  ./.venv/bin/python -m pytest -q         → 275 passed（+2 export test）
-          ./.venv/bin/python -m eval.run_eval --fake → exit 0
-frontend: npm run ui:check                        → 55 passed
-          （typecheck + eslint 0 error + stylelint 0 error + 40 snapshot + axe 12（淺/暗）+ 互動）
+backend:  ./.venv/bin/python -m pytest -q         → 289 passed
+          ./.venv/bin/python -m eval.run_eval --fake → exit 0（4 scenario 全 PASS）
+frontend: npm run ui:check                        → 57 passed
+          （typecheck + eslint 0 error + stylelint 0 error + 40 snapshot + axe 12（淺/暗）
+            + heading 層級 2 + 互動 5 + 相片模糊 4）
 真 app:   iPhone 390×844 同桌面 1280×900 —— console 0 error、失敗請求 0、溢出 0、
           手機 < 44px 0 個、< 12px 只有已批嘅 11px tab label
 ```

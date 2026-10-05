@@ -56,3 +56,64 @@ for (const theme of ['light', 'dark'] as const) {
     })
   }
 }
+
+/**
+ * 標題層級（唔靠 axe）。`heading-order` 係 axe 嘅 **best-practice** rule，唔在
+ * `wcag2a/2aa/21a/21aa` 入面 → 上面嗰 12 條 axe test 完全捉唔到。2026-10-05 實測：
+ * `ShellTop` 出 `<h1>` 之後各 section 直接 `<h3>`，gate 一路綠燈（audit §6 講嘅盲點）。
+ *
+ * 規則（WCAG 冇明文，但係 axe 同絕大部分報讀器嘅預期）：
+ *   1. 頁面第一個**可見** heading 要係 `<h1>`
+ *   2. 之後每一級最多深一級（`h2` → `h4` = 跳級）
+ * 用 1280×900（四個 shell 都會真 render）＋ 390×844（窄屏一律 `resolveLayout` → mobile）。
+ */
+const HEADING_SCENES = ['home', 'chat', 'records', 'progress', 'settings', 'guide'] as const
+
+async function headingLevels(page: import('@playwright/test').Page): Promise<number[]> {
+  return page.$$eval('h1,h2,h3,h4,h5,h6', (els) =>
+    els
+      // 只計真係見到嘅（`display:none` 嘅 panel 唔算層級）
+      .filter((e) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden')
+      .map((e) => Number(e.tagName.slice(1))),
+  )
+}
+
+function headingProblems(where: string, levels: number[]): string[] {
+  const bad: string[] = []
+  if (levels.length === 0) return [`${where}：一個 heading 都冇`]
+  if (levels[0] !== 1) bad.push(`${where}：第一個 heading 係 h${levels[0]}（要 h1）`)
+  for (let i = 1; i < levels.length; i++) {
+    if (levels[i] > levels[i - 1] + 1) {
+      bad.push(`${where}：h${levels[i - 1]} → h${levels[i]} 跳級（序列 ${levels.join(',')}）`)
+    }
+  }
+  return bad
+}
+
+test.describe('heading 層級', () => {
+  test('桌面（1280×900）：四個 shell × 六個 scene', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await installFixtures(page)
+    const bad: string[] = []
+    for (const layout of ['chat', 'journal', 'dash', 'mobile'] as const) {
+      for (const scene of HEADING_SCENES) {
+        await page.goto(`?layout=${layout}&scene=${scene}`)
+        await page.waitForLoadState('networkidle')
+        bad.push(...headingProblems(`${layout}·${scene}`, await headingLevels(page)))
+      }
+    }
+    expect(bad, `標題層級問題：\n${bad.join('\n')}`).toEqual([])
+  })
+
+  test('手機（390×844）：mobile shell × 六個 scene', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await installFixtures(page)
+    const bad: string[] = []
+    for (const scene of HEADING_SCENES) {
+      await page.goto(`?scene=${scene}`)
+      await page.waitForLoadState('networkidle')
+      bad.push(...headingProblems(`mobile·${scene}`, await headingLevels(page)))
+    }
+    expect(bad, `標題層級問題：\n${bad.join('\n')}`).toEqual([])
+  })
+})

@@ -121,7 +121,7 @@ export function MobileHome({ p, nav }: HomeProps) {
         )}
 
       <section className="mob-card">
-        <h3>今日指標</h3>
+        <h2>今日指標</h2>
         {loading ? (
           <p className="empty small">載入中…</p>
         ) : today.recorded === 0 ? (
@@ -147,7 +147,7 @@ export function MobileHome({ p, nav }: HomeProps) {
       </section>
 
       <section className="mob-card">
-        <h3>最近幾日</h3>
+        <h2>最近幾日</h2>
         {loading ? (
           <p className="empty small">載入中…</p>
         ) : entries.length === 0 ? (
@@ -205,7 +205,7 @@ export function MobileHome({ p, nav }: HomeProps) {
       </section>
 
       <section className="mob-card">
-        <h3>AI 記得你</h3>
+        <h2>AI 記得你</h2>
         {loading ? (
           <p className="empty small">載入中…</p>
         ) : summary ? (
