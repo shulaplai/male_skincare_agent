@@ -57,7 +57,7 @@ cd frontend && npm run dev
 - **嚴重度（我估）**：好煩（因為「食辣 → 爆瘡」係我買呢個 app 嘅原因）
 - **可重現？**：每次
 
-> 呢條已經係 issue [#22](https://github.com/shulaplai/male_skincare_agent/issues/22)（未修，等你決定保存方式）。
+> 呢條已經係 issue [#22](https://github.com/shulaplai/male_skincare_agent/issues/22)（**已修**：chip 而家會寫入嗰條教練訊息，reload 之後仲喺度）。
 
 ---
 
@@ -66,9 +66,9 @@ cd frontend && npm run dev
 | 想試 | 步驟 | 而家狀態 |
 |---|---|---|
 | 同日讀數被覆蓋 | 同一日先打「下巴爆咗兩粒，T 字位好油」，再打多條含糊啲嘅（例如「今朝好似爆多咗」）→ 睇右欄指標由 2 變 1 | 未修 [#21](https://github.com/shulaplai/male_skincare_agent/issues/21) |
-| 事件 chip 消失 | 打「尋晚食咗辣底」→ 出 chip → **reload** | 未修 [#22](https://github.com/shulaplai/male_skincare_agent/issues/22) |
-| 相檔殘留 | 揀一張相（唔好送出）→ 撳 × → 睇 `backend/data/photos/` 多咗一個檔案但 UI 永遠見唔到 | 未修 [#23](https://github.com/shulaplai/male_skincare_agent/issues/23) |
-| iPhone HEIC | 由 iPhone 相簿直接上載（唔經 WhatsApp） | 已修成可讀 415；原生支援未做 [#24](https://github.com/shulaplai/male_skincare_agent/issues/24) |
+| 事件 chip 消失 | 打「尋晚食咗辣底」→ 出 chip → **reload** | 已修，[#22](https://github.com/shulaplai/male_skincare_agent/issues/22) 已 close |
+| 相檔殘留 | 揀一張相（唔好送出）→ 撳 × → 睇 `backend/data/photos/` 有冇多咗檔案 | 已修，[#23](https://github.com/shulaplai/male_skincare_agent/issues/23)：撳 × 即刻刪，另外 24 小時 sweep 會執走關頁剩低嘅 |
+| iPhone HEIC | 由 iPhone 相簿直接上載（唔經 WhatsApp） | 已修成可讀 415；[#24](https://github.com/shulaplai/male_skincare_agent/issues/24) 已 close（決定唔做原生支援，理由記喺 `.out-of-scope/heic-native-support.md`） |
 | 刪 entry 之後有爛圖 | 喺「記錄」刪某一日 → 返對話睇，嗰日嘅相會變 404 空框 | 未修（報告 P3-2） |
 
 ## 想變 issue 或者叫我做

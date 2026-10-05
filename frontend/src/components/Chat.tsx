@@ -418,7 +418,12 @@ export function Chat({
               type="button"
               className="x"
               aria-label="移除呢張相"
-              onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+              onClick={() => {
+                setAttached((prev) => prev.filter((x) => x.id !== a.id))
+                // 揀相嗰刻已經寫咗落 disk —— 淨係移除 chip 會令個檔案永遠冇人認領
+                // （issue #23）。失敗唔擋用戶：server 24 小時後嘅 sweep 會執手尾。
+                api.deleteUnattachedPhoto(a.id).catch(() => {})
+              }}
             >
               ×
             </button>

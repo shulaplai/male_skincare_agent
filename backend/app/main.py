@@ -1,6 +1,7 @@
 """FastAPI entrypoint."""
 import datetime
 import logging
+import time
 import uuid
 from contextlib import asynccontextmanager
 
@@ -36,7 +37,7 @@ from app.models import (
     Video,
     utcnow,
 )
-from app.photo import UnreadableImage, save_photo
+from app.photo import UnreadableImage, photo_exists, save_photo
 from app.video import (
     COMPRESS_OVER_BYTES,
     VideoCompressError,
@@ -378,12 +379,17 @@ def consult(req: ConsultRequest) -> dict:
 
 
 @app.post("/api/photos")
-async def upload_photo(file: UploadFile = File(...)) -> dict:
+async def upload_photo(
+    file: UploadFile = File(...), db: Session = Depends(get_session)
+) -> dict:
     """Store a photo locally (compressed) and return its id/path.
 
     Unreadable payloads become a **readable 415**, not a 500 (measured in-browser before
     this: uploading a HEIC — the iPhone default — showed the user 「✗ 上傳失敗：HTTP 500」,
     which says nothing and cannot be acted on).
+
+    Picking a photo is also the moment housekeeping runs: a picked-then-abandoned upload
+    is exactly the orphan `sweep_orphan_photos` exists to collect (issue #23).
     """
     photo_id = uuid.uuid4().hex
     try:
@@ -398,6 +404,13 @@ async def upload_photo(file: UploadFile = File(...)) -> dict:
                 "或者分享張相做 JPG 再上載。"
             ),
         ) from e
+    try:
+        removed = sweep_orphan_photos(db)
+    except Exception:  # housekeeping must never break an upload the user just made
+        logger.warning("orphan photo sweep failed", exc_info=True)
+    else:
+        if removed:
+            logger.info("orphan photo sweep: removed %d abandoned upload(s)", removed)
     return {"id": photo_id, "path": path}
 
 
@@ -647,6 +660,31 @@ def get_photo(photo_id: str) -> FileResponse:
     return FileResponse(path)
 
 
+@app.delete("/api/photos/{photo_id}")
+def delete_unattached_photo(photo_id: str, db: Session = Depends(get_session)) -> dict:
+    """Delete a photo the user picked but never sent (issue #23).
+
+    The composer uploads a file the moment it is picked, so 「撳 ×」, switching body part
+    or closing the page left the jpg on disk forever: no `Photo` row, and no UI that
+    could ever see it. Measured: one trial left 15 such files, and the repo's own data
+    dir already had 6.
+
+    Only an **unattached** file may go through here: a file an entry owns answers 409,
+    so the 「記錄」correction UI stays the one place that removes a record's photo — and
+    the one place that also removes the row telling the journal the photo exists.
+    """
+    if not photo_exists(photo_id):
+        raise HTTPException(status_code=404, detail="photo not found")
+    path = f"photos/{photo_id}.jpg"
+    if db.query(Photo).filter_by(path=path).first() is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="呢張相已經屬於某一日嘅記錄，要喺嗰日嘅「記錄」度刪。",
+        )
+    _delete_photo_file(path)
+    return {"status": "ok", "deleted": photo_id}
+
+
 @app.get("/api/consent")
 def get_consent(db: Session = Depends(get_session)) -> dict:
     """One-time photo consent state (2026-10-01: cloud-only, consent asked once).
@@ -687,6 +725,53 @@ def get_settings() -> dict:
 class EntryNoteRequest(BaseModel):
     """Edit a day entry's note (memory correction)."""
     note: str = ""
+
+
+# An upload is written to disk the moment the user picks it — before any Entry can
+# reference it — so 「撳 ×」, switching body part or closing the page used to strand a
+# file with no `Photo` row and no way back into the UI (issue #23). The composer now
+# deletes on remove and there is a DELETE for it; this is the net for a page that never
+# got to make that call. The grace period is what keeps a photo picked seconds ago — or
+# a clip whose frames the user has not sent yet — out of it.
+ORPHAN_PHOTO_TTL = 24 * 60 * 60
+
+
+def sweep_orphan_photos(db: Session, now: float | None = None) -> int:
+    """Delete abandoned uploads older than `ORPHAN_PHOTO_TTL`; returns how many went.
+
+    "Abandoned" = on disk in `photos/`, but nothing references it: no `Photo` row, no
+    `Video.frames` entry, no `ChatMessage.payload["photos"]`. That last one matters — a
+    photo the user *did* send can have no Entry at all (`entry_written` is False for a
+    product question with a photo), and the message payload is then the only thing that
+    makes the bubble render after a reload, so sweeping it would leave a 404 in an old
+    reply. Files younger than the TTL are always kept, so this can never race a photo the
+    user is about to send.
+    """
+    photos_dir = Path(settings.data_dir) / "photos"
+    if not photos_dir.is_dir():
+        return 0
+    referenced = {row[0] for row in db.query(Photo.path).all()}
+    for (frames,) in db.query(Video.frames).all():
+        for fid in frames or []:
+            if isinstance(fid, str):
+                referenced.add(f"photos/{fid}.jpg")
+    for (payload,) in db.query(ChatMessage.payload).all():
+        for pid in (payload or {}).get("photos") or []:
+            if isinstance(pid, str):
+                referenced.add(f"photos/{pid}.jpg")
+    cutoff = (time.time() if now is None else now) - ORPHAN_PHOTO_TTL
+    removed = 0
+    for stored in photos_dir.glob("*.jpg"):
+        if f"photos/{stored.name}" in referenced:
+            continue
+        try:
+            if stored.stat().st_mtime > cutoff:
+                continue
+            stored.unlink()
+        except OSError:
+            continue  # already gone / unreadable — the next sweep is another chance
+        removed += 1
+    return removed
 
 
 def _delete_photo_file(path: str) -> None:

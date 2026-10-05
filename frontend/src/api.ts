@@ -229,6 +229,17 @@ export async function deleteEntryPhoto(entryId: string, photoId: string): Promis
   return parse(await fetch(`/api/entries/${entryId}/photos/${photoId}`, { method: 'DELETE' }))
 }
 
+/**
+ * Delete a photo the user picked but never sent (issue #23).
+ *
+ * Picking a photo uploads it to disk immediately, so without this 「撳 ×」 left the file
+ * behind forever — no `Photo` row, no UI that could see it. The server refuses (409)
+ * for a photo an entry owns: a record's photo is removed from the journal, never here.
+ */
+export async function deleteUnattachedPhoto(photoId: string): Promise<{ status: string }> {
+  return parse(await fetch(`/api/photos/${photoId}`, { method: 'DELETE' }))
+}
+
 export async function deleteInsight(cid: string, insightId: string): Promise<{ status: string }> {
   return parse(await fetch(`/api/conversations/${cid}/insights/${insightId}`, { method: 'DELETE' }))
 }

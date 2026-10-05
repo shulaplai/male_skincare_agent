@@ -232,7 +232,7 @@ are／is／includes），只剝 CJK function word，所以唔會食到拉丁 INC
 
 | # | 觀察 | 狀態 |
 |---|---|---|
-| P3-1 | **上載完但冇送出嘅相永久殘留**：trial DB 一次試用就 15 個 orphan jpg（disk 有、`photos` 表冇 row，UI 亦冇任何方法刪）；repo 現有 `backend/data/photos` 都係同一形狀（6 個 orphan、`photos` 表 0 行）。用戶 attach 完再撳 ×／行開，檔案就永遠留喺機 | 未修（清理政策 → issue [#23](https://github.com/shulaplai/male_skincare_agent/issues/23)） |
+| P3-1 | **上載完但冇送出嘅相永久殘留**：trial DB 一次試用就 15 個 orphan jpg（disk 有、`photos` 表冇 row，UI 亦冇任何方法刪）；repo 現有 `backend/data/photos` 都係同一形狀（6 個 orphan、`photos` 表 0 行）。用戶 attach 完再撳 ×／行開，檔案就永遠留喺機 | **已修**（2026-10-05，issue [#23](https://github.com/shulaplai/male_skincare_agent/issues/23)）：撳 × 即刻 `DELETE /api/photos/{id}`，另加 24 小時 `sweep_orphan_photos` 執關頁剩低嘅；`ChatMessage.payload.photos` 引用嘅相唔會被掃 |
 | P3-2 | **刪 entry（連相）之後，對話歷史仲引用被刪嘅相** → 4 個 `GET /api/photos/<id>` 404、thread 出爛圖（`ChatMessage.payload.photos` 唔會跟住清） | 未修 |
 | P3-3 | **多相上載只顯示第一張**：attach 2 張（UI 唔支援一次揀多個，`input` 冇 `multiple`）→ consult 收 2 張、`images_loaded: 2`、vision 兩張都睇到，但**用戶自己個 bubble 只 render `photos[0]`**，reload 後亦係（`App.tsx` / `format.ts`） | 未修 |
 | P3-4 | 兩個相機圖示掣行為**完全一樣**（同一個 hidden file input，冇 `capture`）→ 手機上唔會直接開相機 | 未修 |
