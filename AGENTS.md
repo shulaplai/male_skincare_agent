@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 289 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 296 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -22,7 +22,7 @@ cd frontend
 npm run typecheck    # tsc --noEmit，一定要過
 npm run build        # typecheck + vite build
 npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行）
-npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（40 snapshot + axe 12（淺／暗）＋ 5 互動 ＋ 4 相片模糊）
+npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（40 snapshot + axe 12（淺／暗）＋ 5 互動 ＋ 5 相片模糊）
 npm run ui:update    # UI 改動**預期之內**時更新 baseline snapshot（要逐個解釋）
 npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :5173/:5174）
 ```
@@ -45,7 +45,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；agent scenario 有 `expect_tool` gate |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 289 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 296 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -139,7 +139,7 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
 - **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
 - **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
 - **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
-- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：57 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊、**heading 層級 2**）＋ axe WCAG 2.1 AA（淺／暗）。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：58 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊、**heading 層級 2**）＋ axe WCAG 2.1 AA（淺／暗）。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
   ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
   ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
   ⚠️ snapshot flaky 嘅源頭通常係 **webfont swap**：`settle()` 一定要 `await document.fonts.ready`，
@@ -161,6 +161,14 @@ npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :517
   === 'none'`）、28 張喺 anchor 入面；而 **51 個 snapshot 全綠**（原因見下一個陷阱）。
   公告板格仔用 `variant="grid"`；加新 UI 出相之前，問一句「呢張相有冇經 `BlurPhoto`？」，
   而 `frontend/tests/ui/photos.spec.ts` 就係答嗰句嘅網。
+  ⚠️ **每個相框都要傳 `thumbWidth`（2× CSS 大細），唔好出原檔**：後端 `GET /api/photos/{id}?w=`
+  出縮圖（`photo.THUMB_WIDTHS = (96, 192, 200, 264, 296, 336)`，其他值 **400**、非整數 422）。
+  格仔 96 px→192、日記 148→296（手機 100 → 200）、對話氣泡 168→336、composer 預覽 48→96。
+  實測真 data 14 張相：原檔 **659.7 KB** → `w=192` **118.7 KB**（省 82%），而 2× 縮圖喺螢幕上
+  同原檔一樣清。`BlurPhoto` 用縮圖 render、只有 Lightbox（`src`）攞原檔。
+  ⚠️ 唔使加 `<img width/height>`：`index.css` 每個相框都係固定 px ＋ `aspect-ratio`，
+  空間一早留咗（實測相延遲 1.5 s 之下 CLS 0.0001–0.0003）。格仔／日記用 `loading="lazy"`（`grid` variant 自動），
+  對話氣泡**唔** lazy。改 `THUMB_WIDTHS` 要一齊改 `photos.spec.ts` 嗰份 mirror 清單。
 - **UI gate 有盲點，而且盲點係靜嘅**：2026-10-05 嗰批 P0／P1 全部係「過齊所有 gate 之後出街」。
   逐個原因（全部實測）：
   1. **snapshot 睇唔到 blur**：`fixtures.ts` 嘅假相本來係低對比漸變（67 色、channel std ≈ 10），

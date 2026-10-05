@@ -159,7 +159,12 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
                     <span className="photo-cell" key={p}>
                       {/* 皮膚相一律經 `BlurPhoto` —— 呢度以前係裸 `<img>`，即係「記錄」
                           tab 全部自拍都係全清（見 `BlurPhoto` docstring）。 */}
-                      <BlurPhoto src={`/api/photos/${id}`} alt={`${e.date} 皮膚相`} variant="grid" />
+                      <BlurPhoto
+                        src={`/api/photos/${id}`}
+                        alt={`${e.date} 皮膚相`}
+                        variant="grid"
+                        thumbWidth={192}
+                      />
                       <button
                         type="button"
                         className="photo-x"

@@ -99,7 +99,9 @@ function Bubble({
             <Icon name="play" size={13} /> 皮膚影片{m.clip.duration ? ` · ${m.clip.duration.toFixed(0)} 秒` : ''}
           </span>
         )}
-        {!m.clip && m.photo && <BlurPhoto src={m.photo} onLoad={onMediaLoad} />}
+        {!m.clip && m.photo && (
+          <BlurPhoto src={m.photo} thumbWidth={336} onLoad={onMediaLoad} />
+        )}
         {m.role === 'coach' && m.analysis && (
           <>
             <div className={`vision-badge ${m.vision_used ? 'seen' : 'text'}`}>
@@ -459,7 +461,7 @@ export function Chat({
         )}
         {attached.map((a) => (
           <span key={a.id} className="attach ok">
-            <BlurPhoto src={`/api/photos/${a.id}`} alt="預覽" variant="thumb" />
+            <BlurPhoto src={`/api/photos/${a.id}`} alt="預覽" variant="thumb" thumbWidth={96} />
             <i className="ok-mark"><Icon name="check" size={12} /></i>
             <button
               type="button"

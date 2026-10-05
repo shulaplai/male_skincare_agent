@@ -191,6 +191,8 @@ reload 保持、Back 真係返上一頁、`?scene=guide` 出到指南（3806）�
 | `Intl.DateTimeFormat` | `format.ts` `hhmm()` 改用 `Intl.DateTimeFormat('zh-HK', { hour: '2-digit', minute: '2-digit', hour12: false })`。實測 local midnight 出 `00:00`（唔會 `24:00`），同手寫 `padStart` 逐個 case 一致 |
 | 表格語意 | `ProgressView`／`DashHome` 基準比較表由 `div`／`span` 改成真 `<table>` + `<thead>` + `<th scope="col">`／`<th scope="row">`；`.anchor-table` 改 `border-collapse` 代替 flex gap（⛔️ 唔可以再喺 `tr`／`td` 加 `display:flex`，會連語意一齊拆）。量度：**362×70**（以前 flex **362×74**，差 2 條 2px gap）→ 5 個 snapshot 只係表格以下整體**上移 4px**（逐帶比對 MAE 0.00，冇其他像素變化） |
 | 標題層級 | section 標題全部 `h3` → `h2`（DashHome 6／JournalHome 2／MobileHome 3／RightPanel 4／Sheet 1）、分析卡 `h4` → `h2`、ConsentGate `h2` → `h1`；`index.css` 8 個 selector 放寬成 `:is(h2,h3)`。chat 結構冇 `ShellTop`，所以 Sidebar 補一個 `sr-only` `h1`（每個 scene 一個） |
+| 相縮圖 | `GET /api/photos/{id}?w=` 出縮圖（`photo.thumb_jpeg()`，Pillow `draft()` 唔解全張）。**實測真 data 14 張相：原檔 659.7 KB → `w=192` 118.7 KB（18.0%，省 82%）**；20 張相合計 899.7 KB → `w=192` 170.3 KB、`w=96` 66.4 KB。編碼中位 1.4 ms（w=96）～6.3 ms（w=336）。`w` 係 whitelist `(96, 192, 200, 264, 296, 336)`（其他 400、非整數 422）—— 收任意 int 就等於俾人叫 server 為每個數值重新解碼一次 1024px JPEG。縮圖回 `Cache-Control: private, max-age=604800, immutable` ＋ ETag，原檔路徑完全唔變（Lightbox 照攞原檔） |
+| `loading="lazy"` ＋ 尺寸 | 格仔／日記相 `loading="lazy"` ＋ `decoding="async"`（對話氣泡唔 lazy：啱啱 send 完遲出會有「係唔係冇上載到」嘅錯覺）。**`width`/`height` 屬性唔需要**：`index.css` 每個相框都係固定 px ＋ `aspect-ratio: 3/4`，空間一早就留咗。實測（相延遲 1.5 s 先到、PerformanceObserver 收 layout-shift）：手機 home **0.0001**、records **0.00024**、journal **0.00029**、chat **0**（「良好」門檻 0.1） |
 | 動效 | `.clip-bar i` 由動 `width` 改 `transform: scaleX()`（`Chat.tsx` 跟住改）、`.skel` 由動 `background-position` 改掃 `.skel::after` 嘅 `translateX`、6 處 `transition: 0.15s` 寫明真正變嘅 property |
 
 ### 仍然開住
@@ -198,8 +200,6 @@ reload 保持、Back 真係返上一頁、`?scene=guide` 出到指南（3806）�
 | 項目 | 為咩 |
 |---|---|
 | `/api/consult` 串流 | 真實中位 **5.46 s**（最慢 7.36 s）先出第一個字。UI 已經老實講「約 5–10 秒」＋ `aria-live`，但 `graph.stream()` 同逐 node `trace` 已經喺度，串流係最大嘅體感槓桿。要改 API 形狀（SSE）＋前端，係一個獨立 project |
-| 相縮圖 | 手機首頁為咗 98×98 嘅格下載 **605.9 KB** 相（真相 768×1024 / ~65 KB ×14）。Pillow 已經裝，但要有 `/api/photos/{id}?w=` 或預生成縮圖 + `srcset` |
-| `loading="lazy"` ＋ `<img width/height>` | 14 張相全部 eager、冇尺寸 → CLS。清單一長就線性變差 |
 
 ## 8. Gate 現況（修完）
 
@@ -208,7 +208,7 @@ backend:  ./.venv/bin/python -m pytest -q         → 289 passed
           ./.venv/bin/python -m eval.run_eval --fake → exit 0（4 scenario 全 PASS）
 frontend: npm run ui:check                        → 57 passed
           （typecheck + eslint 0 error + stylelint 0 error + 40 snapshot + axe 12（淺/暗）
-            + heading 層級 2 + 互動 5 + 相片模糊 4）
+            + heading 層級 2 + 互動 5 + 相片模糊 5）
 真 app:   iPhone 390×844 同桌面 1280×900 —— console 0 error、失敗請求 0、溢出 0、
           手機 < 44px 0 個、< 12px 只有已批嘅 11px tab label
 ```

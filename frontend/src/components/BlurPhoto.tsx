@@ -4,6 +4,18 @@ import { Icon } from './Icon'
 
 interface Props {
   src: string
+  /**
+   * 出縮圖嘅闊度（後端 `GET /api/photos/{id}?w=`，只認 `photo.THUMB_WIDTHS`）。
+   *
+   * ⚠️ 一定要係**兩倍** CSS 大細：格仔 96px → 192、日記 148px → 296、氣泡 168px
+   * → 336（手機版再各自細一級）。2× 縮圖同原檔喺螢幕上係一樣清，但差幾倍 bytes：
+   * 實測真 data 20 張相，原檔合共 **899.7 KB**，`w=192` 全部加埋 **170.3 KB**（18.9%），
+   * 而一張 768×1024 / 65 KB 嘅相出 192 只係 **7–9 KB**。以前手機首頁為咗 96×96 嘅格
+   * 下載 605.9 KB 就係因為呢度冇縮圖。
+   *
+   * 只有 Lightbox 全螢幕先要原檔，所以 `src`（原檔）唔會喺 grid 之下被下載。
+   */
+  thumbWidth?: number
   alt?: string
   /**
    * `bubble` = 對話入面嘅相；`thumb` = composer 未送出嘅預覽；
@@ -33,17 +45,34 @@ interface Props {
  * 唔用 `<img>` 嘅 `filter` 做「遮住」就算：`alt` 文字都要跟住狀態改，否則 screen
  * reader 會讀出未顯示嘅相。
  */
-export function BlurPhoto({ src, alt = '皮膚相', variant = 'bubble', onLoad }: Props) {
+export function BlurPhoto({
+  src,
+  thumbWidth,
+  alt = '皮膚相',
+  variant = 'bubble',
+  onLoad,
+}: Props) {
   const [shown, setShown] = useState(false)
   const [zoom, setZoom] = useState(false)
+  // 螢幕上睇到嘅永遠係縮圖（2× 已經同原檔一樣清）；原檔留返畀 Lightbox。
+  const preview = thumbWidth ? `${src}?w=${thumbWidth}` : src
+  // 格仔／日記清單可以長，捲到先載入。對話氣泡唔用 lazy：佢係用戶啱啱send嘅，
+  // 遲半秒先出會有「係唔係冇上載到」嘅錯覺。
+  const loading = variant === 'grid' ? 'lazy' : undefined
   return (
     <span className={`photo ${variant} ${shown ? 'shown' : 'blurred'}`}>
       {shown ? (
         <button className="photo-open" onClick={() => setZoom(true)} aria-label="全螢幕睇相">
-          <img src={src} alt={alt} onLoad={onLoad} />
+          <img src={preview} alt={alt} onLoad={onLoad} loading={loading} decoding="async" />
         </button>
       ) : (
-        <img src={src} alt="已模糊嘅皮膚相（撳「顯示」睇）" onLoad={onLoad} />
+        <img
+          src={preview}
+          alt="已模糊嘅皮膚相（撳「顯示」睇）"
+          onLoad={onLoad}
+          loading={loading}
+          decoding="async"
+        />
       )}
       <Lightbox src={src} alt={alt} open={zoom} onClose={() => setZoom(false)} />
       {!shown && (

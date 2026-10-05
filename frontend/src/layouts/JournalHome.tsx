@@ -125,6 +125,7 @@ export function JournalHome({ p, nav }: HomeProps) {
                             src={`/api/photos/${pid}`}
                             alt={`${entry.date} 皮膚相`}
                             variant="grid"
+                            thumbWidth={296}
                           />
                           <button
                             type="button"

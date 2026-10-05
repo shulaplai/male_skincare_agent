@@ -104,3 +104,36 @@ test('對話入面嘅相亦要模糊（唔可以只得 chat 有做）', async ({
   )
   expect(bad).toEqual([])
 })
+
+// 對應 backend `app/photo.py` 嘅 `THUMB_WIDTHS`（兩邊改要一齊改）
+const THUMB_WIDTHS = [96, 192, 200, 264, 296, 336]
+
+test('螢幕上嘅相要用縮圖 URL，原檔淨係全螢幕先下載', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await installFixtures(page)
+  await page.goto('?layout=journal&scene=home')
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(500)
+
+  const srcs = await page.$$eval(PHOTO_SELECTOR, (els) =>
+    els.map((el) => el.getAttribute('src') ?? ''),
+  )
+  expect(srcs.length, 'fixture 應該有相').toBeGreaterThan(0)
+
+  // audit §7：手機首頁為咗 98×98 嘅格下載 605.9 KB（14 張原檔）。格仔用 2× 縮圖
+  // 係一樣清，所以「有相冇 ?w=」就係嗰個 bug 返嚟。
+  const missing = srcs.filter((s) => !/\?w=\d+$/.test(s))
+  expect(missing, '有相冇用 ?w= 縮圖').toEqual([])
+  const widths = [...new Set(srcs.map((s) => Number(s.split('?w=')[1])))]
+  expect(
+    widths.every((w) => THUMB_WIDTHS.includes(w)),
+    `縮圖闊度唔喺 whitelist（後端會 400）：${widths.join(',')}`,
+  ).toBe(true)
+
+  // 反過來：全螢幕睇相一定要原檔，唔可以慳到用縮圖。
+  await page.locator('.photo .reveal').first().click()
+  await page.locator('.photo-open').first().click()
+  const lightbox = page.locator('.lightbox img')
+  await expect(lightbox).toBeVisible()
+  expect(await lightbox.getAttribute('src')).not.toContain('?w=')
+})

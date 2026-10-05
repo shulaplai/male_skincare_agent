@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import or_
@@ -37,7 +37,7 @@ from app.models import (
     Video,
     utcnow,
 )
-from app.photo import UnreadableImage, photo_exists, save_photo
+from app.photo import THUMB_WIDTHS, UnreadableImage, photo_exists, save_photo, thumb_jpeg
 from app.video import (
     COMPRESS_OVER_BYTES,
     VideoCompressError,
@@ -652,12 +652,38 @@ def conversation_correlations(cid: str, db: Session = Depends(get_session)) -> d
 
 
 @app.get("/api/photos/{photo_id}")
-def get_photo(photo_id: str) -> FileResponse:
-    """Serve a stored photo by id."""
-    path = Path(settings.data_dir) / "photos" / f"{photo_id}.jpg"
-    if not path.exists():
+def get_photo(photo_id: str, w: int | None = Query(default=None)) -> Response:
+    """Serve a stored photo by id; `?w=` serves a downscaled thumbnail.
+
+    The thumbnail path exists because the UI renders photos in 84–168 px boxes (96 px
+    grid cells, 148 px journal cells) and used to pull the full 768×1024 / ~65 KB file
+    for each one — 605.9 KB for one phone home screen. `w` is a whitelist, not a range:
+    see `photo.THUMB_WIDTHS` for why. The full-size response is unchanged (no `w`), so
+    the Lightbox still gets the real file.
+    """
+    if w is None:
+        path = Path(settings.data_dir) / "photos" / f"{photo_id}.jpg"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="photo not found")
+        return FileResponse(path)
+    if w not in THUMB_WIDTHS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"w 只接受 {', '.join(str(x) for x in THUMB_WIDTHS)}",
+        )
+    data = thumb_jpeg(photo_id, w)
+    if data is None:
         raise HTTPException(status_code=404, detail="photo not found")
-    return FileResponse(path)
+    # 相嘅內容跟 id 走、永遠唔會改 → 可以畀瀏覽器同中間層長期 cache。
+    # 冇 Cache-Control 嘅話每次 reload 都會再叫 server 重新縮一次。
+    return Response(
+        content=data,
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "private, max-age=604800, immutable",
+            "ETag": f'"{photo_id}-{w}"',
+        },
+    )
 
 
 @app.delete("/api/photos/{photo_id}")

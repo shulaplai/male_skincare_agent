@@ -181,6 +181,7 @@ export function MobileHome({ p, nav }: HomeProps) {
                             src={`/api/photos/${id}`}
                             alt={`${e.date} 皮膚相`}
                             variant="grid"
+                            thumbWidth={296}
                           />
                         </span>
                       )
