@@ -246,7 +246,12 @@
 
 ---
 
-## 6. 樣板（2026-10-01 交，等用戶批）
+## 6. 樣板（2026-10-01 交；2026-10-05 用戶批准「照住做」）
+
+**狀態**：批咗。用戶 2026-10-05 揀咗「照住 `design/mobile-v2-round1.html` 做」，
+所以呢個檔案由「等批」變成**視覺參考**；Phase 1–3 嘅改動（tokens／元件／icon sweep／
+字級／對比度／tap target／sheet／toast／skeleton／相片 viewer）已經按佢落地，
+打後改手機版 UI 就照住佢，唔好再另開一套視覺語言。
 
 **睇法**：`open design/mobile-v2-round1.html`（單一檔案、self-contained；只 serve `design/` 唔好喺 repo root serve）。
 係**設計樣板**唔係 app：假數據、唔喺 Vite build 範圍。

@@ -224,4 +224,4 @@ cd ../frontend && npm run typecheck && npm run build
 | 底部 icon 下面嘅文字仲係冇對齊 | **量到真原因**：唔係盒模型（五個 item 完全一樣），係 **icon 自己嘅 ink** —— emoji 字形來源唔同；換咗自己手畫 SVG 之後仍然係 17／17／16.5／**14**／**12** CSS px、中心差 1.25px。改用 **vendored Lucide** path（ISC）＋ 0.4 unit 校正 → 五個 icon ink 中心一致 | `w1_tabbar_ink.py`：icon ink `cy` 43.0／43.5×4、`cx` 全部 43.5、label ink 完全一致 |
 | 「睇吓有咩 skill／工具可以裝，方便執手機版 UI」 | 交咗 **`docs/ui-plan.md`**：量度式審計（tap target <44 共 8 類、<12px 文字 12 個／scene、對比度最低 **1.0:1**、911 個 raw px、0 `:focus-visible`、0 `prefers-reduced-motion`）＋ 四階段計劃 ＋ skill／工具清單 ＋ 驗收門檻 | 今次**冇**改 UI（等用戶逐項批） |
 
-**未做（誠實列出）**：條片／語音**冇做轉文字**（DeepSeek 冇 audio，HK 直連 OpenAI Whisper 係 403，local whisper 要新依賴）→ 所以指南寫明「講出嚟冇用，要打字（可以用鍵盤語音輸入）」。要真正「講就得」就要開一個新 issue 做 STT。
+**未做（誠實列出）**：條片／語音**冇做轉文字**（DeepSeek 冇 audio，HK 直連 OpenAI Whisper 係 403，local whisper 要新依賴）→ 所以指南寫明「講出嚟冇用，要打字（可以用鍵盤語音輸入）」。呢件事已經開咗 issue [#26](https://github.com/shulaplai/male_skincare_agent/issues/26)（`ready-for-human`）；用戶 2026-10-05 問過，答案係**「暫時唔做」**，原因同四個 STT 方案嘅代價記錄喺 `.out-of-scope/voice-audio-transcription.md`（留存歷史決定用；一旦用戶要返就刪嗰個檔、開新 issue）。
