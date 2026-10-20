@@ -91,12 +91,15 @@ export function MobileShell({ p, tabs }: Props) {
             type="button"
             aria-current={scene === t.key ? 'page' : undefined}
             className={scene === t.key ? 'active' : ''}
+            /* 只有 icon（2026-10-20）：文字同 icon 之間嘅空隙喺五個 tab 之間天生
+               唔一致（Lucide path 右邊留白 4.7–10.3px），點擺都「一遠一近」。
+               冇文字就冇呢個問題。無障礙靠 `aria-label`，唔係靠肉眼見到嘅字。 */
+            aria-label={t.label}
             onClick={() => setScene(t.key)}
           >
             <span className={`ti ti-${t.key}`} aria-hidden>
               <NavIcon scene={t.key} />
             </span>
-            <span className="tl">{t.label}</span>
           </button>
         ))}
       </nav>

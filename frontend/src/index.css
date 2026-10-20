@@ -1271,13 +1271,16 @@ body {
 .trend .k { width: 44px; }
 .trend .spark { flex: 1; height: 34px; }
 .trend .latest { width: 24px; text-align: right; color: var(--muted); }
-.vision-badge { display: inline-block; font-size: var(--f-xs); border-radius: 999px; padding: 2px 8px; margin: 6px 0 2px; }
-.vision-badge.seen { background: var(--tint-info); color: var(--info); }
-.vision-badge.text { background: var(--panel); color: var(--muted); }
-/* 回覆出處 chip（issue #14）：非互動，live／fake 用現有 tint token 分色。
-   fake 一定要搶眼，唔可以令測試模式嘅回覆睇落同真模型一樣。 */
-.vision-badge.provenance.fake { background: var(--tint-bad); color: var(--danger); }
-.vision-badge.provenance.live { background: var(--tint-info); color: var(--info); }
+/* 三段式氣泡（2026-10-20）：① 標題 → ② 正文 → ③ AI 分析卡。
+   徽章（睇相／雲端／model 名）已收埋：用戶要求唔再喺對話見到內部狀態。
+   `vision_used`／`provenance` 仍然入 trace 同 DB payload，診斷唔會失。 */
+.bubble .coach-title {
+  margin: 0 0 4px;
+  font-size: var(--f-lg);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text);
+}
 .msg.coach.err .bubble { border-color: var(--warn); }
 .empty.small { font-size: var(--f-xs); color: var(--muted); }
 .btn.ghost.small {
@@ -2345,55 +2348,34 @@ textarea:focus {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .mob-tabs button {
+  /* 只有 icon，冇文字（2026-10-20 用戶要求）。
+     經歷：①直排（文字喺 icon 下）→ 五個 Lucide icon 筆墨高度天生唔同
+     （16.50 / 17.42 / 18.33px），「icon 底 → 字頂」空隙差 1.8px，要逐個 scale 校正；
+     ②橫排（文字喺 icon 右）→ 量到墨跡到字之間嘅空隙係 4.7 / 4.7 / 9.3 / 10.3 / 4.7px
+     （每個 path 右邊留白唔同），用戶即刻覺得「一遠一近」；
+     ③而家：冇文字就冇空隙。`aria-label` 保留無障礙名稱。 */
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-height: 56px; /* 44px 觸控下限 + 11px label */
-  padding: 8px 2px;
+  min-height: 56px; /* 44px 觸控下限 */
+  padding: 8px 3px;
   background: none;
   border: none;
   cursor: pointer;
   font-family: var(--sans);
-  font-size: var(--f-tab); /* 11px：唯一低過 12px 嘅字（icon 一齊承載意思） */
+  font-size: var(--f-tab); /* 12px（橫排之後唔使再低過字級下限） */
   font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--muted);
 }
 .mob-tabs button .ti {
-  /* SVG 同一個 22×22 盒 → 五個 icon 一定對齊（emoji 唔會） */
+  /* SVG 固定 22×22 盒 → 五個 icon 盒一樣大（emoji 唔會），橫排之下 label 由 flex 對齊 */
+  flex: none;
   width: 22px;
   height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 盒同 label 距離一致，但五個 icon 嘅**筆墨**高度唔一致（實測 16.50 / 17.42 /
-     18.33px），所以「筆墨底 → 字頂」嘅空隙差成 1.8px，睇落就係「字同 icon 對唔齊」。
-     逐個縮放到同一個 optical 高度（17.0px = 22 × 0.773），再用 translateY 校正 ink
-     中心（house 嘅 ink 天生偏高 0.46px）。比例係由實測值反推，唔係亂填。 */
-}
-.mob-tabs button .ti .ic {
-  transform: scale(var(--ink-scale, 1)) translateY(var(--ink-y, 0));
-}
-.ti-home .ic {
-  --ink-scale: 0.976;
-  --ink-y: 0.46px;
-}
-.ti-chat .ic {
-  --ink-scale: 1.03;
-}
-.ti-records .ic {
-  --ink-scale: 0.927;
-}
-.ti-progress .ic {
-  --ink-scale: 1.03;
-}
-.ti-settings .ic {
-  --ink-scale: 0.927;
-}
-.mob-tabs button .tl {
-  line-height: 1.15;
 }
 .mob-tabs button.active {
   color: var(--accent-deep);

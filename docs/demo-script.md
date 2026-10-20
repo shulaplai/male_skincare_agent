@@ -20,7 +20,9 @@
 
 旁白：「撳發送之後，背後係一個 LangGraph state graph 行 5 個 node：分析 → 揀工具 → 生成建議 → guardrail → 寫入日記。每個 node、每條 edge 都係我自己寫嘅 code，LLM 只喺『分析』同『生成建議』兩個模糊層出現。」
 
-**畫面**：指住回覆入面嘅「Agent 分析」卡（metrics + 建議）。
+**畫面**：指住回覆 —— 先出一句標題，再逐字打出正文，最後才彈出「AI 分析」卡（metrics）。
+
+旁白：「回覆刻意分三段出：一句總結、正文、然後先係結構化分析。原因係一次過倒一大段字出嚟，讀嘅人會覺得『震』——分段出，佢可以逐段讀。」
 
 ## 1:20–1:50 長期記憶 + 因果時間線
 
@@ -38,7 +40,7 @@
 
 **畫面**：切返面部，打「塊面突然大面積爛晒好痛」→ show 紅旗 banner「建議轉介皮膚科醫生」。再開 terminal show `python -m eval.run_eval --fake`。
 
-旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋4 個 agent 場景全綠，仲有 346 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
+旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋4 個 agent 場景全綠，仲有 348 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
 
 ## 2:30 收尾
 

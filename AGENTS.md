@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 346 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 348 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -22,7 +22,7 @@ cd frontend
 npm run typecheck    # tsc --noEmit，一定要過
 npm run build        # typecheck + vite build
 npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行）
-npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（40 snapshot + axe 12（淺／暗）＋ 5 互動 ＋ 5 相片模糊 ＋ 2 consult 串流）
+npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（41 snapshot + axe 14（淺／暗＋heading 層級）＋ 5 互動 ＋ 5 相片模糊 ＋ 3 consult 串流 ＋ provenance）
 npm run ui:update    # UI 改動**預期之內**時更新 baseline snapshot（要逐個解釋）
 npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :5173/:5174）
 npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（baseline 係 macOS-only，見下面陷阱）
@@ -46,7 +46,7 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；4 個 agent scenario 之中 **3 個**有 `expect_tool` gate（`red_flag` 只有 `expect_escalate`，所以 escalation 路冇 tool 斷言） |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 346 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 348 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -133,14 +133,14 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
   `<video>` 報 `ERR_REQUEST_RANGE_NOT_SATISFIABLE`）。另加一層防守：`onError` → SVG 佔位（唔會黑格）。
   ⚠️ **更正記錄**：我一度以為 Chromium 播唔到 H.264，其實係我自己嘅測試檔被 `open(..., 'wb')` 清空成 0 byte
   —— 用真片（4.3KB、160×120、2 秒）重測係 `readyState 4 / duration 2 / error None`。寫測試資料前先 `ls -la`。
-- **底部 nav icon 用 vendored Lucide path，改完一定要重量**：`layouts/navIcons.tsx` 係 `lucide-static@0.469.0`（ISC）嘅官方 path。
-  之前兩版都唔齊：emoji（字形來源唔同）同**自己手畫嘅 path**（實測 ink 高 17／17／16.5／**14**／**12** CSS px、
-  視覺中心差 1.25px）。而家五個 icon ink 中心一致（`home` 加咗 `translate(0 0.4)` 校正）。
-  ⚠️ 改完要行 `/tmp/skc-trial/w1_tabbar_ink.py`（dsf=4 量 ink bounding box）確認 `cy`／`h` 對齊。
+- **底部 nav icon 用 vendored Lucide path**：`layouts/navIcons.tsx` 只做 scene → icon 名 mapping，真正 path 喺
+  `components/Icon.tsx`（Lucide registry）。歷史：emoji 唔得（字形來源唔同）、自己手畫 path 都唔得
+  （實測 ink 高 17／17／16.5／**14**／**12** CSS px、視覺中心差 1.25px）。而家係 **icon-only**，
+  對齊由 flex 嘅 `justify-content: center` 負責（見下面嗰條），唔需要逐個 ink 校正。
 - **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
 - **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
 - **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
-- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：61 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊、**heading 層級 2**）＋ axe WCAG 2.1 AA（淺／暗）。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01；2026-10-20 起 **63 個** Playwright test）：41 snapshot（4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸）＋ axe WCAG 2.1 AA（淺／暗各 6 scene ＝ 12）＋ **heading 層級 2** ＋ 互動 5 ＋ 相片模糊 5 ＋ consult 串流 3 ＋ provenance 1。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
   ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
   ⚠️ **CI 只行唔靠像素嗰部分**（2026-10-05 加）：`.github/workflows/ci.yml` frontend job 行 `npm run lint` ＋ `npm run stylelint` ＋ `npx playwright install --with-deps chromium` ＋ `npx playwright test --ignore-snapshots`（axe 淺／暗、互動、相片模糊、consult 串流、heading 層級）。41 張 baseline 全部係 `*-darwin.png`（macOS 渲染；Playwright 1.63.0），Linux CI 比唔到 → **pixel snapshot 仍然係本機 gate**（要入 CI 就要喺 container 生 `*-linux.png`）。⚠️ 第一次跑（run `37308507401`）紅喺 `Error: Timed out waiting 60000ms from config.webServer.` —— `npx vite` 冇 `--host` 時喺 runner 綁 `::1`，Playwright 卻 poll `127.0.0.1`；`playwright.config.ts` 而家寫死 `--host 127.0.0.1`（timeout 120 s、`stdout/stderr: 'pipe'` 方便睇 log），run `37309837190` 三個 job 全綠（`61 passed (1.0m)`）。**改 webServer 記得保留 `--host 127.0.0.1`。**
   ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
@@ -256,8 +256,16 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 - **影片嘅格係 backstage：一定要由後端 resolve，唔可以靠 client 送**：`Chat.tsx` 只送 `clip: {duration, frames, video_id}`；`service.resolve_clip_frames()` 喺 route 同 `run_consult()` **兩處**都由 `Video.frames` 砌返 `photo_paths`。2026-10-20 嘅假數據事故就係因為當時**冇**呢一步：`photo_paths=[]` → vision 冇跑 → analyze 見到 placeholder「（已上傳皮膚影片）」就當成證據，自己作咗六個 attribute、`observes_skin=True`，寫入當日 Entry（真 DB 證據：coach `vision_used=False` 但 body 寫「睇你條片…泛紅由 0 回升到 1」）。修法有三件，缺一都唔夠：①`resolve_clip_frames` ②`build_analyze_prompt` 嘅 `elif clip` 分支要講明「你**冇**睇過、唔好講具體讀數」（**呢個分支一定要排喺 `elif has_photo` 之前**）③`persist` 唔可以將格寫入 `entry.photos`、亦唔可以將 placeholder 寫成 note（`clip_turn`）。舊數據用 `scripts/repair_clip_entry.py`（dry-run 預設）重跑真 vision 修。
 - **`persist` 嘅 `clip_turn` 規則**：片嘅格只係畀 vision 睇，唔係用戶影嘅相 → `attach_ids = []`、`note_text = ""`。格嘅檔案由 `Video.frames` ＋ `ChatMessage.payload["photos"]` 保住（`sweep_orphan_photos` 兩處都認），所以唔 attach 都唔會被清走。做漏就會見到「記錄」顯示「今日 6 張相」。
 - **逐字打出嚟（typewriter）嘅 `TYPED.add()` 只可以喺打完之後**：`main.tsx` 有 `<React.StrictMode>`，dev 之下 effect 係 setup → cleanup → setup；喺 setup 開頭就 add，第二次 setup 會以為「已打過」即刻 return，成段回覆**永遠空白**（實測中過）。`Bubble` 嘅 effect deps 只可以係 `[m.id, m.role, m.fresh]`（`text`／`onGrow` 用 ref 存），否則每次 render 都會重啟。
+- **回覆分三段（2026-10-20）：`title` → `reply` → 分析卡**：`Advice.title` 係 LLM 出嘅一句標題（`ADVISE_SYSTEM` 限定 12 字以內、唔可以講藥名），`graph.persist` 寫入 coach payload 嘅 `title`，前端 `Bubble` 逐段出。
+  ⚠️ **`guardrails.advice_text()` 一定要包含 `title`**：標題係最先 render 嘅文字，同 `reply` 一樣會送到用戶眼前。只掃 `reply`／`items` 就等於以前「只掃 items」嗰個盲點再版（一句「每日口服抗生素 50mg」寫落 title 就照出）。現時係一次掃描、三個欄位一齊換，`ESCALATION_TITLE` 亦會覆寫標題。
+  ⚠️ **分析卡要等正文打完才 render**（`shown.card`）：提早出會令「分析結果」喺正文未講完就跳出嚟，而且高度突變會搶 scroll。`TYPED.add()` 要三段都完成之後才做（中途 add = 之後切 scene 唔會重播、亦可能整段空白）。
+  ⚠️ **標題唔可以係 heading**：用 `<p className="coach-title">`，唔好 `<h3>` —— 一段對話幾十條回覆＝幾十個 heading（報讀器標題導覽變雜訊），而且 `h1`（`ShellTop`）跳 `h3` 會撞 `tests/ui/a11y.spec.ts` 嘅層級檢查。
+- **對話氣泡唔顯示內部狀態（2026-10-20 用戶決定，推翻 issue #14 嘅 UI 部分）**：「已睇相分析（雲端）／文字分析（未睇相）」同「FakeLLM · 測試模式／openai · gpt-4o-mini」兩個徽章**已經刪走**（`visionClaim()`／`provenanceLabel()` 連函數都冇咗，`.vision-badge` CSS 亦刪）。誠實性冇消失，只係唔喺氣泡度：`vision_used`／`vision_clip`／`provenance` 仍然寫入 payload、`/api/consult` response、`data/runs.jsonl`。`tests/ui/provenance.spec.ts` 係「唔准返嚟」嘅網（斷言 `.vision-badge` 0 個＋`雲端`／`FakeLLM`／model 名全部唔出現）—— 要加返就要改呢個 test 並講明點解。
 - **Playwright 預設 `reducedMotion: 'reduce'`**（`playwright.config.ts`）：typewriter 會令截圖撞正打字中 → snapshot 永遠 flaky；同時「減少動態」係真用戶偏好，應該行到。想驗打字效果嘅 test 自己 `page.emulateMedia({ reducedMotion: 'no-preference' })`（`tests/ui/consult-stream.spec.ts`）。打字文字包住 `<span className="reply-text">`，否則 `innerText` 會連 meta／徽章一齊數。
-- **底部 tab bar 嘅 icon「唔齊」係筆墨高度差**，唔係水平偏：五個 Lucide icon 喺 22px 盒內嘅純幾何高度係 16.50／17.42／18.33（message-square 16.5、house 17.42、clipboard-list 18.33、chart-column 16.5、settings 18.33）→ icon 底到 label 頂嘅空隙差 1.8px。修法係 `MobileShell` 個 `ti-<scene>` class ＋ CSS `transform: scale(var(--ink-scale,1))`，令五個都變 17.00。**量法**：`svg.getBBox()` 再用 `getScreenCTM()` 換算（`m.d * y + m.f`）—— `new DOMMatrix(svgMatrix.toString())` 會 `Failed to parse '[object SVGMatrix]'`。
+- **底部 tab bar 而家係 icon-only**（2026-10-20 用戶：「文字同 icon 一係非常近，一係索性冇文字」）：`MobileShell.tsx` 只 render `<Icon>`，`<button aria-label={t.label}>` 提供無障礙名（唔可以連 aria-label 都冇 —— icon-only 等於讀屏完全唔知係咩）；`.mob-tabs button` 係 `flex; align-items: center; justify-content: center; min-height: 56px`，`.tl` 規則已刪。
+  歷史（兩步都撞過）：①直排 label 時要逐個 `transform: scale(var(--ink-scale,1))` 校正，因為五個 Lucide icon 筆墨高度 16.50／17.42／18.33 唔同、「icon 底 → 字頂」空隙差 1.8px；②改橫排 + `gap: 2px` 之後仍然一遠一近（墨跡右緣 → 字左緣 **4.7／4.7／9.3／10.3／4.7px**，因為每個 path 右邊留白唔同）→ 最後索性冇文字。
+  ⚠️ 唔好加返文字（兩個方向都試過，都唔齊）。實測 390 同 320px：五個 `inkCx == btnCx`、`btnW 78／64`、`navH 57`、button textContent 全 0 字、`overflowX 0`。
+  **量法**：`svg.getBBox()` 再用 `getScreenCTM()` 換算（`m.d * y + m.f`）—— `new DOMMatrix(svgMatrix.toString())` 會 `Failed to parse '[object SVGMatrix]'`。
 - **stylelint `length-zero-no-unit`**：`translateY(var(--ink-y, 0px))` 會紅，要寫 `0`。`npm run ui:check` 有 stylelint，唔係只有 playwright。
 - **composer 一定要分兩層**：`.compose-attach`（片 chip／相／錯誤，可 wrap）＋ `.compose-row`（`.tools`＋textarea＋send）。以前全部係同一個 flex row，390px 之下片 chip 會將 textarea 壓到 ~120px。send 掣冇輸入時**唔 render**（`canSend`），textarea `padding: 10px` 令實際高度 44px ＝ 掣高。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。

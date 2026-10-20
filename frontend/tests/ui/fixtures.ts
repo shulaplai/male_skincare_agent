@@ -33,6 +33,8 @@ export const CONSENT = { granted: true, at: '2026-10-01T09:00:00', required: fal
 
 const COACH_PAYLOAD = {
   summary: 'T 字位偏油，下巴有一粒新瘡。',
+  // 三段式氣泡第一段（2026-10-20）：server 而家一定帶 `title`，fixture 跟返個 shape。
+  title: 'T 字位偏油：照舊溫和潔面',
   reply:
     '睇今次張相，T 字位反光範圍同上次差唔多，下巴嗰粒係新出嘅。建議照舊溫和潔面早晚一次，' +
     '精華繼續用煙酰胺，唔使加新產品；我會記住今次呢組數字，下次影相比對。',

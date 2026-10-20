@@ -55,8 +55,9 @@
   --mono: 'JetBrains Mono', monospace;
 
   /* 字級 scale。⭐ 下限 12px：手機上 9.5px 係讀唔到嘅（實測 axe 同肉眼都係）。
-     唯一例外係底部 tab label（--f-tab 11px）—— 因為嗰度有 icon 一齊承載意思。 */
-  --f-tab: 11px;
+     底部 tab label（--f-tab）而家都係 12px：icon 同文字橫排之後唔再有
+     「字要遷就 icon 底邊」嘅限制。 */
+  --f-tab: 12px;
   --f-xs: 12px;
   --f-sm: 13px;
   --f-md: 15px;

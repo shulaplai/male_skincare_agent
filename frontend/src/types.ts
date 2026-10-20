@@ -78,10 +78,12 @@ export interface Message {
   photo?: string
   /** 用戶今次上傳嘅係一段片（UI 出「🎬 皮膚影片」，唔會顯示抽格出嚟嘅相） */
   clip?: { duration: number }
-  /** 教練回覆嗰個 turn 係唔係一條片（只影響徽章用「片」定「相」，唔會出 chip）。 */
+  /** 教練回覆嗰個 turn 係唔係一條片（保留俾 trace／診斷用，UI 唔再出徽章）。 */
   vision_clip?: boolean
-  /** 啱啱由 consult 收到嘅回覆（＝可以逐字打出嚟）。reload 返嚟嘅舊訊息冇呢個 flag。 */
+  /** 啱啱由 consult 收到嘅回覆（＝可以逐段揭示）。reload 返嚟嘅舊訊息冇呢個 flag。 */
   fresh?: boolean
+  /** 三段式氣泡第一段：一句總結標題。冇（舊 row／模型漏填）就直接出正文。 */
+  title?: string
   analysis?: Analysis
   disclaimer?: string
   escalate?: boolean
@@ -188,6 +190,8 @@ export interface ServerMessage {
   payload: {
     photos?: string[]
     summary?: string
+    /** coach message：一句總結標題（三段式氣泡第一段）；舊 row 冇 → 直接跳去正文 */
+    title?: string
     reply?: string
     metrics?: Metric[]
     attributes?: SkinAttribute[]

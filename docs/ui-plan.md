@@ -42,7 +42,7 @@
 | `.advice li .n` 建議步驟編號 | **1.00** | 4.5 | 11 |
 | `.meta`（教練）/ `.disclaimer` | 2.22 | 4.5 | 9.5–11 |
 | `.v bad` / `.v good` 指標值 | 2.55 / 2.86 | 3（大字） | 18 |
-| `.k` 指標 label / `.tl` tab label | 3.1 | 4.5 | 9.5–11 |
+| `.k` 指標 label / `.tl` tab label（**`.tl` 2026-10-20 已刪，見下**） | 3.1 | 4.5 | 9.5–11 |
 | `.entry-date` / `.pct` | 2.22 | 4.5 | 8.5–10 |
 | `.link-btn`（改筆記／刪除） | 3.29 | 4.5 | 12 |
 | `.src agent`「AI 偵測」 | 1.91 | 4.5 | 10 |
@@ -103,7 +103,7 @@
 ### Phase 2 — 手機 UX 修正（用戶感受得到嘅嗰批）
 
 1. 觸控目標全部 ≥44×44（`.switch`、`.link-btn`、`.btn.ghost.small`、`.reveal`、`.x`、TOC chips）。
-2. 文字下限 12px：`.meta` 12、`.k` 12、`.entry-date` 12、`.pct` 12、tab label 11（加 icon 已足夠辨認）。
+2. 文字下限 12px：`.meta` 12、`.k` 12、`.entry-date` 12、`.pct` 12。**tab label 2026-10-20 之後取消**（改 icon-only，見 §7 決定 5 嘅更新）。
 3. 對比度：`--muted` 由 3.0 拉到 ≥4.5（對話時間、disclaimer、link-btn、指標值），
    步驟編號 `.n` 換深色底或深色字（而家 1.0 = 睇唔到）。
 4. 對話：`aria-live` 播「教練諗緊…」；送出後 optimistic 顯示；錯誤 inline 而唔係 `alert`。
@@ -173,7 +173,7 @@
 | 2 | Icon 統一 | **全部換 Lucide**（連 UI chrome 嘅 emoji，25–30 個位） | `defs.ts` 嘅 `icon` 由 emoji string 改成 key；`ICONS` registry 同 `navIcons.tsx` 同源；句子內嘅 `→ ↑ ↓` 唔換 |
 | 3 | 動效 | **保守：120–200ms fade／slide**，全部跟 `prefers-reduced-motion` | 唔加 tab indicator 滑動、唔加 sheet 揈走手勢（少兩個低階機掉 frame 位） |
 | 4 | Sheet／Toast | **自己寫**（約 120–150 行），唔裝 `sonner`／`vaul` | runtime 依賴仍然係 2 個 |
-| 5 | 字級 | **完整 scale**：最小 12px；tab label 9.5→11px；對話時間 9.5→12px；confidence 8.5→12px；chips／disclaimer 11→12px；對話正文 14.5→15px | tab bar 高 54→約 58px；一屏少一條訊息 |
+| 5 | 字級 | **完整 scale**：最小 12px；tab label 9.5→11→12px（2026-10-20）→ **最終刪走文字改 icon-only**（用戶：文字同 icon 一係非常近，一係索性冇；實測橫排 gap 2px 之下五個「墨跡右緣 → 字左緣」仍然係 4.7／4.7／9.3／10.3／4.7px，調唔齊）；對話時間 9.5→12px；confidence 8.5→12px；chips／disclaimer 11→12px；對話正文 14.5→15px | tab bar 高 54→約 58px；一屏少一條訊息 |
 
 ### 已寫好嘅 Phase 0 交付（等用戶裝完依賴就可以跑）
 
@@ -216,7 +216,7 @@
 | axe violation（淺色） | 70 contrast ＋ 1 focusable | **0** |
 | axe violation（暗色） | 冇測過 | **0**（新增 12 個 case） |
 | 觸控目標 < 44px | 8 類（最細 **16×16**） | **0** |
-| 文字 < 12px | 每屏 12 個 | **0**（tab label 11px 係核准例外） |
+| 文字 < 12px | 每屏 12 個 | **0**（tab bar 2026-10-20 之後冇文字 → 冇 12px 例外可言） |
 | `:focus-visible` | **0 條 rule** | 6 條 ＋ 可捲區域 focus 得到 |
 | `prefers-reduced-motion` | **0** | 1（全域 rule） |
 | 未定義 CSS 變數（`--bg2`／`--ink`） | 8 處 | **0** |

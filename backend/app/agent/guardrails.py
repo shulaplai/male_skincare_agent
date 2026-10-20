@@ -69,6 +69,10 @@ ESCALATION_MESSAGE = (
     "請盡快諮詢皮膚科醫生。"
 )
 
+# Short headline used when the medical guardrail fires: the bubble renders `title`
+# before the body, so it must say the same thing as `ESCALATION_MESSAGE`.
+ESCALATION_TITLE = "建議轉介皮膚科醫生"
+
 
 def contains_any(text: str, terms: list[str]) -> bool:
     low = text.lower()
@@ -85,26 +89,42 @@ def contains_medical_advice(text: str) -> bool:
 
 
 def advice_text(advice: Advice) -> str:
-    """Everything the user will see, in one string (reply + bullet items)."""
-    return "\n".join([advice.reply, *advice.items])
+    """Everything the user will see, in one string (title + reply + bullet items).
+
+    `title` is included because the coach bubble reveals it FIRST (2026-10-20):
+    a headline like 「口服抗生素 50mg 一星期」 would reach the user's eyes before
+    the sanitised body, even though `apply_guardrails` had already rewritten the
+    body. Same lesson as only scanning `items` and not `reply`.
+    """
+    return "\n".join([advice.title, advice.reply, *advice.items])
 
 
 def apply_guardrails(advice: Advice, user_text: str) -> tuple[Advice, bool]:
     # Escalation is decided deterministically, not by the model's own flag.
     escalate = contains_any(user_text, RED_FLAGS)
 
+    title = advice.title
     reply = advice.reply
     items = list(advice.items)
+    # One scan over everything the user will read (title + reply + items).
     if contains_medical_advice(advice_text(advice)):
         escalate = True
         # `reply` must be replaced too: it is the bubble the user reads, and
         # leaving the medical sentence there while only sanitising the bullet
-        # list would show the unsafe text anyway.
+        # list would show the unsafe text anyway. The headline is rendered
+        # FIRST, so it is replaced as well.
+        title = ESCALATION_TITLE
         reply = ESCALATION_MESSAGE
         items = [ESCALATION_MESSAGE]
 
     disclaimer = advice.disclaimer or DEFAULT_DISCLAIMER
     final = advice.model_copy(
-        update={"reply": reply, "items": items, "disclaimer": disclaimer, "escalate": escalate}
+        update={
+            "title": title,
+            "reply": reply,
+            "items": items,
+            "disclaimer": disclaimer,
+            "escalate": escalate,
+        }
     )
     return final, escalate

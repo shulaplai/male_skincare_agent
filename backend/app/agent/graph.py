@@ -550,6 +550,8 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     provenance=state.get("provenance"),
                     payload={
                         "summary": analysis.summary,
+                        # Three-stage bubble (2026-10-20): headline → body → card.
+                        "title": advice.get("title", ""),
                         "reply": advice.get("reply", ""),
                         "metrics": [m.model_dump() for m in analysis.metrics],
                         "attributes": [a.model_dump() for a in analysis.attributes],

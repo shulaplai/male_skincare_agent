@@ -95,3 +95,36 @@ def test_bare_mg_inside_ascii_word_does_not_match():
     assert contains_medical_advice("50mg") is True
     assert contains_medical_advice("500 mcg") is True
     assert contains_medical_advice("2% 水楊酸") is False
+
+
+# --------------------------------------------------------------------------
+# `title` coverage (2026-10-20: the bubble now reveals the headline first)
+# --------------------------------------------------------------------------
+def test_medical_term_in_title_escalates_and_replaces_title():
+    """The headline renders BEFORE the body, so it needs the same net.
+
+    Regression shape: sanitise `reply` only → a headline 「每日口服抗生素 50mg」
+    reaches the user's eyes first, uncensored, and the body underneath is the
+    generic referral message.
+    """
+    advice = Advice(
+        title="每日口服抗生素 50mg 一星期",
+        reply="做好保濕同防曬。",
+        items=["做好保濕"],
+        disclaimer="",
+        escalate=False,
+    )
+    final, escalate = apply_guardrails(advice, "下巴有暗瘡")
+
+    assert escalate is True
+    assert "抗生素" not in final.title
+    assert "皮膚科" in final.title
+    assert final.reply == ESCALATION_MESSAGE
+
+
+def test_clean_title_is_not_touched():
+    advice = Advice(title="下巴新瘡：先減刺激", reply="先停新產品三日。", items=["停新產品"])
+    final, escalate = apply_guardrails(advice, "下巴有暗瘡")
+
+    assert escalate is False
+    assert final.title == "下巴新瘡：先減刺激"

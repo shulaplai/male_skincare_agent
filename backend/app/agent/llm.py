@@ -76,6 +76,7 @@ class FakeLLM:
             )  # type: ignore[return-value]
         if schema is Advice:
             return Advice(
+                title="下巴新瘡：先減刺激",
                 reply=(
                     "睇咗你嘅情況：下巴有兩粒新暗瘡、T 字位偏油，兩頰就中性。"
                     "新暗瘡多數同最近變數有關，我建議先暫停新產品三日，用單一變數測試搵出邊樣致敏；"

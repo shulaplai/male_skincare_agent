@@ -133,3 +133,49 @@ test('教練回覆逐字打出嚟，而且會打齊同貼住底部', async ({ pa
   // 打完：全句都在，而且順序一樣
   await expect(typed).toHaveText(FULL, { timeout: 5000 })
 })
+
+/**
+ * 三段式回覆（2026-10-20 用戶要求）：① 標題 → ② 正文 → ③ AI 分析卡，逐段出。
+ *
+ * 釘住嘅係**次序**，唔止「最後有齊三樣」：以前卡片同正文一齊彈，用戶會先讀卡
+ * 再讀解釋；而徽章（睇相／雲端／model）亦已經收埋，唔應該再出返嚟。
+ */
+test('回覆分三段出：標題 → 正文 → AI 分析卡，而且冇內部徽章', async ({ page }) => {
+  const TITLE = '下巴新瘡：先減刺激'
+  const BODY = '下巴嗰兩粒係新出嘅，先停新產品三日睇下會唔會消。我會記住今日呢組數字。'
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await installFixtures(page)
+  await page.route('**/api/consult/stream', (r) =>
+    r.fulfill({
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { type: 'node', node: 'analyze', ms: 60 },
+        { type: 'result', ...RESULT, advice: { ...RESULT.advice, title: TITLE, reply: BODY } },
+      ]),
+    }),
+  )
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('?layout=mobile&scene=chat')
+  await page.waitForLoadState('networkidle')
+
+  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('button', { name: '發送' }).click()
+
+  const bubble = page.locator('.bubble').last()
+  const title = bubble.locator('.coach-title')
+  const body = bubble.locator('.reply-text')
+
+  // ① 標題先出齊
+  await expect(title).toHaveText(TITLE)
+  // ② 正文仲打緊 → ③ 分析卡一定未出
+  await expect(body).not.toHaveText(BODY)
+  await expect(bubble.locator('.card')).toHaveCount(0)
+
+  // ② 正文打完
+  await expect(body).toHaveText(BODY, { timeout: 6000 })
+  // ③ 之後才出卡
+  await expect(bubble.locator('.card')).toBeVisible()
+
+  // 內部狀態徽章唔應該再出（睇相／雲端／model 名）
+  await expect(bubble.locator('.vision-badge')).toHaveCount(0)
+})

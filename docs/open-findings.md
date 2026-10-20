@@ -9,7 +9,7 @@
 
 ## 一、已經修好（有驗證）
 
-全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 346）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
+全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 348）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
 
 | 原本問題 | 改動 | 點證明 |
 |---|---|---|
@@ -126,7 +126,7 @@
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 346 passed（2026-10-05）
+./.venv/bin/python -m pytest -q                    # 348 passed（2026-10-05）
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 md5 -q data/skincoach.db                           # 應該係 40823465d6041edf11c05a44f07d88b9
 
@@ -271,6 +271,29 @@ cd ../frontend && npm run typecheck && npm run build
 
 ### 10.4 未做／要留意
 
-- **Snapshot 全部重生過**（`npm run ui:update` → 62 passed）。因為改動係視覺嘅（nav icon scale、chips、composer 兩層、首頁文案），**diff 要人手望一次**（我只驗到「gate 綠 ＋ DOM 數字對」，冇逐張睇圖）。
-- **`?layout=mobile` 以外嘅三套 shell 冇逐個量**：改動集中喺 `MobileShell`／`MobileHome`／`Chat.tsx`（composer 同 bubble 係四套共用），`ui:check` 62 個 test（4 layout × 6 scene ＋ 暗色 ＋ 橫向 ＋ 平板 ＋ 760/761）全綠。
+- **Snapshot 全部重生過**（`npm run ui:update` → 62 passed；2026-10-20 第二輪之後再重生一次，**63 passed**）。因為改動係視覺嘅（nav icon scale、chips、composer 兩層、首頁文案），**diff 要人手望一次**（我只驗到「gate 綠 ＋ DOM 數字對」，冇逐張睇圖）。
+- **`?layout=mobile` 以外嘅三套 shell 冇逐個量**：改動集中喺 `MobileShell`／`MobileHome`／`Chat.tsx`（composer 同 bubble 係四套共用），`ui:check` 63 個 test（4 layout × 6 scene ＋ 暗色 ＋ 橫向 ＋ 平板 ＋ 760/761）全綠。
 - **打字效果只用 Playwright 驗**（假 API chunk）。真 LLM 之下 SSE 係逐段到，`fresh` 只喺最終訊息設 → 仍然係「成段一次過打」，唔係跟 SSE token 打。想要真 streaming 打字要改 `App.tsx` 收 SSE delta（未做，亦唔喺用戶要求之內）。
+
+## 十一、第五輪（回覆三段式／收埋內部狀態／tab bar 冇文字）—— 2026-10-20
+
+用戶原話（三個要求一齊落）：底部五個 icon 同文字「文字一係索性擺喺 icon 嘅右邊，唔好擺下邊，下邊嗰個位對唔準呀」；
+「回應非常唔穩定，同埋有啲抖震」→ 要拆成「1 標題 2 正文 3 項目分析」；「一體化分析（雲端或者佢用咗啲咩模型嗰啲），全部隱藏咗佢」。
+
+### 11.1 做咗咩
+
+| 要求 | 改動 | 證據 |
+|---|---|---|
+| 三段式 | `Advice.title`（新欄，`ADVISE_SYSTEM` 限 12 字、唔可以講藥名）；`guardrails.advice_text()` 改成 `title+reply+items` 一次掃描、`ESCALATION_TITLE` 連標題一齊換；`persist` 寫 `payload["title"]`；前端 `Bubble` 逐段出（標題 ~0.2 s → 正文 ~1.3 s → 分析卡），`TYPED.add()` 最後才做 | `pytest` 348（+2 guardrail test、+1 payload assert）；真 DeepSeek（temp DB）出 `title='下巴爆瘡：先減刺激控油'`（11 字） |
+| 收埋徽章 | 刪 `visionClaim()`／`provenanceLabel()`、`.vision-badge` CSS、`Chat.tsx` 兩個 badge block；`vision_used`／`vision_clip`／`provenance` 仍然寫入 payload、`/api/consult` response、`data/runs.jsonl` | `tests/ui/provenance.spec.ts` 重寫成「唔准 leak」（`.vision-badge` 0 個＋`雲端`／`FakeLLM`／model 名全部唔可以出現） |
+| tab bar | 最後決定 **icon-only**（`aria-label` 保留無障礙名）；`.tl` 連 CSS 一齊刪 | 390／320px 量到五個 `inkCx == btnCx`、button textContent 0 字、`overflowX 0` |
+
+### 11.2 為咩唔係「文字擺右邊」收貨
+
+真係試過（橫排 `gap: 2px`），量出嚟「墨跡右緣 → 字左緣」係 **4.7／4.7／9.3／10.3／4.7px** —— 因為每個 Lucide path 自己右邊留白唔同（`settings`／`clipboard-list` 留得少，`house`／`message-square` 留得多）。要逐個調 padding 就變成另一個 `--ink-scale` 式校正表，字級一改就失效。用戶原本就講「一係非常近，一係索性冇」→ 揀後者。
+
+### 11.3 未做／要留意
+
+- **41 張 snapshot 係機械重生**（`npm run ui:update` → 63 passed），我冇逐張人眼睇 diff。
+- **打字仍然唔係跟 SSE token**：SSE 係逐 node 到，最終文字仍然一次過落 `fresh` 訊息 → 「成段一次過打」。要真 token streaming 要改 `App.tsx` 收 delta（唔喺今次要求內）。
+- **`title` 係 LLM 生成**：真 LLM 今次出 11 字合規，但 prompt 只係「≤12 字」嘅指示，冇 deterministic 截斷。如果將來見到超長標題，前端會照 render（`coach-title` 冇 clamp）—— 要嘛加 `.slice` 截斷，要嘛喺 guardrail 加長度檢查。

@@ -23,7 +23,15 @@ export interface ConsultResult {
     tool_calls: string[]
   }
   tool_results: { tool: string; result: unknown }[]
-  advice: { reply?: string; items: string[]; disclaimer: string; escalate: boolean; detected_events?: DetectedEvent[] }
+  advice: {
+    /** 三段式氣泡第一段：一句總結標題（模型輸出，經同一個 guardrail） */
+    title?: string
+    reply?: string
+    items: string[]
+    disclaimer: string
+    escalate: boolean
+    detected_events?: DetectedEvent[]
+  }
   escalate: boolean
   /** 三態（issue #14）：null = 未知，UI 唔可以當成「未睇相」。 */
   vision_used: boolean | null

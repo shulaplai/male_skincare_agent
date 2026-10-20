@@ -43,6 +43,10 @@ def test_consult_persists_user_and_coach_messages():
     assert msgs[1].payload["metrics"]
     assert msgs[1].payload["escalate"] is False
     assert msgs[1].payload["vision_used"] is False
+    # 三段式氣泡（2026-10-20）：標題同正文都要 reload 得返，否則重開對話
+    # 就只剩正文、第一段標題消失。
+    assert msgs[1].payload["title"]
+    assert msgs[1].payload["reply"]
     session.close()
 
 

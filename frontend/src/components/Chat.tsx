@@ -6,7 +6,7 @@ import { useTheme } from '../theme'
 import { Icon } from './Icon'
 import { Skeleton } from './ui/Skeleton'
 import { BodyPartMenu } from './ui/BodyPartMenu'
-import { greeting, provenanceLabel, visionClaim } from '../format'
+import { greeting } from '../format'
 
 interface Props {
   conversation: Conversation
@@ -91,54 +91,78 @@ function Bubble({
 }) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
 
-  /* 逐字打出嚟（typewriter）。三個約束：
-     1. 只打「今次新收到」嘅回覆（`m.fresh`），reload 嘅歷史即刻出全句；
-     2. 尊重 `prefers-reduced-motion: reduce` → 直接出全句（唔係裝飾，係易讀性）；
-     3. 打完之後要 pin 到底部，否則文字越長、用戶就越見唔到自己追緊嘅最新一行。 */
+  /* 三段式揭示（2026-10-20 用戶要求）：① 標題 → ② 正文 → ③ AI 分析卡，
+     一段一段出，唔會三樣嘢同時彈出嚟。五個約束：
+     1. 只有「今次新收到」嘅回覆（`m.fresh`）才分段；reload 嘅歷史即刻出齊全套；
+     2. 尊重 `prefers-reduced-motion: reduce` → 即刻出齊（唔係裝飾，係易讀性）；
+     3. 每一段長高之後都要 pin 到底部，否則用戶追唔到最新一行；
+     4. 標題係空（舊 row／模型冇填）就即刻跳去正文 —— 唔會有一個空白段；
+     5. `TYPED.add()` 一定要喺**全部出完**之後（`React.StrictMode` 之下 effect
+        會 setup → cleanup → setup，喺開頭 add 會令回覆永遠空白，實測中過）。 */
+  const fullTitle = m.role === 'coach' ? (m.title ?? '') : ''
+  const fullBody = m.text
+  const animate =
+    m.role === 'coach' &&
+    Boolean(m.fresh) &&
+    !TYPED.has(m.id) &&
+    !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   const [shown, setShown] = useState(() =>
-    m.role === 'coach' && m.fresh && !TYPED.has(m.id) ? '' : m.text,
+    animate
+      ? { title: '', body: '', card: false }
+      : { title: fullTitle, body: fullBody, card: true },
   )
   const growRef = useRef(onGrow)
   growRef.current = onGrow
-  const textRef = useRef(m.text)
-  textRef.current = m.text
   useEffect(() => {
-    if (m.role !== 'coach' || !m.fresh || TYPED.has(m.id)) return
-    const full = textRef.current
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      TYPED.add(m.id)
-      setShown(full)
-      return
-    }
-    let i = 0
+    if (!animate) return
     let timer = 0
-    // 目標：唔論回覆幾長，大約 1.3 秒打完（18ms × 72 步），唔會長篇回覆要等 10 秒。
-    const step = Math.max(1, Math.ceil(full.length / 72))
-    const tick = () => {
-      i = Math.min(full.length, i + step)
-      setShown(full.slice(0, i))
-      growRef.current?.()
-      if (i < full.length) {
-        timer = window.setTimeout(tick, 18)
-      } else {
-        // ⚠️ 只可以喺**打完**才入 TYPED：`main.tsx` 有 `<React.StrictMode>`，dev 之下
-        // effect 會 setup → cleanup → setup。如果喺 setup 一開始就入 TYPED，第二次
-        // setup 會以為「已經打過」即刻 return，結果成段文字**永遠空白**（實測）。
-        TYPED.add(m.id)
+    let cancelled = false
+    // 不論幾長，標題約 0.2 秒、正文約 1.3 秒打完（18ms 一步，步長按字數攤分），
+    // 唔會令長篇回覆要等 10 秒。
+    const typeText = (text: string, budget: number, apply: (s: string) => void, done: () => void) => {
+      if (!text) {
+        apply('')
+        done()
+        return
       }
+      const step = Math.max(1, Math.ceil(text.length / budget))
+      let i = 0
+      const tick = () => {
+        if (cancelled) return
+        i = Math.min(text.length, i + step)
+        apply(text.slice(0, i))
+        growRef.current?.()
+        timer = window.setTimeout(i < text.length ? tick : done, i < text.length ? 18 : 240)
+      }
+      timer = window.setTimeout(tick, 40)
     }
-    timer = window.setTimeout(tick, 60)
-    return () => window.clearTimeout(timer)
-  }, [m.id, m.role, m.fresh])
+    typeText(
+      fullTitle,
+      12,
+      (v) => setShown((x) => ({ ...x, title: v })),
+      () =>
+        typeText(
+          fullBody,
+          72,
+          (v) => setShown((x) => ({ ...x, body: v })),
+          () => {
+            if (cancelled) return
+            setShown((x) => ({ ...x, card: true }))
+            growRef.current?.()
+            TYPED.add(m.id)
+          },
+        ),
+    )
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [animate, fullTitle, fullBody, m.id])
   /* ⚠️ class 名唔可以照抄 role：CSS 嘅左右分邊係寫 `.msg.me`（`row-reverse` +
      `margin-left: auto`）＋ `.a.me`，而 role 係 `user` —— 直接寫 `msg user` 就
      永遠 match 唔到，用戶自己嗰句會同 AI 一樣靠左（實測 390px：兩邊 bubble 都由
      x=57 開始）。呢度做一次 mapping，兩邊（class 同 CSS）先真正見面。 */
   const who = m.role === 'user' ? 'me' : 'coach'
-  // 三態 vision + 回覆出處（issue #14）。兩者都係純函數決定，未知一律唔出。
-  const vision =
-    m.role === 'coach' ? visionClaim(m.vision_used, Boolean(m.clip || m.vision_clip)) : null
-  const provenance = m.role === 'coach' ? provenanceLabel(m.provenance) : null
   return (
     <div className={`msg ${who}${m.error ? ' err' : ''}`}>
       <div className={`a ${who}`} />
@@ -150,9 +174,15 @@ function Bubble({
         {m.escalate && <div className="escalate-banner">
           <Icon name="triangle-alert" size={15} /> 呢個情況建議轉介皮膚科醫生
         </div>}
-        {/* 包一層 span 純粹係俾 test 量「打咗幾多字」（`.reply-text`），冇任何樣式；
-            唔包嘅話 innerText 會連 meta／徽章／分析卡一齊數。 */}
-        <span className="reply-text">{shown}</span>
+        {/* ① 標題：一句總結，最先出（2026-10-20）。空就唔 render，唔會留白位。
+            刻意**唔係** heading（`h3`）：一段對話可能有幾十條回覆，每條都出一個
+            heading 會令報讀器嘅標題導覽變成雜訊；而且條 bubble 之前嘅 heading 係
+            `h1`（`ShellTop`）→ `h1` 跳 `h3` 會撞 `tests/ui/a11y.spec.ts` 嘅層級規則。
+            視覺上靠字重／字級，語意上佢只係訊息嘅第一句。 */}
+        {shown.title && <p className="coach-title">{shown.title}</p>}
+        {/* ② 正文。包一層 span 純粹係俾 test 量「打咗幾多字」（`.reply-text`），
+            冇任何樣式；唔包嘅話 innerText 會連 meta／分析卡一齊數。 */}
+        <span className="reply-text">{shown.body}</span>
         {m.error && m.retry && onRetry && (
           <button type="button" className="retry" onClick={() => onRetry(m.id)}>
             <Icon name="refresh-cw" size={13} /> 重試
@@ -166,21 +196,10 @@ function Bubble({
         {!m.clip && m.photo && (
           <BlurPhoto src={m.photo} thumbWidth={336} onLoad={onMediaLoad} />
         )}
-        {m.role === 'coach' && m.analysis && (
+        {/* ③ AI 分析卡：等正文打完才出（`shown.card`）。以前佢同正文一齊彈，
+            用戶會先讀卡再讀解釋。徽章（睇相／雲端／model 名）已按 2026-10-20 要求收埋。 */}
+        {shown.card && m.role === 'coach' && m.analysis && (
           <>
-            {vision && (
-              <div className={`vision-badge ${vision.tone}`}>
-                <Icon name={vision.icon} size={13} />
-                {vision.text}
-              </div>
-            )}
-            {provenance && m.provenance && (
-              <span
-                className={`vision-badge provenance ${m.provenance.mode === 'fake' ? 'fake' : 'live'}`}
-              >
-                {provenance}
-              </span>
-            )}
             <div className="card">
               <h2>{m.analysis.title}</h2>
               <div className="metrics">

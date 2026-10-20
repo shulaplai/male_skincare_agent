@@ -184,9 +184,11 @@ function AppInner() {
           id: local(),
           role: 'coach',
           text: res.advice.reply || res.analysis.summary,
+          // 三段式氣泡第一段（2026-10-20）：標題先出，然後正文，最後才出分析卡。
+          title: res.advice.title || undefined,
           time: '現在',
           date: new Date().toISOString().slice(0, 10),
-          analysis: { title: 'Agent 分析', metrics: res.analysis.metrics, advice: res.advice.items },
+          analysis: { title: 'AI 分析', metrics: res.analysis.metrics, advice: res.advice.items },
           disclaimer: res.advice.disclaimer,
           escalate: res.escalate,
           vision_used: res.vision_used,

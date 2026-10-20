@@ -108,6 +108,15 @@ class DetectedEvent(BaseModel):
 
 
 class Advice(BaseModel):
+    # The coach bubble is revealed in three stages (2026-10-20, user request):
+    # ① `title` — one short Cantonese headline the user sees first;
+    # ② `reply` — 2–5 sentences of body text;
+    # ③ the analysis card (built from `items`), which the UI only reveals once
+    #    the body has finished.
+    # `title` is a *display* field, but it is still model output → it goes
+    # through the same medical guardrail as `reply` (see `guardrails.advice_text`),
+    # otherwise 「口服抗生素」 could slip in through the headline.
+    title: str = ""
     # `reply` is the coach's narrative answer shown as the message text:
     # 2–5 sentences in Cantonese that explain the analysis, the reasoning
     # behind the advice, and what the app will remember. `items` are the

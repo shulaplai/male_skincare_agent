@@ -86,12 +86,12 @@ START → analyze → tools → advise → guardrail → persist → END
 
 | node | 行 | 用 LLM？ | 讀 | 寫落 state |
 |---|---|---|---|---|
-| `persist` | `:481-517` | 冇 LLM | — | ChatMessage（user＋coach）；coach `payload` 帶 `detected_events`（reload 出返 chips）、`events_applied` 由 confirm route 補 |
+| `persist` | `:481-517` | 冇 LLM | — | ChatMessage（user＋coach）；coach `payload` 帶 `title`（三段式第一段）、`detected_events`（reload 出返 chips）、`vision_used`／`vision_clip`（唔 render，但留住做 audit）、`events_applied` 由 confirm route 補 |
 
 | `analyze` | `:91-165` | ✅ **text 或 vision** | `user_text`、`photo_paths`、`cloud_analysis` | `analysis`（`SkinAnalysis`）、`vision_used`、`trace` |
 | `tools` | `:167-261` | ❌ | `analysis.tool_calls`、`user_text` + DB | `tool_results`、`product_eval`、`recent_messages`、`first_checkin`、`trace` |
-| `advise` | `:263-286` | ✅ text | `analysis`、`tool_results`、`product_eval`、`recent_messages`、`first_checkin` | `advice`（`Advice`）、`trace` |
-| `guardrail` | `:288-324` | ❌ | `advice`、`user_text`、`product_eval` | `advice`（可能被改）、`escalate`、`trace` |
+| `advise` | `:263-286` | ✅ text | `analysis`、`tool_results`、`product_eval`、`recent_messages`、`first_checkin` | `advice`（`Advice`：`title`＋`reply`＋`items`）、`trace` |
+| `guardrail` | `:288-324` | ❌ | `advice`、`user_text`、`product_eval` | `advice`（`title`／`reply`／`items` 三個欄位都可能被改）、`escalate`、`trace` |
 | `persist` | `:326-547` | ❌ | 全部 | **DB 寫入**、`trace` |
 
 **LLM 只出現喺 `analyze` 同 `advise`**（doctrine #1）。其餘三個 node 係純 code。
@@ -156,6 +156,28 @@ vision_attempted = 同上面一樣（刻意喺 fallback 之前計）            
 
 ⚠️ **呢張表以前寫住 `Entry` 係「無條件」**，即係修好之前嘅行為。如果你喺舊版本嘅文檔
 見到「無條件」，嗰個已經唔係現實。
+
+### 3.5 回覆嘅三段式合約（2026-10-20）
+
+用戶要求「回應非常唔穩定，有啲抖震」→ 回覆拆成**三段、分三次出**：
+
+| 段 | 資料來源 | 出場時間 |
+|---|---|---|
+| ① 標題 | `Advice.title`（LLM 出，`ADVISE_SYSTEM` 限 12 字、唔可以講藥名／劑量） | 最先，約 0.2 秒打完 |
+| ② 正文 | `Advice.reply` | 標題打完之後，約 1.3 秒打完 |
+| ③ AI 分析卡 | `SkinAnalysis`（attributes／metrics／tool 結果） | 正文打完之後 | 
+
+**一個掃描點**：`guardrails.advice_text()` 回 `title + reply + items` 三段合成嘅文字，
+`apply_guardrails` 用同一個判斷一次過換走三個欄位（`ESCALATION_TITLE` 覆寫標題）。
+以前只掃 `items`、之後補掃 `reply` —— 每次加一段新文字就多一個盲點，所以而家係
+「一段文字、一個入口」。`eval/safety.py` 亦掃 same text（同一個函數），兩邊唔會再分岔。
+
+**持久化**：`persist` 寫 `payload["title"]`，`format.fromServerMessage` 讀返，
+所以 reload 之後仍然係三段（唔會變返一大段）。舊 row 冇 `title` → 只出正文＋卡（唔會壞）。
+
+**唔 render 嘅內部狀態**（同一日嘅另一個決定）：`vision_used`／`vision_clip`／
+`provenance` 仍然寫入 payload 同 `data/runs.jsonl`，但**唔再出徽章** ——
+用戶要求「雲端、用咗咩模型嗰啲全部隱藏」。`tests/ui/provenance.spec.ts` 釘住佢哋唔會返嚟。
 
 ## 4. 真 LLM 同 FakeLLM 嘅分別（**唯一分岔點**）
 
@@ -428,8 +450,9 @@ POST /api/consult( /stream )
 `main.sweep_orphan_photos` 唔會清走佢哋。
 
 **顯示真相**：coach 訊息 payload 多一個 `vision_clip: bool`（**唔係 clip object**，
-唔可以喺教練 bubble 出第二個片 chip），前端 `format.visionClaim(used, hasClip)` 靠佢
-講「已睇片分析」定「文字分析（未睇片）」。
+唔可以喺教練 bubble 出第二個片 chip）。⚠️ 2026-10-20 之後**氣泡唔再出徽章**（用戶要求
+隱藏雲端／模型資訊），`vision_clip` 只係留住喺 payload 做 audit —— 前端唔 render，
+但 `data/runs.jsonl` 同 `/api/consult` response 仍然有，所以「有冇睇過」照樣查得到。
 
 ### 2026-10-20 事故：冇格 → 模型自己作咗六個 attribute
 
