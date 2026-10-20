@@ -390,11 +390,59 @@ UI 一定要提示「鏡頭慢慢掃過成塊面」，否則用戶拍長片但�
 未達門檻，所以驗唔到壓縮比率。壓縮**路徑**由
 `test_oversized_clip_is_re_encoded_smaller_with_no_audio` 確定性驗證（強制門檻 + 純噪聲內容）。
 
-### 出咗片之後嘅路徑：**完全冇新路徑**
+### 出咗片之後嘅路徑：由**後端**負責把格變成 `photo_paths`（2026-10-20 修）
 
-前端將 `frames[].id` 當 `photo_paths` 送去 `/api/consult` —— cloud consent gate、
-photo 去重、`entry.photos`、`observes_skin or vision_used` 閘全部照用，
-agent 亦唔需要知嗰啲係片。
+⚠️ **呢一節以前寫錯**，寫成「前端將 `frames[].id` 當 `photo_paths` 送去 `/api/consult`、
+完全冇新路徑」。**從來冇發生過**：`Chat.tsx` 只送 `{duration, frames}`，`photo_paths`
+係 `[]`。後果係 2026-10-20 嘅假數據事故（見下面）。而家嘅流程：
+
+```
+POST /api/consult( /stream )
+  clip = {duration, frames, video_id}
+    ├─ 前端已經帶 photo_paths（例如相＋片一齊）→ 原封不動，唔會雙重
+    ├─ 有 video_id → service._clip_frames()：查 Video row → 濾走唔喺 disk 嘅格
+    │                → photo_paths = 格 ids、clip.frames = 真實格數
+    └─ 攞唔到格 → photo_paths 仍然係 []，但 clip 加 {frames: 0, unavailable: True}
+                   （UI 要出「一條片」chip，唔可以變六張相）
+```
+
+`resolve_clip_frames()`（`app/agent/service.py`）喺 `consult_stream` route 同
+`run_consult()` **兩處**都行，所以 `retry`（重播存起嘅 payload）都修得好。
+
+**分析路徑**：格入到 `photo_paths` 之後就同普通相一樣行 vision。三個 prompt 分支
+（`app/agent/prompts.py` `build_analyze_prompt`）唔可以搞亂次序：
+
+| 情況 | 分支 | 對 model 講 |
+|---|---|---|
+| 有格（`has_photo and photo_viewed and clip`） | 第一 | 「以下係條片嘅畫面…唔好講格數／幾張相」 |
+| 有相（`has_photo and photo_viewed`） | 第二 | 「相已附上」 |
+| 片讀唔到（`has_photo and photo_unreadable`） | 第三 | 「讀唔到」（同相一樣要老實） |
+| **片但冇格**（`elif clip`） | 第四 | 「你**冇**睇過…唔好講『睇你條片』或者具體讀數」 |
+| 本地模式（`elif has_photo`） | 第五 | 「本地模式睇唔到相」 |
+| 純文字 | 最後 | 「（無相，純文字）」 |
+
+**寫 DB 嘅路徑**：`clip` 嘅格係 backstage —— `persist` **唔會**將佢哋寫入
+`entry.photos`，亦**唔會**將 placeholder「（已上傳皮膚影片）」寫成當日 note
+（`graph.py` `clip_turn` 判斷）。否則「記錄」會顯示「今日 6 張相」，用戶以為自己影咗
+六張相。格嘅檔案由 `Video.frames` 同 `ChatMessage.payload["photos"]` 兩處保住，所以
+`main.sweep_orphan_photos` 唔會清走佢哋。
+
+**顯示真相**：coach 訊息 payload 多一個 `vision_clip: bool`（**唔係 clip object**，
+唔可以喺教練 bubble 出第二個片 chip），前端 `format.visionClaim(used, hasClip)` 靠佢
+講「已睇片分析」定「文字分析（未睇片）」。
+
+### 2026-10-20 事故：冇格 → 模型自己作咗六個 attribute
+
+真 DB 證據（修之前）：`chat_messages` #13 user（`clip: true`、`photos: 0`）＋ #14 coach
+（`vision_used: False`，body 卻寫「睇你條片…泛紅由 0 回升到 1 分」）；
+`entries` 2026-10-20 note `（已上傳皮膚影片）`，六個 attribute 全部非零
+（acne1/oiliness2/redness1/dryness1/pores2/texture1）—— 全部係作出嚟。
+
+修法：①後端 `resolve_clip_frames`（上面）②`elif clip` prompt 分支講明「你冇睇過」
+③`persist` 唔再將格當相／將 placeholder 當 note。**舊數據**用
+`backend/scripts/repair_clip_entry.py` 重跑真 vision 修好（dry-run 預設、`--apply` 才寫）：
+2026-10-20 重跑後 `vision_used=True`，真數字係 acne1/oiliness1/redness0/dryness0/pores1/
+texture1，並清走嗰對假訊息。
 
 ⚠️ **解碼器嘅硬性約束**：`imageio` 個 ffmpeg plugin **唔收 `BytesIO`**（spawn ffmpeg
 subprocess 讀檔）。所以「本機儲片」唔止係產品要求，係解碼器要求 —— 順帶亦令

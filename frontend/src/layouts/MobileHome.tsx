@@ -1,9 +1,8 @@
 import { useMemo } from 'react'
-import { BlurPhoto } from '../components/BlurPhoto'
-import { LevelDots, MemoryList } from '../components/blocks'
+import { MemoryList } from '../components/blocks'
 import { useInsightActions } from '../hooks/useInsightActions'
 import { useSummary } from '../hooks/useSummary'
-import { ATTRIBUTE_KEYS, ATTRIBUTE_META, severityText } from '../format'
+import { ATTRIBUTE_KEYS, ATTRIBUTE_META } from '../format'
 import type { Message, RecordEntry } from '../types'
 import type { HomeProps } from './defs'
 import { Icon } from '../components/Icon'
@@ -24,6 +23,13 @@ function dayLabel(date: string, short = false): string {
   if (diff <= 0) return `今天 · 星期${wd}`
   if (diff === 1) return `昨天 · 星期${wd}`
   return `${date} · 星期${wd}`
+}
+
+/** 本地今日 `YYYY-MM-DD`（entry.date 已經係呢個 shape）。 */
+function todayYmd(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
 const severityOf = (e: RecordEntry | undefined, key: string): number | null =>
@@ -61,6 +67,11 @@ export function MobileHome({ p, nav }: HomeProps) {
   const entries = summary?.entries ?? []
   const latest = entries[0]
   const prev = entries[1]
+  /* 「最近一次記錄」唔一定係今日 —— `/summary` 係按日期 desc 排，用戶可能幾日冇打卡。
+     以前呢頁唔理，照寫「今日膚況／今日指標／今日記低咗 N 個」，變成一句假話
+     （2026-10-20）。而家：有今日 entry 就講今日，冇就照實講係邊一日。 */
+  const isToday = latest != null && latest.date === todayYmd()
+  const latestLabel = latest ? dayLabel(latest.date, true) : ''
 
   const today = useMemo(() => {
     const recorded = ATTRIBUTE_KEYS.filter((k) => severityOf(latest, k) != null)
@@ -85,7 +96,8 @@ export function MobileHome({ p, nav }: HomeProps) {
 
   const heroSub = () => {
     if (loading) return '載入緊…'
-    if (!latest || today.recorded === 0) return '今日未有指標。撳下面打卡／影相，agent 會寫低今日狀態。'
+    if (!latest || today.recorded === 0) return '未有指標。撳下面打卡／影相，agent 會寫低今日狀態。'
+    if (!isToday) return `上次記錄係 ${latestLabel}。撳下面打卡記低今日。`
     if (!today.compared) return '第一次記錄，暫時未有得同上次比較。'
     return `${today.improved} 項改善 · ${today.worse} 項惡化 · ${today.same} 項持平`
   }
@@ -95,13 +107,13 @@ export function MobileHome({ p, nav }: HomeProps) {
       <section className="mob-hero">
         <div className="mob-hero-txt">
           <div className="k">{latest ? dayLabel(latest.date) : '今日'}</div>
-          <div className="h1">今日膚況</div>
+          <div className="h1">{isToday ? '今日膚況' : latest ? '最近一次記錄' : '今日膚況'}</div>
           <p className="sub">{heroSub()}</p>
         </div>
         <div
           className="mob-ring"
           style={{ ['--v' as string]: (today.recorded / ATTRIBUTE_KEYS.length) * 100 }}
-          title={`今日記低咗 ${today.recorded}/${ATTRIBUTE_KEYS.length} 個指標`}
+          title={`${isToday ? '今日' : latestLabel}記低咗 ${today.recorded}/${ATTRIBUTE_KEYS.length} 個指標`}
         >
           <span>
             {today.recorded}
@@ -121,28 +133,30 @@ export function MobileHome({ p, nav }: HomeProps) {
         )}
 
       <section className="mob-card">
-        <h2>今日指標</h2>
+        <h2>{isToday ? '今日指標' : '最近一次指標'}</h2>
         {loading ? (
           <p className="empty small">載入中…</p>
         ) : today.recorded === 0 ? (
-          <p className="empty small">未有指標。打卡／影張相，agent 會寫低今日嘅皮膚狀態。</p>
+          <p className="empty small">未有指標。打卡／影張相，agent 會寫低皮膚狀態。</p>
         ) : (
-          <div className="attr-list">
-            {ATTRIBUTE_KEYS.map((key) => {
-              const cur = severityOf(latest, key)
-              if (cur == null) return null
-              const was = severityOf(prev, key)
-              const delta = was == null || was === cur ? '' : cur > was ? '↑ 惡化' : '↓ 改善'
-              return (
-                <div className="attr" key={key}>
-                  <span className="k">{ATTRIBUTE_META[key].zh}</span>
-                  <LevelDots severity={cur} />
-                  <span className="sev">{severityText(cur)}</span>
-                  {delta && <span className={`delta ${delta.includes('惡化') ? 'bad' : 'good'}`}>{delta}</span>}
-                </div>
-              )
-            })}
-          </div>
+          <>
+            {/* 以前係 6 行 stack（每行 dots + 文字 + delta），喺手機首頁佔成半版。
+                而家一條 chip row：一樣嘅數字，大概三分一高度。詳細版去「記錄」。 */}
+            <div className="entry-metrics">
+              {ATTRIBUTE_KEYS.map((key) => {
+                const cur = severityOf(latest, key)
+                if (cur == null) return null
+                const was = severityOf(prev, key)
+                const delta = was == null || was === cur ? '' : cur > was ? '↑' : '↓'
+                return (
+                  <span key={key} className={`chip attr${delta === '↑' ? ' bad' : delta === '↓' ? ' good' : ''}`}>
+                    {ATTRIBUTE_META[key].zh} {cur}/3{delta && ` ${delta}`}
+                  </span>
+                )
+              })}
+            </div>
+            {!isToday && <p className="empty small">呢啲係 {latestLabel} 嘅數字。</p>}
+          </>
         )}
       </section>
 
@@ -169,25 +183,8 @@ export function MobileHome({ p, nav }: HomeProps) {
                     ))}
                   </div>
                 )}
-                {e.photos?.length > 0 && (
-                  <div className="jm-photos">
-                    {e.photos.map((ph) => {
-                      const id = ph.split('/').pop()?.replace('.jpg', '')
-                      return (
-                        <span className="photo-cell" key={ph}>
-                          {/* 「今日」tab 係手機一開就見到嘅畫面 —— 以前呢度係裸 `<img>`
-                              包 `<a target="_blank">`，即係全部自拍全清、撳一下開原圖。 */}
-                          <BlurPhoto
-                            src={`/api/photos/${id}`}
-                            alt={`${e.date} 皮膚相`}
-                            variant="grid"
-                            thumbWidth={296}
-                          />
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
+                {/* 手機首頁唔顯示相（2026-10-20 決定）：首頁要短，而且首頁一開就見，
+                    自拍 grid 擺喺呢度太搶眼／太多。相繼續喺「記錄」scene 睇。 */}
                 {reply && (
                   <div className="jm-reply">
                     <div className="k">教練回覆 · Agent</div>

@@ -78,7 +78,7 @@ class StubLLM:
         return self.structured(system, user, schema)
 
 
-def run(sf, llm, cid, text, *, photo_paths=None, cloud=False, vision_llm=None):
+def run(sf, llm, cid, text, *, photo_paths=None, cloud=False, vision_llm=None, clip=None):
     g = build_graph(
         llm=llm, vision_llm=vision_llm or llm, session_factory=sf, embedder=DeterministicEmbedder()
     )
@@ -88,6 +88,7 @@ def run(sf, llm, cid, text, *, photo_paths=None, cloud=False, vision_llm=None):
             "user_text": text,
             "photo_paths": photo_paths or [],
             "cloud_analysis": cloud,
+            "clip": clip,
             "trace": [],
         }
     )
@@ -297,3 +298,78 @@ def test_vision_used_also_counts_as_observed_for_the_advise_prompt():
     )
     assert "第一個紀錄" in prompt
     assert "今次唔係皮膚紀錄" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# A clip's frames are backstage, not the day's photo grid
+# ---------------------------------------------------------------------------
+
+
+def _seed_frames(tmp_path, ids) -> None:
+    """Write the files `photo_exists` looks for (bytes need not be decodable here)."""
+    from pathlib import Path
+
+    photos = Path(tmp_path) / "photos"
+    photos.mkdir(parents=True, exist_ok=True)
+    for pid in ids:
+        (photos / f"{pid}.jpg").write_bytes(b"\xff\xd8\xff\xd9")
+
+
+def test_a_clip_turn_keeps_its_frames_off_the_day(tmp_path, monkeypatch):
+    """抽格係 backstage：唔可以變成「今日 6 張相」，亦唔可以變成當日 note。
+
+    The day *is* written (vision read the frames → evidence), but the frames belong to
+    the clip, not to `entries.photos`: otherwise 「記錄」shows six photos the user never
+    took, and the day's note becomes the placeholder「（已上傳皮膚影片）」—— a sentence
+    the user never wrote.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "data_dir", str(tmp_path))
+    sf = make_factory()
+    cid = seed_conversation(sf)
+    ids = [f"{i:032x}" for i in range(1, 4)]
+    _seed_frames(tmp_path, ids)
+
+    res = run(
+        sf,
+        StubLLM(observes=True),
+        cid,
+        "（已上傳皮膚影片）",
+        photo_paths=ids,
+        cloud=True,
+        clip={"duration": 9.2, "frames": len(ids)},
+    )
+
+    assert res["vision_used"] is True
+    s = sf()
+    e = s.query(Entry).filter_by(conversation_id=cid).first()
+    assert e is not None, "vision 睇過格 → 當日要有 Entry"
+    assert {a["key"]: a["severity"] for a in e.attributes} == {"acne": SEV, "oiliness": SEV}
+    assert e.note == "", "placeholder 唔可以變成用戶講嘅嘢"
+    assert s.query(Photo).count() == 0, "抽格唔可以變成當日相片"
+    # 顯示真相仍然留喺 message payload（reload 之後個片 chip 仲 render 得到，
+    # 而 `sweep_orphan_photos` 亦靠佢保住啲格）。
+    msg = s.query(ChatMessage).filter_by(conversation_id=cid, role="user").first()
+    assert msg.payload["photos"] == ids
+    s.close()
+
+
+def test_a_photo_turn_still_attaches_the_photos(tmp_path, monkeypatch):
+    """對照組：普通相（冇 clip）照舊附去當日 Entry —— 上面嘅規則唔可以波及相。"""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "data_dir", str(tmp_path))
+    sf = make_factory()
+    cid = seed_conversation(sf)
+    ids = [f"{i:032x}" for i in range(1, 3)]
+    _seed_frames(tmp_path, ids)
+
+    run(sf, StubLLM(observes=True), cid, "今朝塊面好油", photo_paths=ids, cloud=True)
+
+    s = sf()
+    e = s.query(Entry).filter_by(conversation_id=cid).first()
+    assert e is not None
+    assert e.note == "今朝塊面好油"
+    assert {p.path for p in e.photos} == {f"photos/{pid}.jpg" for pid in ids}
+    s.close()

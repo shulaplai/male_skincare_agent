@@ -16,7 +16,11 @@ interface Props {
   sending: boolean
   /** 串流期間要顯示嘅步驟（audit §7）；null 就用原本嗰句「約 5–10 秒」。 */
   stage?: string | null
-  onSend: (text: string, photos: { id: string; path: string }[], video?: { duration: number; frames: number }) => void
+  onSend: (
+    text: string,
+    photos: { id: string; path: string }[],
+    video?: { duration: number; frames: number; video_id?: string },
+  ) => void
   online: boolean
   onSelectConversation: (id: string) => void
   onConfirmEvents: (conversationId: string, msgId: string, events: DetectedEvent[]) => void
@@ -62,25 +66,78 @@ function EventChips({ m, onConfirm }: { m: Message; onConfirm?: (msgId: string, 
   )
 }
 
+/**
+ * 已經打完嘅回覆 id（module 級）。
+ *
+ * 逐字打出嚟係「一次性」效果：切 scene／切 conversation 會 unmount 再 mount，冇呢個
+ * Set 就會由頭再打一次（用戶會以為 app 重新分析）。放 module 級而唔係 state，係因為
+ * 一個 id 打完就永遠打完，唔需要令 App re-render。
+ */
+const TYPED = new Set<string>()
+
 function Bubble({
   m,
   onConfirm,
   onMediaLoad,
   onRetry,
+  onGrow,
 }: {
   m: Message
   onConfirm?: (msgId: string, evs: DetectedEvent[]) => void
   onMediaLoad?: () => void
   onRetry?: (msgId: string) => void
+  /** 逐字期間文字會不停長高 → 要叫 Chat 重新 pin 到底部（同 `onMediaLoad` 一樣理由）。 */
+  onGrow?: () => void
 }) {
   const label = m.role === 'user' ? '你' : '教練 · Agent'
+
+  /* 逐字打出嚟（typewriter）。三個約束：
+     1. 只打「今次新收到」嘅回覆（`m.fresh`），reload 嘅歷史即刻出全句；
+     2. 尊重 `prefers-reduced-motion: reduce` → 直接出全句（唔係裝飾，係易讀性）；
+     3. 打完之後要 pin 到底部，否則文字越長、用戶就越見唔到自己追緊嘅最新一行。 */
+  const [shown, setShown] = useState(() =>
+    m.role === 'coach' && m.fresh && !TYPED.has(m.id) ? '' : m.text,
+  )
+  const growRef = useRef(onGrow)
+  growRef.current = onGrow
+  const textRef = useRef(m.text)
+  textRef.current = m.text
+  useEffect(() => {
+    if (m.role !== 'coach' || !m.fresh || TYPED.has(m.id)) return
+    const full = textRef.current
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      TYPED.add(m.id)
+      setShown(full)
+      return
+    }
+    let i = 0
+    let timer = 0
+    // 目標：唔論回覆幾長，大約 1.3 秒打完（18ms × 72 步），唔會長篇回覆要等 10 秒。
+    const step = Math.max(1, Math.ceil(full.length / 72))
+    const tick = () => {
+      i = Math.min(full.length, i + step)
+      setShown(full.slice(0, i))
+      growRef.current?.()
+      if (i < full.length) {
+        timer = window.setTimeout(tick, 18)
+      } else {
+        // ⚠️ 只可以喺**打完**才入 TYPED：`main.tsx` 有 `<React.StrictMode>`，dev 之下
+        // effect 會 setup → cleanup → setup。如果喺 setup 一開始就入 TYPED，第二次
+        // setup 會以為「已經打過」即刻 return，結果成段文字**永遠空白**（實測）。
+        TYPED.add(m.id)
+      }
+    }
+    timer = window.setTimeout(tick, 60)
+    return () => window.clearTimeout(timer)
+  }, [m.id, m.role, m.fresh])
   /* ⚠️ class 名唔可以照抄 role：CSS 嘅左右分邊係寫 `.msg.me`（`row-reverse` +
      `margin-left: auto`）＋ `.a.me`，而 role 係 `user` —— 直接寫 `msg user` 就
      永遠 match 唔到，用戶自己嗰句會同 AI 一樣靠左（實測 390px：兩邊 bubble 都由
      x=57 開始）。呢度做一次 mapping，兩邊（class 同 CSS）先真正見面。 */
   const who = m.role === 'user' ? 'me' : 'coach'
   // 三態 vision + 回覆出處（issue #14）。兩者都係純函數決定，未知一律唔出。
-  const vision = m.role === 'coach' ? visionClaim(m.vision_used) : null
+  const vision =
+    m.role === 'coach' ? visionClaim(m.vision_used, Boolean(m.clip || m.vision_clip)) : null
   const provenance = m.role === 'coach' ? provenanceLabel(m.provenance) : null
   return (
     <div className={`msg ${who}${m.error ? ' err' : ''}`}>
@@ -93,7 +150,9 @@ function Bubble({
         {m.escalate && <div className="escalate-banner">
           <Icon name="triangle-alert" size={15} /> 呢個情況建議轉介皮膚科醫生
         </div>}
-        {m.text}
+        {/* 包一層 span 純粹係俾 test 量「打咗幾多字」（`.reply-text`），冇任何樣式；
+            唔包嘅話 innerText 會連 meta／徽章／分析卡一齊數。 */}
+        <span className="reply-text">{shown}</span>
         {m.error && m.retry && onRetry && (
           <button type="button" className="retry" onClick={() => onRetry(m.id)}>
             <Icon name="refresh-cw" size={13} /> 重試
@@ -289,7 +348,19 @@ export function Chat({
     if (sending || uploading) return
     // 片：用戶睇到嘅係一條片，所以文字同 UI 都唔會提「抽咗幾多張相」
     const fallback = clip ? '（已上傳皮膚影片）' : '（已上傳皮膚相）'
-    onSend(t || fallback, attached, clip ? { duration: clip.duration, frames: clip.frames.length } : undefined)
+    onSend(
+      t || fallback,
+      attached,
+      clip
+        ? {
+            duration: clip.duration,
+            frames: clip.frames.length,
+            // 後端用佢由 DB 攞返抽好嘅格 → 真正送去做 vision。冇咗呢個 id，條片就等於
+            // 冇相（2026-10-20 出過真事故：model 憑 placeholder 作咗成日皮膚數據）。
+            video_id: clip.videoId ?? undefined,
+          }
+        : undefined,
+    )
     setDraft('')
     setAttached([])
     setClip(null)
@@ -341,12 +412,20 @@ export function Chat({
   }
 
   const busy = sending || uploading
+  /* 冇內容就冇嘢好送：以前個發送掣永遠喺度（撳落去 `submit()` 靜靜早退），
+     手機輸入框隔籬長期掛住一個冇用嘅圓掣。`sending` 期間一定要留住（轉圈）。 */
+  const canSend = draft.trim() !== '' || attached.length > 0 || clip !== null
 
   return (
     <main className="chat">
       <header className="chathead">
         <div className="cur">
-          <span className="part">{conversation.icon}</span>
+          {/* 以前 render `conversation.icon`（DB 存住 🧔／🧴 emoji）→ 彩色字形
+              同旁邊嘅 Lucide 線稿唔同來源、大細同基線都唔同。而家固定用 icon，
+              DB 欄位留住唔動（舊 row 嘅 emoji 只係唔再顯示，唔使 migration）。 */}
+          <span className="part" aria-hidden>
+            <Icon name="user-round" size={16} />
+          </span>
           <h1>{conversation.bodyPart}</h1>
           {/* 一份共用實作（以前 ShellTop 同呢度各寫一份 `<span onClick>`，兩邊都鍵盤撳唔到）。 */}
           <BodyPartMenu
@@ -384,6 +463,7 @@ export function Chat({
                 m={m}
                 onConfirm={(mid, evs) => onConfirmEvents(conversation.id, mid, evs)}
                 onMediaLoad={pinToBottom}
+                onGrow={pinToBottom}
                 onRetry={(mid) => onRetryMessage(conversation.id, mid)}
               />
             </div>
@@ -405,29 +485,8 @@ export function Chat({
       </div>
 
       <div className="compose">
-        <div className="tools">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*,video/*"
-            style={{ display: 'none' }}
-            onChange={onPick}
-          />
-          {/* 2026-10-01：composer 只留一個掣。相簿／相機本來係同一個 file input
-              （iOS 個 picker 自己會問「相片圖庫／拍照」），所以收起相簿掣冇功能損失。
-              Measured: coverage comes from camera *movement*, not clip length — a 20 s
-              static clip de-duplicates down to a single frame, a 10 s pan yields all 6.
-              The hint has to reach the user before they film, so it rides the button. */}
-          <button
-            type="button"
-            className="iconbtn"
-            title="影相／錄片（片最多 20 秒；錄嗰陣鏡頭慢慢掃過成塊肌）"
-            aria-label="影相／錄片"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Icon name="camera" size={20} />
-          </button>
-        </div>
+        {/* 附件擺上面一行（可以換行）：一條片 chip 有 54px thumb 同兩行字，同 textarea 爭同一個 row 就會將輸入框壓扁。`:empty` 令冇附件時唔佔高度。 */}
+        <div className="compose-attach">
         {clip && (
           <span className={`clip-chip${clip.state === 'uploading' ? ' uploading' : ''}`}>
             {clip.previewFailed ? (
@@ -499,6 +558,31 @@ export function Chat({
         {uploadErr && <span className="chip upload-err">
             <Icon name="circle-alert" size={13} /> 上傳失敗：{uploadErr}
           </span>}
+        </div>
+        <div className="compose-row">
+        <div className="tools">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*"
+            style={{ display: 'none' }}
+            onChange={onPick}
+          />
+          {/* 2026-10-01：composer 只留一個掣。相簿／相機本來係同一個 file input
+              （iOS 個 picker 自己會問「相片圖庫／拍照」），所以收起相簿掣冇功能損失。
+              Measured: coverage comes from camera *movement*, not clip length — a 20 s
+              static clip de-duplicates down to a single frame, a 10 s pan yields all 6.
+              The hint has to reach the user before they film, so it rides the button. */}
+          <button
+            type="button"
+            className="iconbtn"
+            title="影相／錄片（片最多 20 秒；錄嗰陣鏡頭慢慢掃過成塊肌）"
+            aria-label="影相／錄片"
+            onClick={() => fileRef.current?.click()}
+          >
+            <Icon name="camera" size={20} />
+          </button>
+        </div>
         <textarea
           ref={inputRef}
           rows={1}
@@ -515,15 +599,19 @@ export function Chat({
           placeholder={`問${conversation.bodyPart}教練任何嘢…`}
           aria-label={`同${conversation.bodyPart}教練對話`}
         />
-        <button className="send" onClick={submit} disabled={busy} aria-label="發送" title="發送（Enter）">
-          {sending ? (
-            <svg className="spin" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="8" />
-            </svg>
-          ) : (
-            <Icon name="arrow-up" size={20} />
-          )}
-        </button>
+        {(canSend || sending) && (
+          <button className="send" onClick={submit} disabled={busy} aria-label="發送" title="發送（Enter）">
+            {sending ? (
+              <svg className="spin" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+              </svg>
+            ) : (
+              /* → 唔係 ↑：呢粒掣係「送出去」，向上箭嘴令人以為係「捲上去」 */
+              <Icon name="arrow-right" size={20} />
+            )}
+          </button>
+        )}
+        </div>
       </div>
     </main>
   )

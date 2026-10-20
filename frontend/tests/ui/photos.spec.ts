@@ -18,8 +18,12 @@ import { installFixtures } from './fixtures'
  * fixture 相已經換成 8px 棋盤格（模糊影響 79/255），所以 snapshot 亦開始捉得到；
  * 但呢個 spec 仍然係主要嘅網：佢直接講出要求。
  */
+/**
+ * ⚠️ 手機首頁（`?layout=mobile&scene=home`）**已經冇相**：2026-10-20 決定「首頁要短，
+ * 相留喺『記錄』」，所以呢度唔再量佢（下面有個 test 反而要斷言佢一張相都冇）。
+ * 相嘅模糊保護照舊喺「記錄」同 journal feed 兩個 scene 量。
+ */
 const PHOTO_SCENES = [
-  { layout: 'mobile', scene: 'home', what: '「今日」tab（手機一開就見到）' },
   { layout: 'mobile', scene: 'records', what: '「記錄」tab' },
   { layout: 'journal', scene: 'home', what: '日記 feed' },
 ] as const
@@ -136,4 +140,17 @@ test('螢幕上嘅相要用縮圖 URL，原檔淨係全螢幕先下載', async (
   const lightbox = page.locator('.lightbox img')
   await expect(lightbox).toBeVisible()
   expect(await lightbox.getAttribute('src')).not.toContain('?w=')
+})
+
+/** 首頁唔擺相（2026-10-20）：首頁一開就見，自拍 grid 太搶眼；相去「記錄」。 */
+test('手機首頁唔會 render 任何皮膚相', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await installFixtures(page)
+  await page.goto('?layout=mobile&scene=home')
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(500)
+
+  // fixture 本身有相（上面兩個 scene 量到），所以呢個 0 係「首頁故意唔擺」。
+  expect(await page.locator(PHOTO_SELECTOR).count()).toBe(0)
+  expect(await page.locator('.mob-home').count()).toBe(1)
 })

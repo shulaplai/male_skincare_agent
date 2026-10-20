@@ -54,9 +54,14 @@ export function ymd(iso: string): string {
  */
 export function visionClaim(
   used: boolean | null | undefined,
+  hasClip = false,
 ): { icon: 'eye' | 'pencil'; text: string; tone: 'seen' | 'text' } | null {
-  if (used === true) return { icon: 'eye', text: '已睇相分析（雲端）', tone: 'seen' }
-  if (used === false) return { icon: 'pencil', text: '文字分析（未睇相）', tone: 'text' }
+  // 片同相要分開講：一條片冇被睇過時，寫「未睇相」會令用戶以為 app 睇咗條片
+  // （2026-10-20：真 DB 有一條回覆 body 寫「睇你條片…泛紅由 0 回升到 1」，
+  // 而 `vision_used` 係 false —— 呢個徽章係唯一講真話嘅位）。
+  const what = hasClip ? '片' : '相'
+  if (used === true) return { icon: 'eye', text: `已睇${what}分析（雲端）`, tone: 'seen' }
+  if (used === false) return { icon: 'pencil', text: `文字分析（未睇${what}）`, tone: 'text' }
   return null
 }
 
@@ -103,6 +108,8 @@ export function fromServerMessage(m: ServerMessage): Message {
     escalate: p.escalate,
     // 保留三態：冇呢個欄位嘅舊 row = 未知（null），唔可以降級成 false。
     vision_used: p.vision_used ?? null,
+    // 舊 row 冇呢個 key → undefined（徽章就會講「相」，同以前一樣，唔會亂講）。
+    vision_clip: p.vision_clip === true,
     provenance: m.provenance ?? null,
     // AI 抽出嘅自報事件要跟埋 reload 返嚟（以前只在 live state → reload 就消失，
     // 用戶永遠確認唔到 diet／product，成因時間線亦餵唔到料）。已經確認過嘅唔再出。

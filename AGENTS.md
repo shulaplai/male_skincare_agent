@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 334 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 346 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -46,7 +46,7 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；4 個 agent scenario 之中 **3 個**有 `expect_tool` gate（`red_flag` 只有 `expect_escalate`，所以 escalation 路冇 tool 斷言） |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 334 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 346 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -253,6 +253,13 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
   ⚠️ 舊 test 捉唔到，因為三個 test 都係 `data_dir = tmp_path`（空目錄，`rglob` 瞬間完）。加 cache 相關嘢一定要喺 fixture **plant** 一個假 cache 落去。
   ⚠️ `skincoach.db.bak`（35.7 MB 舊快照）**故意留喺** archive（係真 user data），所以 66 MB 有一半係佢。
 - **`delete_conversation` 一定要喺 cascade 之前收集檔案路徑**：`db.delete(c)` cascade 一行之後就冇嘢可以查。實測過冇呢步：上載一張相 → 刪 conversation → `.jpg` 仍然喺 disk（route docstring 寫住 "permanently delete … all its records"）。另外 `Video.frames` 入面嘅格係**未 attach 都可能存在**（用戶淨係上載冇問），所以 frame id 都要當檔案路徑刪。
+- **影片嘅格係 backstage：一定要由後端 resolve，唔可以靠 client 送**：`Chat.tsx` 只送 `clip: {duration, frames, video_id}`；`service.resolve_clip_frames()` 喺 route 同 `run_consult()` **兩處**都由 `Video.frames` 砌返 `photo_paths`。2026-10-20 嘅假數據事故就係因為當時**冇**呢一步：`photo_paths=[]` → vision 冇跑 → analyze 見到 placeholder「（已上傳皮膚影片）」就當成證據，自己作咗六個 attribute、`observes_skin=True`，寫入當日 Entry（真 DB 證據：coach `vision_used=False` 但 body 寫「睇你條片…泛紅由 0 回升到 1」）。修法有三件，缺一都唔夠：①`resolve_clip_frames` ②`build_analyze_prompt` 嘅 `elif clip` 分支要講明「你**冇**睇過、唔好講具體讀數」（**呢個分支一定要排喺 `elif has_photo` 之前**）③`persist` 唔可以將格寫入 `entry.photos`、亦唔可以將 placeholder 寫成 note（`clip_turn`）。舊數據用 `scripts/repair_clip_entry.py`（dry-run 預設）重跑真 vision 修。
+- **`persist` 嘅 `clip_turn` 規則**：片嘅格只係畀 vision 睇，唔係用戶影嘅相 → `attach_ids = []`、`note_text = ""`。格嘅檔案由 `Video.frames` ＋ `ChatMessage.payload["photos"]` 保住（`sweep_orphan_photos` 兩處都認），所以唔 attach 都唔會被清走。做漏就會見到「記錄」顯示「今日 6 張相」。
+- **逐字打出嚟（typewriter）嘅 `TYPED.add()` 只可以喺打完之後**：`main.tsx` 有 `<React.StrictMode>`，dev 之下 effect 係 setup → cleanup → setup；喺 setup 開頭就 add，第二次 setup 會以為「已打過」即刻 return，成段回覆**永遠空白**（實測中過）。`Bubble` 嘅 effect deps 只可以係 `[m.id, m.role, m.fresh]`（`text`／`onGrow` 用 ref 存），否則每次 render 都會重啟。
+- **Playwright 預設 `reducedMotion: 'reduce'`**（`playwright.config.ts`）：typewriter 會令截圖撞正打字中 → snapshot 永遠 flaky；同時「減少動態」係真用戶偏好，應該行到。想驗打字效果嘅 test 自己 `page.emulateMedia({ reducedMotion: 'no-preference' })`（`tests/ui/consult-stream.spec.ts`）。打字文字包住 `<span className="reply-text">`，否則 `innerText` 會連 meta／徽章一齊數。
+- **底部 tab bar 嘅 icon「唔齊」係筆墨高度差**，唔係水平偏：五個 Lucide icon 喺 22px 盒內嘅純幾何高度係 16.50／17.42／18.33（message-square 16.5、house 17.42、clipboard-list 18.33、chart-column 16.5、settings 18.33）→ icon 底到 label 頂嘅空隙差 1.8px。修法係 `MobileShell` 個 `ti-<scene>` class ＋ CSS `transform: scale(var(--ink-scale,1))`，令五個都變 17.00。**量法**：`svg.getBBox()` 再用 `getScreenCTM()` 換算（`m.d * y + m.f`）—— `new DOMMatrix(svgMatrix.toString())` 會 `Failed to parse '[object SVGMatrix]'`。
+- **stylelint `length-zero-no-unit`**：`translateY(var(--ink-y, 0px))` 會紅，要寫 `0`。`npm run ui:check` 有 stylelint，唔係只有 playwright。
+- **composer 一定要分兩層**：`.compose-attach`（片 chip／相／錯誤，可 wrap）＋ `.compose-row`（`.tools`＋textarea＋send）。以前全部係同一個 flex row，390px 之下片 chip 會將 textarea 壓到 ~120px。send 掣冇輸入時**唔 render**（`canSend`），textarea `padding: 10px` 令實際高度 44px ＝ 掣高。
 - **Data fetch 唔重複**：只有 active shell 嘅 home 會 mount，每個 block 自己 fetch 一次就夠；`refreshKey` bump（send/delete 後）要令 home re-fetch（`JournalHome`/`DashHome` 已掛）。
 
 ## 現況（見 `docs/status-vs-claims.md` 最新狀態）

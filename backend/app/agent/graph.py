@@ -80,7 +80,14 @@ def _text_only_analysis(
     return llm.structured(
         ANALYZE_SYSTEM,
         build_analyze_prompt(
-            state["user_text"], has_photo, photo_viewed=False, photo_unreadable=photo_unreadable
+            state["user_text"],
+            has_photo,
+            photo_viewed=False,
+            photo_unreadable=photo_unreadable,
+            # The clip must reach the text-only fallback too: a clip we cannot see is
+            # not "no photo", and the placeholder text 「（已上傳皮膚影片）」 otherwise
+            # reads like evidence (2026-10-20 fabricated-entry incident).
+            clip=state.get("clip"),
         ),
         SkinAnalysis,
     )
@@ -358,6 +365,15 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             # A photo the vision model actually read is evidence by definition, so it
             # short-circuits the flag.
             observes_skin = bool(analysis.observes_skin) or bool(state.get("vision_used"))
+            # A clip turn's `photo_paths` are frames we sampled *internally* to let the
+            # vision model see the clip. They are not photos the user attached, so they
+            # must not become the day's photo grid (「記錄」會變成一日 6 張相，假裝用戶影咗
+            # 六張）nor the day's note (placeholder「（已上傳皮膚影片）」唔係用戶講嘅嘢)。
+            # The frames stay protected from the orphan sweep by `Video.frames` +
+            # `ChatMessage.payload["photos"]` (`main.sweep_orphan_photos`).
+            clip_turn = bool(state.get("clip"))
+            attach_ids = [] if clip_turn else list(state.get("photo_paths") or [])
+            note_text = "" if clip_turn else state["user_text"]
 
             entry = session.query(Entry).filter_by(conversation_id=conv_id, date=today).first()
             entry_reused = entry is not None
@@ -388,12 +404,12 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                 entry.metrics = merge_metrics(
                     entry.metrics or [], [m.model_dump() for m in analysis.metrics]
                 )
-                entry.note = merge_note(entry.note or "", state["user_text"])
+                entry.note = merge_note(entry.note or "", note_text)
 
             # Photos attach to the day's entry once (dedupe by file name); only
             # photos that actually exist on disk are linked (no dangling rows).
             existing_photo_names = {p.path for p in entry.photos} if entry is not None else set()
-            for pid in state.get("photo_paths", []):
+            for pid in attach_ids:
                 if not photo_exists(pid):
                     continue
                 if entry is None:
@@ -547,6 +563,11 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         # (Q51 / issue #22). `events_applied` 之後由 confirm 嗰條 route
                         # 寫入 → reload 唔會再出已經記低咗嘅 chip。
                         "detected_events": list(advice.get("detected_events") or []),
+                        # Whether this turn came from a clip, for the badge wording only
+                        # (「已睇片」vs「已睇相」). A boolean, not the clip object: the UI
+                        # must not render a second video chip on the coach bubble, and the
+                        # frame count must never leave the server.
+                        "vision_clip": bool(state.get("clip")),
                     },
                 )
             )

@@ -46,7 +46,6 @@ export function StandardShell({ p, tabs, home: Home }: Props) {
       <div className="shell-main">
         <ShellTop
           bodyLabel={`${active.bodyPart} · ${tabs[0].label}`}
-          icon={active.icon}
           conversations={p.conversations}
           active={active}
           online={p.online}

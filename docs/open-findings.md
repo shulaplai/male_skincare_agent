@@ -3,13 +3,13 @@
 > 用途：一次審計（`docs/status-vs-claims.md` 全部 27 行逐行驗證）之後嘅**交收清單**。
 > 分三類：**已經修好**、**要你決定先可以改**、**環境／人手先做得到**。
 > 決策嗰啲唔喺呢份文件重複 —— 佢哋住喺 GitHub issues（見 `docs/agents/issue-tracker.md`，搵 `wayfinder:map` label）。
-> 最後更新：第二輪（商品評估／指南／影片，見 §6）。
+> 最後更新：第三輪（六項 UI／數據要求，見 §10）。
 
 ---
 
 ## 一、已經修好（有驗證）
 
-全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 334）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
+全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 346）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
 
 | 原本問題 | 改動 | 點證明 |
 |---|---|---|
@@ -126,7 +126,7 @@
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 334 passed（2026-10-05）
+./.venv/bin/python -m pytest -q                    # 346 passed（2026-10-05）
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 md5 -q data/skincoach.db                           # 應該係 40823465d6041edf11c05a44f07d88b9
 
@@ -225,3 +225,52 @@ cd ../frontend && npm run typecheck && npm run build
 | 「睇吓有咩 skill／工具可以裝，方便執手機版 UI」 | 交咗 **`docs/ui-plan.md`**：量度式審計（tap target <44 共 8 類、<12px 文字 12 個／scene、對比度最低 **1.0:1**、911 個 raw px、0 `:focus-visible`、0 `prefers-reduced-motion`）＋ 四階段計劃 ＋ skill／工具清單 ＋ 驗收門檻 | 今次**冇**改 UI（等用戶逐項批） |
 
 **未做（誠實列出）**：條片／語音**冇做轉文字**（DeepSeek 冇 audio，HK 直連 OpenAI Whisper 係 403，local whisper 要新依賴）→ 所以指南寫明「講出嚟冇用，要打字（可以用鍵盤語音輸入）」。呢件事已經開咗 issue [#26](https://github.com/shulaplai/male_skincare_agent/issues/26)（`ready-for-human`）；用戶 2026-10-05 問過，答案係**「暫時唔做」**，原因同四個 STT 方案嘅代價記錄喺 `.out-of-scope/voice-audio-transcription.md`（留存歷史決定用；一旦用戶要返就刪嗰個檔、開新 issue）。
+
+---
+
+## 十、第三輪（用戶六項 UI／數據要求）—— 2026-10-20
+
+用戶原話（大意）：「①底部 nav 嘅字同 icon 冇對齊 ②UI 剩低嘅 emoji 換成手機 UI 嘅 icon
+③首頁寫『今日』但其實冇今日 data，有就唔好寫；今日 data 區要短、唔要相 ④composer：冇輸入時
+收埋 send 掣、個 ↑ 改做 →、加咗片之後排版亂 ⑤條片明明冇睇過（舊 bug）但顯示『已睇片』
+⑥教練回覆要逐字打出嚟」。
+
+六項全部做完，每一項都有量度數字（唔係「應該得」）。
+
+### 10.1 每項做咗咩＋點證明
+
+| # | 問題（實測根因） | 改動 | 證據 |
+|---|---|---|---|
+| 1 | 唔係左右偏：五個 tab 嘅 `btnCx == iconCx == labelCx`（差 **0.00px**）。真因係 **icon 筆墨高度唔一致** —— 22px 盒內 Lucide 純幾何高度 16.50（message-square／chart-column）／17.42（house）／18.33（clipboard-list／settings）→ icon 底到 label 頂空隙差 1.8px | `MobileShell` 加 `ti-<scene>` class；`index.css` `transform: scale(var(--ink-scale,1))` 逐個 scale（0.927／0.976／1.03） | Playwright 390×844 `?layout=mobile`：修前 inkH 16.5–18.33、gap 差 1.8px；修後**五個 inkH 16.99–17.00、inkCy 808.17、gap 5.5px** |
+| 2 | `src/` 唯一仍然 render 嘅 emoji 係 `Conversation.icon`（DB 存 '🧔'／'🧴'）→ `Chat.tsx`／`ShellTop.tsx`／`Sidebar.tsx` 三處 | `Icon.tsx` 加 `user-round`（Lucide `<circle cx=12 cy=8 r=5>` ＋ `M20 21a8 8 0 0 0-16 0`）；三處改 `<Icon name="user-round">`；`ShellTop` 個 `icon` prop 整個刪走（兩個 caller 一齊改） | `grep -n "🧔\|🧴" src/` 0 命中；DB 欄位留住（唔使 migration，只係唔再 render） |
+| 3 | `MobileHome.tsx` `latest = entries[0]`（`/summary` 係 `date desc`）→ 冇今日 data 時仍然寫「今日膚況／今日指標／今日記低咗 N/6」，但 kicker 又寫 `10-01 週四`（自相矛盾） | 加 `todayYmd()`＋`isToday`；非今日時標題改「最近一次記錄／最近一次指標」、副題「上次記錄係 10-01 週四。撳下面打卡記低今日。」、chip row 下面加「呢啲係 10-01 週四 嘅數字。」；6 行 `LevelDots` 改成 `.entry-metrics` chip row；**刪走「最近幾日」卡嘅相 grid** | fixture（今日 2026-10-20、最新 entry 2026-10-01）實測：hero 讀「最近一次記錄」＋「上次記錄係 10-01 週四」、卡標題「最近一次指標」、`imgs=0`、`overflowX=0`、home 高 1290→1250 |
+| 4 | `.send` 永遠 render；↑ icon；`.compose` 係**單一 flex row**，clip chip（54px 縮圖＋兩行 meta）同 textarea 係兄弟，390px 之下 textarea 被壓到 ~120px | 分兩層：`.compose-attach`（clip chip／相／錯誤，可 wrap）＋`.compose-row`（`.tools`＋textarea＋send）；`canSend = draft.trim() !== '' \|\| attached.length > 0 \|\| clip !== null`，send 掣 `{(canSend \|\| sending) && …}`；`Icon name="arrow-right"`（新加）；textarea `padding: 12px → 10px`（實際高度 48→44 ＝ 掣高） | 390×844 實測：空白時 `sendExists=false`、`.compose-attach` 0×0；打字後 send 44×44 y=733 cy=755、textarea 310×44 cy=755（修前 camera cy=755 vs textarea cy=753，差 2px）；加片後 attach 366×54 y=669、input row 仍然 y=733 textarea 44×254（唔再壓扁） |
+| 5 | **最嚴重**：`Chat.tsx` 只送 `video:{duration,frames}`、`photo_paths=[]` → 後端 `has_photo=False` → vision 冇跑 → prompt 只有 placeholder「（已上傳皮膚影片）」→ model 當咗係證據、自己作六個 attribute、`observes_skin=True`、寫入當日 Entry | 見 §10.2（三處一起改才夠） | 真 DB 重跑：修前六個 attribute acne1/oiliness2/redness1/dryness1/pores2/texture1（全部作出嚟、coach `vision_used=False` 但寫「睇你條片」）→ 重跑後 **acne1/oiliness1/redness0/dryness0/pores1/texture1**、`vision_used=True`、回覆照實講 |
+| 6 | 回覆一次過出現（無打字效果），而 scroll 模型係「`messages.length` 變才 pin 底部」→ 打字期間唔會 pin | `Bubble` 逐字顯示（`step = ceil(len/72)`、18ms、首次延遲 60ms ≈ 1.3s；`prefers-reduced-motion` 即出全句）；`onGrow={pinToBottom}` 令每 tick 都重新 pin；`Message.fresh` 只喺**成功**回覆設 true，切 scene 唔會重播（`TYPED` Set 記已打過 id） | `tests/ui/consult-stream.spec.ts` 新 test：`reducedMotion: 'no-preference'` 之下先見到部分文字（長度 < 全句）→ 最後 `toHaveText(FULL)`、貼住底部 |
+
+### 10.2 第 5 項：點解「有片＝已睇過」會發生（同三處修法）
+
+**根因鏈**（每一步都實測過）：
+1. `Chat.tsx` `submit()` 只將 `video: {duration, frames}` 放入 request；`photo_paths` 保持 `[]`。
+2. `graph.analyze` 見 `has_photo=False` → 走 text-only，`build_analyze_prompt(user_text, False, …)` 只出「（無相，純文字）」；`user_text` 係 placeholder「（已上傳皮膚影片）」。
+3. 模型讀到「已上傳皮膚影片」就當自己睇過，回覆寫「睇你條片…泛紅由 0 回升到 1 分」，並自行填六個 attribute、`observes_skin=True`。
+4. `persist` 見 `observes_skin=True` → 寫入當日 Entry（真 DB：`entries` 2026-10-20、note `（已上傳皮膚影片）`）。
+
+**修法（三處，缺一都唔夠）**：
+1. **後端 resolve**：`ClipInfo.video_id`；`service.resolve_clip_frames(photo_paths, clip)` 由 `Video.frames` 砌返 `photo_paths`（client 自己帶相就唔動）；攞唔到格就標 `{frames: 0, unavailable: True}`（UI 仍然出一條片 chip）。`consult_stream` route 喺 `open_consult` **之前**行，`run_consult` 第一行亦行（所以 `retry` 都修好）。
+2. **prompt 老實**：`build_analyze_prompt` 加 `elif clip:` 分支 → 「你**冇**睇過，唔好講『睇你條片』或者任何具體讀數，叫佢再拍一次」。次序係 `has_photo and photo_viewed and clip` → `has_photo and photo_viewed` → `has_photo and photo_unreadable` → **`elif clip`** → `elif has_photo` → 純文字。
+3. **persist 唔好 leak**：`clip_turn` 之下 `attach_ids=[]`、`note_text=""`（格係 backstage，唔係用戶影嘅相；格嘅檔案由 `Video.frames`＋message payload 保住）。coach payload 加 `vision_clip: bool`，前端 `visionClaim(used, hasClip)` 講「已睇片分析（雲端）」／「文字分析（未睇片）」。
+
+**舊數據**：`backend/scripts/repair_clip_entry.py`（dry-run 預設）用真格重跑一次真 vision，覆寫當日數字並清走嗰對假訊息。真 DB 執行前備份 `/tmp/skincoach.before-repair.db`。
+⚠️ 呢個 script 只處理「note 含 placeholder ＋ 同日有可用片」嘅 row；**其他環境／其他日**如果都有同類假數據，要自己行一次（dry-run 會列出所有命中）。
+
+### 10.3 兩個順手發現（同類 bug 嘅形狀又出現）
+
+1. `backend/app/main.py` `/api/videos` 個 docstring 一直寫「client 會將 `frames` ids 當 `photo_paths` 送去 consult」—— **從來冇發生過**。假文件令個 bug 睇落「已設計好」。已改寫（`docs/backend-flow.md` §7 亦記低）。
+2. 修好 script 之後即刻見到第二個 leak：抽格變咗當日 6 張 `Photo`（「記錄」顯示「今日 6 張相」）。同一個概念（「今日有咩相」）有兩個來源（`entry.photos` vs 用戶真係上載嘅相）→ 同 §6.3 一樣嘅形狀。
+
+### 10.4 未做／要留意
+
+- **Snapshot 全部重生過**（`npm run ui:update` → 62 passed）。因為改動係視覺嘅（nav icon scale、chips、composer 兩層、首頁文案），**diff 要人手望一次**（我只驗到「gate 綠 ＋ DOM 數字對」，冇逐張睇圖）。
+- **`?layout=mobile` 以外嘅三套 shell 冇逐個量**：改動集中喺 `MobileShell`／`MobileHome`／`Chat.tsx`（composer 同 bubble 係四套共用），`ui:check` 62 個 test（4 layout × 6 scene ＋ 暗色 ＋ 橫向 ＋ 平板 ＋ 760/761）全綠。
+- **打字效果只用 Playwright 驗**（假 API chunk）。真 LLM 之下 SSE 係逐段到，`fresh` 只喺最終訊息設 → 仍然係「成段一次過打」，唔係跟 SSE token 打。想要真 streaming 打字要改 `App.tsx` 收 SSE delta（未做，亦唔喺用戶要求之內）。

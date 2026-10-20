@@ -38,7 +38,6 @@ export function MobileShell({ p, tabs }: Props) {
     <div className="shell-main mob-shell">
       <ShellTop
         bodyLabel={active.bodyPart}
-        icon={active.icon}
         conversations={p.conversations}
         active={active}
         online={p.online}
@@ -94,7 +93,7 @@ export function MobileShell({ p, tabs }: Props) {
             className={scene === t.key ? 'active' : ''}
             onClick={() => setScene(t.key)}
           >
-            <span className="ti" aria-hidden>
+            <span className={`ti ti-${t.key}`} aria-hidden>
               <NavIcon scene={t.key} />
             </span>
             <span className="tl">{t.label}</span>

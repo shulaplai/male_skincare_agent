@@ -75,7 +75,7 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
                 if (!compact) onNavigate('chat')
               }}
             >
-              <span className="part" aria-hidden>{c.icon}</span>
+              <span className="part" aria-hidden><Icon name="user-round" size={15} /></span>
               <span className="t">
                 <span className="name">{c.bodyPart}</span>
                 <span className="meta">{c.isDefault ? '主對話' : '部位對話'}</span>

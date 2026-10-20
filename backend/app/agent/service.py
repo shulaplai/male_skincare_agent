@@ -19,7 +19,8 @@ from fastapi import HTTPException
 
 from ..config import settings
 from ..db import SessionLocal
-from ..models import Conversation
+from ..models import Conversation, Video
+from ..photo import photo_exists
 from ..rag.embeddings import FastembedEmbedder
 from .graph import build_graph
 from .llm import consult_provenance, get_llm
@@ -169,12 +170,60 @@ def _finish_consult(conversation_id: str, text: str, result: dict) -> dict:
     return result
 
 
+def _clip_frames(video_id: str | None) -> list[str]:
+    """The clip's sampled frames as photo ids (empty when nothing usable is left).
+
+    Frames are stored on upload (`POST /api/videos` → `Video.frames`), so the
+    database is the source of truth for "what pictures does this clip have".
+    """
+    if not video_id:
+        return []
+    session = SessionLocal()
+    try:
+        clip = session.query(Video).filter_by(id=video_id).first()
+        if clip is None:
+            logger.warning("consult: video %s not on record → treating as no photo", video_id)
+            return []
+        # Only frames still on disk: one dangling id would give the vision model a
+        # half-empty batch while the trace says "6 frames".
+        return [f for f in (clip.frames or []) if photo_exists(f)]
+    finally:
+        session.close()
+
+
+def resolve_clip_frames(
+    photo_paths: list[str] | None, clip: dict | None
+) -> tuple[list[str], dict | None]:
+    """Turn a clip into `photo_paths` — the one place that decides what vision sees.
+
+    A clip's sampled frames *are* the photos of that turn (same ids, same consent
+    gate, same `entry.photos`). This used to be left to the client, which sent
+    `video: {duration, frames}` with an empty `photo_paths` — so `analyze` saw no
+    photo, the text-only model was told 「（無相，純文字）」 while the user text said
+    「（已上傳皮膚影片）」, and it invented a full six-attribute reading that was then
+    persisted as that day's skin record (real incident, 2026-10-20).
+
+    Resolving here rather than in the browser means a client cannot forget, and
+    `retry` (which re-sends the stored payload) resolves again for free.
+    """
+    photo_paths = list(photo_paths or [])
+    if not clip or photo_paths:
+        return photo_paths, clip
+    frames = _clip_frames(clip.get("video_id"))
+    if not frames:
+        # Nothing to look at: keep `clip` (the UI must still render one video chip,
+        # not a row of photos) but let the prompt know the frames are unavailable.
+        return photo_paths, {**clip, "frames": 0, "unavailable": True}
+    return frames, {**clip, "frames": len(frames)}
+
+
 def run_consult(
     conversation_id: str,
     text: str,
     photo_paths: list[str] | None = None,
     clip: dict | None = None,
 ) -> dict:
+    photo_paths, clip = resolve_clip_frames(photo_paths, clip)
     cloud_analysis = open_consult(conversation_id, photo_paths)
     graph, provenance = _build_consult_graph()
     try:

@@ -7,7 +7,6 @@ import { Icon } from '../components/Icon'
 
 interface Props {
   bodyLabel: string
-  icon: string
   conversations: Conversation[]
   active: Conversation
   online: boolean
@@ -19,7 +18,7 @@ interface Props {
 
 /** 結構 2/3/4 共用嘅頂部：部位切換 + 狀態/主題 + scene tabs。
  *  ☁️／🔒 開關已經冇咗（2026-10-01：全雲端，consent 只問一次）。 */
-export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs, scene, onScene, onSelectConversation }: Props) {
+export function ShellTop({ bodyLabel, conversations, active, online, tabs, scene, onScene, onSelectConversation }: Props) {
   const { toggle } = useTheme()
   /** tab bar 嘅 default scene（`useSceneRoute` 嘅 fallback）= 第一個 tab。 */
   const fallback = tabs[0].key
@@ -27,7 +26,9 @@ export function ShellTop({ bodyLabel, icon, conversations, active, online, tabs,
     <header className="shell-top">
       <div className="top-row">
         <div className="cur">
-          <span className="part">{icon}</span>
+          <span className="part" aria-hidden>
+            <Icon name="user-round" size={16} />
+          </span>
           <h1>{bodyLabel}</h1>
           <BodyPartMenu conversations={conversations} activeId={active.id} onSelect={onSelectConversation} />
         </div>

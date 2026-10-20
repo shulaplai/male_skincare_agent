@@ -108,6 +108,18 @@ def build_analyze_prompt(
             "（用戶上傳咗皮膚相，但張相讀唔到，你今次睇唔到。"
             "請只靠文字評估，並喺回覆講明今次睇唔到張相，唔好話用戶冇提供相片。）"
         )
+    elif clip:
+        # A clip whose frames we genuinely don't have (upload row gone, every frame
+        # deleted, or a client that sent no `video_id`). The user text is the
+        # placeholder 「（已上傳皮膚影片）」, so without this the text-only model reads
+        # it as evidence and invents readings — that is exactly how a fabricated
+        # six-attribute day got written on 2026-10-20. Say plainly: nothing to look at.
+        note = (
+            "（用戶話上傳咗一段短片，但今次攞唔到條片嘅畫面，你**冇**睇過。"
+            "只可以靠佢打嘅字評估。**唔好**講「睇你條片」、「喺片入面見到」或者任何"
+            "具體讀數／泛紅／分數；亦唔好假設皮膚有變化。要老實講今次睇唔到條片，"
+            "並叫佢再拍一次（鏡頭慢慢掃過成塊面）。）"
+        )
     elif has_photo:
         note = (
             "（用戶上傳咗皮膚相，但而家係本地模式：相唔會離開用戶部機、你睇唔到張相。"
@@ -193,11 +205,23 @@ def build_advise_prompt(state: dict) -> str:
 
     # 用戶上傳嘅係片：可以講「條片」，但唔可以 leak 內部實作（抽格／相片數）。
     if state.get("clip"):
-        parts.append(
-            "【用戶今次係上傳一段短片】\n"
-            "一律講「條片」。**唔好**講「幾張相」、「格數」、「幀」、「抽格」、「截圖」，"
-            "亦唔好講你收到幾多張圖。"
-        )
+        if state.get("vision_used") is False:
+            # The clip exists but no frame was analysed. Never let the wording read as
+            # "I watched your clip" — that sentence is what got persisted as a skin
+            # reading on 2026-10-20.
+            parts.append(
+                "【用戶今次上傳一段短片，但你**睇唔到**畫面】\n"
+                "可以講「你條片」，但一定要講明今次睇唔到條片，唔好講你睇到啲咩、"
+                "亦唔好講任何具體讀數／泛紅／分數。叫佢再拍一次（鏡頭慢慢掃過成塊面）。"
+                "**唔好**講「幾張相」、「格數」、「幀」、「抽格」、「截圖」，"
+                "亦唔好講你收到幾多張圖。"
+            )
+        else:
+            parts.append(
+                "【用戶今次係上傳一段短片】\n"
+                "一律講「條片」。**唔好**講「幾張相」、「格數」、「幀」、「抽格」、「截圖」，"
+                "亦唔好講你收到幾多張圖。"
+            )
 
     # 純文字打卡（今次有皮膚觀察但冇相）：唔想每次長篇，但值得提醒「影相／拍片會準好多」。
     # 判斷係 deterministic（`vision_reason`），唔靠 model 自己記住。

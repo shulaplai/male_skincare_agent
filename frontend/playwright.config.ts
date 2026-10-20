@@ -32,6 +32,10 @@ export default defineConfig({
     locale: 'zh-HK',
     timezoneId: 'Asia/Hong_Kong',
     deviceScaleFactor: 2,
+    // 教練回覆係逐字打出嚟（`Chat.tsx` 嘅 typewriter）。截圖／a11y gate 一定要即刻出
+    // 全句，否則每次截圖都撞正打字中 → snapshot 永遠 flaky。順便令呢個真用戶偏好
+    // （減少動態）成為預設測試路徑；想驗打字效果嘅 test 自己 `emulateMedia` 覆蓋。
+    reducedMotion: 'reduce',
     launchOptions: { args: ['--force-color-profile=srgb', '--font-render-hinting=none'] },
   },
   webServer: {

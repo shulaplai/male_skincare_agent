@@ -675,6 +675,24 @@ body {
 .compose {
   border-top: 1px solid var(--line);
   padding: 16px 26px;
+  /* 兩層：上面係附件（片 chip／相／錯誤），下面係輸入 row。以前全部塞喺一個 row，
+     390px 手機加一條片 chip（54px thumb + 兩行字）就將 textarea 壓到冇位。 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* 附件區：可以換行，冇附件時根本唔 render（高度 0，唔會偷位） */
+.compose-attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+/* 冇附件時 React 唔會 render 任何 child → `:empty` 直接唔顯示，唔會靠 gap 偷 10px */
+.compose-attach:empty {
+  display: none;
+}
+.compose-row {
   display: flex;
   gap: 12px;
   /* 輸入框撐高嘅時候，相機／發送要貼住底部（唔係垂直居中） */
@@ -713,7 +731,9 @@ body {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 12px 16px;
+  /* 10px（唔係 12px）：1.5 行高 + 20px padding + 2px 邊框 = 44px，同相機／發送掣
+     一樣高。實測 12px 會變 48px，輸入嘅字同左右兩個掣差 2px，睇落歪。 */
+  padding: 10px 16px;
   color: var(--text);
   font-size: var(--f-md);
   font-family: var(--sans);
@@ -1701,6 +1721,14 @@ body {
   font-size: var(--f-sm);
   line-height: 1.55;
 }
+/* 手機首頁嘅「最近幾日」只係摘要：教練回覆長篇大論會令首頁變成 scroll 地獄
+   （實測呢張卡 491px，佔手機一屏 58%）。詳細全文去「記錄」睇。 */
+.mob-home .jm-reply {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .jm-reply .k {
   font-family: var(--mono);
   font-size: var(--f-xs);
@@ -2185,7 +2213,8 @@ textarea:focus {
     grid-template-columns: minmax(0, 1fr);
   }
   .compose {
-    flex-wrap: wrap;
+    /* 以前喺呢度 `flex-wrap: wrap` 補救「一條 chip 壓扁 textarea」——而家 composer
+       本身已經分咗上下兩層（`.compose-attach` + `.compose-row`），唔使靠 wrap。 */
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
   /* < 16px 會令 iOS Safari focus 輸入框時自動 zoom 成個 page */
@@ -2339,6 +2368,29 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* 盒同 label 距離一致，但五個 icon 嘅**筆墨**高度唔一致（實測 16.50 / 17.42 /
+     18.33px），所以「筆墨底 → 字頂」嘅空隙差成 1.8px，睇落就係「字同 icon 對唔齊」。
+     逐個縮放到同一個 optical 高度（17.0px = 22 × 0.773），再用 translateY 校正 ink
+     中心（house 嘅 ink 天生偏高 0.46px）。比例係由實測值反推，唔係亂填。 */
+}
+.mob-tabs button .ti .ic {
+  transform: scale(var(--ink-scale, 1)) translateY(var(--ink-y, 0));
+}
+.ti-home .ic {
+  --ink-scale: 0.976;
+  --ink-y: 0.46px;
+}
+.ti-chat .ic {
+  --ink-scale: 1.03;
+}
+.ti-records .ic {
+  --ink-scale: 0.927;
+}
+.ti-progress .ic {
+  --ink-scale: 1.03;
+}
+.ti-settings .ic {
+  --ink-scale: 0.927;
 }
 .mob-tabs button .tl {
   line-height: 1.15;

@@ -129,7 +129,7 @@ export async function consult(
   text: string,
   photoPaths: string[] = [],
   /** 今次係一條片（唔係相）→ 後端叫 model 講「條片」，唔會數字數 */
-  video?: { duration: number; frames: number },
+  video?: { duration: number; frames: number; video_id?: string },
 ): Promise<ConsultResult> {
   return parse(
     await fetch('/api/consult', {

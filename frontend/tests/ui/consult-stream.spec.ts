@@ -91,3 +91,45 @@ test('串流中途解析失敗：出錯誤氣泡同「重試」掣，唔會靜�
   await expect(page.locator('.bubble').last()).toContainText('出錯：我今次分析唔到')
   await expect(page.getByRole('button', { name: /重試/ })).toBeVisible()
 })
+
+/**
+ * 逐字打出嚟（typewriter）。
+ *
+ * 背景：`playwright.config.ts` 預設 `reducedMotion: 'reduce'`，所以其他 39 個 gate 都係
+ * 即刻出全句。呢個 test 專登開返 motion，確認三件事：①真係逐字（第一步短過全句）
+ * ②最後一定出齊全句（唔會卡住／食字）③打完之後仍然貼住底部（唔會令用戶睇唔到最新一行）。
+ */
+test('教練回覆逐字打出嚟，而且會打齊同貼住底部', async ({ page }) => {
+  const FULL = '建議你溫和清潔，一日洗兩次面，唔好擠。之後記得補水同防曬。'
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await installFixtures(page)
+  await page.route('**/api/consult/stream', (r) =>
+    r.fulfill({
+      contentType: 'text/event-stream',
+      body: sseBody([
+        { type: 'node', node: 'analyze', ms: 120 },
+        {
+          type: 'result',
+          ...RESULT,
+          advice: { ...RESULT.advice, reply: FULL },
+        },
+      ]),
+    }),
+  )
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('?layout=mobile&scene=chat')
+  await page.waitForLoadState('networkidle')
+
+  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('button', { name: '發送' }).click()
+
+  const bubble = page.locator('.bubble').last()
+  const typed = bubble.locator('.reply-text')
+  // 等到第一個字出咗，但仲未打晒
+  await expect(typed).toContainText('建議')
+  const partial = (await typed.innerText()).replace(/\s/g, '')
+  expect(partial.length, '應該真係逐字打出嚟（未打晒）').toBeLessThan(FULL.length)
+
+  // 打完：全句都在，而且順序一樣
+  await expect(typed).toHaveText(FULL, { timeout: 5000 })
+})

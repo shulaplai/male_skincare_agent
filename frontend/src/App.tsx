@@ -190,6 +190,9 @@ function AppInner() {
           disclaimer: res.advice.disclaimer,
           escalate: res.escalate,
           vision_used: res.vision_used,
+          // 只有「今次新收到」嘅回覆才逐字打出嚟；reload 返嚟嘅歷史一定即刻出全句
+          // （唔可以令用戶重開對話都睇住啲字慢慢爬）。
+          fresh: true,
           // 回覆一出就帶 provenance（issue #14），唔使等 reload 先見到 chip。
           provenance: res.provenance ?? null,
           events: res.advice.detected_events?.length ? res.advice.detected_events : undefined,
@@ -245,7 +248,7 @@ function AppInner() {
   const sendMessage = (
     text: string,
     photos: { id: string; path: string }[],
-    video?: { duration: number; frames: number },
+    video?: { duration: number; frames: number; video_id?: string },
   ) => {
     if (!active) return
     if (sending) return // guard against double-submit while a consult is running

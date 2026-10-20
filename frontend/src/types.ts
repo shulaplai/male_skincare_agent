@@ -48,7 +48,12 @@ export interface DetectedEvent {
 export interface ConsultAttempt {
   text: string
   photos: string[]
-  video?: { duration: number; frames: number }
+  /**
+   * 一條片。`video_id` 係 server 嘅 `Video.id` —— 後端靠佢自己由 DB 攞返抽好嘅格去做
+   * vision（2026-10-20：以前只送 `frames` 個數，`photo_paths` 係空，model 冇相睇就憑
+   * placeholder 作咗成日皮膚數據）。`frames` 淨係留俾 UI 講「有片」。
+   */
+  video?: { duration: number; frames: number; video_id?: string }
 }
 
 /** One resolved adapter, as recorded by the backend on every consult (issue #14). */
@@ -73,6 +78,10 @@ export interface Message {
   photo?: string
   /** 用戶今次上傳嘅係一段片（UI 出「🎬 皮膚影片」，唔會顯示抽格出嚟嘅相） */
   clip?: { duration: number }
+  /** 教練回覆嗰個 turn 係唔係一條片（只影響徽章用「片」定「相」，唔會出 chip）。 */
+  vision_clip?: boolean
+  /** 啱啱由 consult 收到嘅回覆（＝可以逐字打出嚟）。reload 返嚟嘅舊訊息冇呢個 flag。 */
+  fresh?: boolean
   analysis?: Analysis
   disclaimer?: string
   escalate?: boolean
@@ -191,6 +200,8 @@ export interface ServerMessage {
     events_applied?: boolean
     /** user message：今次係片（`{duration, frames}`），唔係相 */
     clip?: { duration: number; frames: number } | null
+    /** coach message：呢個 turn 來自一條片（只影響徽章用「片」定「相」） */
+    vision_clip?: boolean
     /** 三態：false 係「睇過但冇嘢用」，唔等於「未睇」；null/absent = 未知。 */
     vision_used?: boolean | null
   }

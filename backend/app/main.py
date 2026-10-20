@@ -22,7 +22,7 @@ from app.agent.product_context import profile_inputs, summarise_evaluation
 from app.agent.product_eval import evaluate_product
 from app.agent.prompts import PRODUCT_EVAL_SYSTEM, build_product_eval_prompt
 from app.agent.schemas import DetectedEvent, ProductNarrative
-from app.agent.service import open_consult, run_consult, stream_consult
+from app.agent.service import open_consult, resolve_clip_frames, run_consult, stream_consult
 from app.config import settings
 from app.db import get_session, init_db
 from app.export import import_zip, iter_export_zip
@@ -63,6 +63,11 @@ class ClipInfo(BaseModel):
     """
     duration: float = 0.0
     frames: int = 0
+    # Set by the browser after `POST /api/videos`. The server turns it into
+    # `photo_paths` itself (`service.resolve_clip_frames`) — a client that forgets
+    # would otherwise send a clip with no pictures and the text-only model would
+    # invent a reading (2026-10-20). Optional so an older stored payload still loads.
+    video_id: str | None = None
 
 
 class ConsultRequest(BaseModel):
@@ -405,8 +410,10 @@ def consult_stream(req: ConsultRequest) -> StreamingResponse:
     `open_consult` runs *here*, not inside the generator: a 404 must be a real status
     code, and after the first SSE byte the status is already on the wire.
     """
-    photo_paths = req.photo_paths or []
-    clip = req.video.model_dump() if req.video else None
+    # Resolve frames *before* the consent check: `open_consult` warns when photos
+    # are attached but cloud vision is off, and that check must see the clip's
+    # frames too (they are ordinary photos once sampled).
+    photo_paths, clip = resolve_clip_frames(req.photo_paths, req.video.model_dump() if req.video else None)
     cloud_analysis = open_consult(req.conversation_id, photo_paths)
 
     def frames():
