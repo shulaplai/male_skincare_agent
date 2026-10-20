@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 317 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 334 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -46,7 +46,7 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；4 個 agent scenario 之中 **3 個**有 `expect_tool` gate（`red_flag` 只有 `expect_escalate`，所以 escalation 路冇 tool 斷言） |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 317 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 334 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -96,7 +96,7 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 - **`hybrid.py` 唔好拆走**：runtime `tools.search_knowledge` 用 `search_hybrid`（semantic recall + keyword re-rank）；eval recall 用純 `retrieve()` 做基準。兩邊都留，唔好改返純 semantic 落 tools。
 - **eval gate 一定要望住 production 真正 call 嗰個路徑**：`run_eval.py` 一度只 gate 語意檢索，但 runtime 用 `search_hybrid` —— 有人改返純 `retrieve()` 落 `tools`，報告照印 hybrid 靚數、**exit code 照樣 0**，產品實際嗰條路壞咗都冇人知。反方向同樣致命：`eval/safety.py` 一度同 `apply_guardrails` **同一個盲點**（只掃 `items` 唔掃 `reply`），所以 eval 報 `violations: []` 而危險句照送到用戶。加檢查之前先問：「我量嘅係唔係 production 行嗰條路？」（教材：`learn/06-writing-eval.md` §4。）
 - **Diet 事件係 global**（Q31）：`self_report.apply_events` 嘅 diet 寫 `conversation_id=NULL` timeline（唔係 conv-scoped）；`/summary` timeline = conv events + global events merge。搵 diet 事件記得 query `IS NULL` 都要包埋。
-- **Delete/edit 係真 correction**：`DELETE /api/conversations/{cid}/entries/{eid}` 會連同日 conv timeline events 一齊刪（global 唔刪）；`DELETE /api/entries/{eid}/photos/{pid}` 係按 **path**（`photos/<pid>.jpg`）搵 Photo row，唔係 Photo.id；delete insight 前要清 `superseded_by` 指針。
+- **Delete/edit 係真 correction**：`DELETE /api/conversations/{cid}/entries/{eid}` 會連同日 conv timeline events 一齊刪（global 唔刪）；`DELETE /api/entries/{eid}/photos/{pid}` 係按 **path**（`photos/<pid>.jpg`）搵 Photo row，唔係 Photo.id；delete insight 前要清 `superseded_by` 指針，並將被 supersede 嘅前任即時到期（唔可以令佢復活）。
 - **eval 唔可以污染 dev DB**：`run_eval` 一定用自己 temp DB；見到佢寫入 `backend/data` 就係 bug。
 - **FakeLLM 唔係「真 offline」**：冇 key 時 `service.run_consult` 仍然會 instantiate `FastembedEmbedder`（首次會 download model 或靜靜 fallback hash）。test 用 `DeterministicEmbedder`。
 - **Tool 名一定要喺 prompt 講清楚**：`prompts.TOOL_GUIDE` 列出 `tools.WHITELIST` 三個 tool，`SkinAnalysis.tool_calls` 亦有 description。曾經冇寫 → 真 DeepSeek 回 `tool_calls: []`（實測）→ RAG／記憶完全冇跑，但 FakeLLM 硬編碼 tool 名令 pytest + eval --fake 全綠。加減 tool 要同步三處（whitelist／TOOL_GUIDE／schema description），`tests/test_observability.py` 會檢查。
@@ -140,9 +140,9 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 - **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
 - **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
 - **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
-- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：60 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊、**heading 層級 2**）＋ axe WCAG 2.1 AA（淺／暗）。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01）：61 個 Playwright test（40 snapshot、4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸、相片模糊、**heading 層級 2**）＋ axe WCAG 2.1 AA（淺／暗）。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
   ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
-  ⚠️ **CI 只行唔靠像素嗰部分**（2026-10-05 加）：`.github/workflows/ci.yml` frontend job 行 `npm run lint` ＋ `npm run stylelint` ＋ `npx playwright install --with-deps chromium` ＋ `npx playwright test --ignore-snapshots`（axe 淺／暗、互動、相片模糊、consult 串流、heading 層級）。41 張 baseline 全部係 `*-darwin.png`（macOS 渲染；Playwright 1.63.0），Linux CI 比唔到 → **pixel snapshot 仍然係本機 gate**（要入 CI 就要喺 container 生 `*-linux.png`）。⚠️ 第一次跑（run `37308507401`）紅喺 `Error: Timed out waiting 60000ms from config.webServer.` —— `npx vite` 冇 `--host` 時喺 runner 綁 `::1`，Playwright 卻 poll `127.0.0.1`；`playwright.config.ts` 而家寫死 `--host 127.0.0.1`（timeout 120 s、`stdout/stderr: 'pipe'` 方便睇 log），run `37309837190` 三個 job 全綠（`60 passed (1.0m)`）。**改 webServer 記得保留 `--host 127.0.0.1`。**
+  ⚠️ **CI 只行唔靠像素嗰部分**（2026-10-05 加）：`.github/workflows/ci.yml` frontend job 行 `npm run lint` ＋ `npm run stylelint` ＋ `npx playwright install --with-deps chromium` ＋ `npx playwright test --ignore-snapshots`（axe 淺／暗、互動、相片模糊、consult 串流、heading 層級）。41 張 baseline 全部係 `*-darwin.png`（macOS 渲染；Playwright 1.63.0），Linux CI 比唔到 → **pixel snapshot 仍然係本機 gate**（要入 CI 就要喺 container 生 `*-linux.png`）。⚠️ 第一次跑（run `37308507401`）紅喺 `Error: Timed out waiting 60000ms from config.webServer.` —— `npx vite` 冇 `--host` 時喺 runner 綁 `::1`，Playwright 卻 poll `127.0.0.1`；`playwright.config.ts` 而家寫死 `--host 127.0.0.1`（timeout 120 s、`stdout/stderr: 'pipe'` 方便睇 log），run `37309837190` 三個 job 全綠（`61 passed (1.0m)`）。**改 webServer 記得保留 `--host 127.0.0.1`。**
   ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
   ⚠️ snapshot flaky 嘅源頭通常係 **webfont swap**：`settle()` 一定要 `await document.fonts.ready`，
     而 `Chat.tsx` 亦已經加咗 `document.fonts.ready.then(pinToBottom)`（真用戶 reload 之後條 thread 亦要貼底）。

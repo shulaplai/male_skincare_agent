@@ -51,6 +51,19 @@ export interface ConsultAttempt {
   video?: { duration: number; frames: number }
 }
 
+/** One resolved adapter, as recorded by the backend on every consult (issue #14). */
+export interface LLMProvenanceRecord {
+  mode: 'live' | 'fake'
+  provider: string
+  adapter: string
+  model: string
+}
+
+/** Per-turn provenance: the text adapter, plus which adapter saw the photo. */
+export interface LLMProvenance extends LLMProvenanceRecord {
+  vision?: LLMProvenanceRecord
+}
+
 export interface Message {
   id: string
   role: 'user' | 'coach'
@@ -63,7 +76,13 @@ export interface Message {
   analysis?: Analysis
   disclaimer?: string
   escalate?: boolean
-  vision_used?: boolean
+  /**
+   * 三態（issue #14）：true = 睇過相；false = 有相但睇唔到／睇唔清；
+   * null / undefined = 未知（舊訊息）→ UI 唔可以講「未睇相」。
+   */
+  vision_used?: boolean | null
+  /** 呢個回覆由邊個 adapter／model 產生；舊訊息冇 → 唔出 chip。 */
+  provenance?: LLMProvenance | null
   events?: DetectedEvent[]
   pending?: boolean
   error?: boolean
@@ -98,6 +117,8 @@ export interface RecordEntry {
   attributes: SkinAttribute[]
   photos: string[]
   products?: string[]
+  /** Display names resolved by the server; same order as `products`, id fallback. */
+  product_names?: string[]
 }
 
 export interface AnchorInfo {
@@ -170,8 +191,11 @@ export interface ServerMessage {
     events_applied?: boolean
     /** user message：今次係片（`{duration, frames}`），唔係相 */
     clip?: { duration: number; frames: number } | null
-    vision_used?: boolean
+    /** 三態：false 係「睇過但冇嘢用」，唔等於「未睇」；null/absent = 未知。 */
+    vision_used?: boolean | null
   }
+  /** 呢個 turn 嘅 resolved provenance（issue #14）；舊 row 冇 → null。 */
+  provenance?: LLMProvenance | null
   created_at: string
 }
 

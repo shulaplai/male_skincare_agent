@@ -47,6 +47,9 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     "timeline_events": [
         ("source", "VARCHAR(20) NOT NULL DEFAULT 'user'"),
     ],
+    "chat_messages": [
+        ("provenance", "JSON"),
+    ],
 }
 
 

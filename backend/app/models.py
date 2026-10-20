@@ -169,6 +169,11 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(10))  # user | coach
     text: Mapped[str] = mapped_column(Text, default="")
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    # How this turn was produced (issue #14): {"mode": "live"|"fake", "provider",
+    # "adapter", "model", ("vision": {...})}. A real column (not a payload key)
+    # so provenance survives reload *and* is queryable per turn — the ticket's
+    # core complaint is that FakeLLM turns were indistinguishable from real ones.
+    provenance: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow)
 
 

@@ -62,7 +62,7 @@ cp .env.example .env        # 填 SKINCOACH_DEEPSEEK_API_KEY（冇 key 都行 Fa
 # 前端
 cd ../frontend
 npm install && npm run dev    # http://localhost:5173（proxy /api 同 /health → 8001）
-npm run ui:check              # UI gate：typecheck + eslint + stylelint + 60 個 Playwright（snapshot／axe／互動／相片模糊／串流）
+npm run ui:check              # UI gate：typecheck + eslint + stylelint + 61 個 Playwright（snapshot／axe／互動／相片模糊／串流）
 
 # 自己 host 想新 conversation 自動開雲分析（可選）
 echo "SKINCOACH_CLOUD_ANALYSIS_DEFAULT=true" >> backend/.env   # 再 restart backend

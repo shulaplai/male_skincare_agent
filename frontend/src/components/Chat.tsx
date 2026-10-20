@@ -6,7 +6,7 @@ import { useTheme } from '../theme'
 import { Icon } from './Icon'
 import { Skeleton } from './ui/Skeleton'
 import { BodyPartMenu } from './ui/BodyPartMenu'
-import { greeting } from '../format'
+import { greeting, provenanceLabel, visionClaim } from '../format'
 
 interface Props {
   conversation: Conversation
@@ -79,6 +79,9 @@ function Bubble({
      永遠 match 唔到，用戶自己嗰句會同 AI 一樣靠左（實測 390px：兩邊 bubble 都由
      x=57 開始）。呢度做一次 mapping，兩邊（class 同 CSS）先真正見面。 */
   const who = m.role === 'user' ? 'me' : 'coach'
+  // 三態 vision + 回覆出處（issue #14）。兩者都係純函數決定，未知一律唔出。
+  const vision = m.role === 'coach' ? visionClaim(m.vision_used) : null
+  const provenance = m.role === 'coach' ? provenanceLabel(m.provenance) : null
   return (
     <div className={`msg ${who}${m.error ? ' err' : ''}`}>
       <div className={`a ${who}`} />
@@ -106,10 +109,19 @@ function Bubble({
         )}
         {m.role === 'coach' && m.analysis && (
           <>
-            <div className={`vision-badge ${m.vision_used ? 'seen' : 'text'}`}>
-              <Icon name={m.vision_used ? 'eye' : 'pencil'} size={13} />
-              {m.vision_used ? '已睇相分析（雲端）' : '文字分析（未睇相）'}
-            </div>
+            {vision && (
+              <div className={`vision-badge ${vision.tone}`}>
+                <Icon name={vision.icon} size={13} />
+                {vision.text}
+              </div>
+            )}
+            {provenance && m.provenance && (
+              <span
+                className={`vision-badge provenance ${m.provenance.mode === 'fake' ? 'fake' : 'live'}`}
+              >
+                {provenance}
+              </span>
+            )}
             <div className="card">
               <h2>{m.analysis.title}</h2>
               <div className="metrics">

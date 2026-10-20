@@ -10,6 +10,7 @@ vision-capable model (`kind="vision"`), everything else the plain text model.
 DeepSeek V4 is the default provider (HK-reachable, vision since 2026-08).
 """
 import logging
+from dataclasses import asdict, dataclass
 from typing import TypeVar
 
 from langchain_core.exceptions import OutputParserException
@@ -32,7 +33,29 @@ FORMAT_CORRECTION = (
 )
 
 
+@dataclass(frozen=True)
+class LLMProvenance:
+    """How a turn was *actually* produced (issue #14).
+
+    `mode` is the load-bearing bit: `fake` means the deterministic FakeLLM wrote
+    this reply, and the UI / run log must say so instead of presenting it as a
+    real model. `adapter` + `model` are the RESOLVED ones, after any silent
+    fallback in `get_llm`, so a missing key cannot hide behind the config value.
+    """
+
+    mode: str  # "live" | "fake"
+    provider: str
+    adapter: str
+    model: str
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
 class FakeLLM:
+    #: Single source of truth for "this text came from the fake model".
+    provenance = LLMProvenance(mode="fake", provider="fake", adapter="FakeLLM", model="")
+
     def structured(self, system: str, user: str, schema: type[T]) -> T:
         if schema is SkinAnalysis:
             return SkinAnalysis(
@@ -75,8 +98,13 @@ class FakeLLM:
 
 
 class AnthropicLLM:
+    provider = "anthropic"
+
     def __init__(self, model: str | None = None):
         self.model = model or settings.anthropic_model
+        self.provenance = LLMProvenance(
+            mode="live", provider=self.provider, adapter=type(self).__name__, model=self.model
+        )
 
     def _client(self):
         from langchain_anthropic import ChatAnthropic
@@ -108,9 +136,13 @@ class AnthropicLLM:
 class OpenAICompatLLM:
     """For OpenAI-compatible providers (DeepSeek / Gemini / OpenRouter / …)."""
 
-    def __init__(self, model: str, base_url: str | None = None):
+    def __init__(self, model: str, base_url: str | None = None, provider: str = "openai-compatible"):
         self.model = model
         self.base_url = base_url
+        self.provider = provider
+        self.provenance = LLMProvenance(
+            mode="live", provider=provider, adapter=type(self).__name__, model=model
+        )
 
     def _client(self):
         from langchain_openai import ChatOpenAI
@@ -195,18 +227,53 @@ def get_llm(kind: str = "text"):
 
     def deepseek_llm() -> OpenAICompatLLM:
         model = settings.deepseek_vision_model if kind == "vision" else settings.deepseek_text_model
-        return OpenAICompatLLM(model=model, base_url="https://api.deepseek.com/v1")
+        return OpenAICompatLLM(
+            model=model, base_url="https://api.deepseek.com/v1", provider="deepseek"
+        )
 
     if provider == "deepseek" and settings.deepseek_api_key:
         return deepseek_llm()
     if provider == "anthropic" and settings.anthropic_api_key:
         return AnthropicLLM(model=settings.anthropic_model)
     if provider == "openai" and settings.openai_api_key:
-        return OpenAICompatLLM(model=settings.openai_model, base_url="https://api.openai.com/v1")
+        return OpenAICompatLLM(
+            model=settings.openai_model, base_url="https://api.openai.com/v1", provider="openai"
+        )
     if settings.deepseek_api_key:
         return deepseek_llm()
     if settings.anthropic_api_key:
         return AnthropicLLM()
     if settings.openai_api_key:
-        return OpenAICompatLLM(model=settings.openai_model)
+        return OpenAICompatLLM(model=settings.openai_model, provider="openai")
     return FakeLLM()
+
+
+def describe_llm(llm) -> LLMProvenance:
+    """The resolved adapter's own provenance record.
+
+    Adapters carry it (so provider naming lives in ONE place). Test doubles and
+    older stubs do not — this fallback still reports what is knowable instead of
+    raising, because provenance must never be able to break a consult.
+    """
+    record = getattr(llm, "provenance", None)
+    if isinstance(record, LLMProvenance):
+        return record
+    return LLMProvenance(
+        mode="fake" if isinstance(llm, FakeLLM) else "live",
+        provider=getattr(llm, "provider", "unknown"),
+        adapter=type(llm).__name__,
+        model=str(getattr(llm, "model", "") or ""),
+    )
+
+
+def consult_provenance(text_llm, vision_llm=None) -> dict:
+    """One JSON-ready record for a consult: what wrote the text, and what saw the photo.
+
+    `mode` / `provider` / `adapter` / `model` at the top level describe the text
+    adapter (the one that writes the reply). `vision` describes the photo adapter,
+    which `get_llm("vision")` may resolve differently (text vs vision model).
+    """
+    payload = describe_llm(text_llm).as_dict()
+    if vision_llm is not None:
+        payload["vision"] = describe_llm(vision_llm).as_dict()
+    return payload

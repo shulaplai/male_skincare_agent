@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app import correlation, crud
 from app.agent.attributes import anchor_comparisons, severity_map
-from app.agent.llm import FakeLLM, get_llm
+from app.agent.llm import FakeLLM, describe_llm, get_llm
 from app.agent.product_eval import guard_narrative
 from app.agent.product_context import profile_inputs, summarise_evaluation
 from app.agent.product_eval import evaluate_product
@@ -134,7 +134,20 @@ app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "app": settings.app_name, "llm_provider": settings.llm_provider}
+    # Report the RESOLVED adapter, not the configured provider (issue #14): if the
+    # configured key is missing, `get_llm` silently falls back to FakeLLM and the
+    # old payload still said "deepseek". Both facts are exposed so a fallback is
+    # visible without guessing.
+    resolved = describe_llm(get_llm("text"))
+    return {
+        "status": "ok",
+        "app": settings.app_name,
+        "llm_provider": resolved.provider,
+        "llm_mode": resolved.mode,
+        "llm_model": resolved.model,
+        "llm_adapter": resolved.adapter,
+        "configured_provider": settings.llm_provider,
+    }
 
 
 @app.get("/api/export")
@@ -578,6 +591,9 @@ def conversation_messages(cid: str, db: Session = Depends(get_session)) -> list[
             "role": m.role,
             "text": m.text,
             "payload": m.payload,
+            # Per-turn provenance (issue #14): the assistant bubble's chip reads
+            # this, so a FakeLLM reply cannot come back looking like a live one.
+            "provenance": m.provenance,
             "created_at": m.created_at.isoformat(timespec="seconds"),
         }
         for m in msgs
@@ -634,6 +650,15 @@ def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
     if latest is not None and (latest.attributes or []):
         history = [e for e in entries if e.date < latest.date]
         anchors = anchor_comparisons(severity_map(latest.attributes or []), history, latest.date)
+    # Products are stored (and mutated by `self_report.apply_events`) as ids, so
+    # `products` stays as-is and the display name travels beside it. Resolve here
+    # so the client never has to render a 32-hex id.
+    product_ids = {pid for e in entries for pid in (e.products or [])}
+    product_names = (
+        {p.id: p.name for p in db.query(Product).filter(Product.id.in_(product_ids))}
+        if product_ids
+        else {}
+    )
     return {
         "conversation": {
             "id": conv.id,
@@ -650,6 +675,9 @@ def conversation_summary(cid: str, db: Session = Depends(get_session)) -> dict:
                 "attributes": e.attributes,
                 "photos": [p.path for p in e.photos],
                 "products": e.products,
+                # Display sibling, same order; a missing product row falls back to
+                # the id rather than dropping the chip.
+                "product_names": [product_names.get(pid, pid) for pid in (e.products or [])],
             }
             for e in entries
         ],
@@ -798,19 +826,20 @@ def post_consent(req: ConsentRequest, db: Session = Depends(get_session)) -> dic
 
 @app.get("/api/settings")
 def get_settings() -> dict:
-    provider = settings.llm_provider
-    text_model = {
-        "deepseek": settings.deepseek_text_model,
-        "anthropic": settings.anthropic_model,
-        "openai": settings.openai_model,
-    }.get(provider, settings.deepseek_text_model)
-    vision_model = (
-        settings.deepseek_vision_model if provider == "deepseek" else text_model
-    )
+    # Resolved, not configured (issue #14): the UI's "model" row must show what
+    # would actually answer — e.g. FakeLLM when no key is present — and the
+    # configured provider stays visible separately for comparison.
+    text = describe_llm(get_llm("text"))
+    vision = describe_llm(get_llm("vision"))
     return {
-        "llm_provider": provider,
-        "model": text_model,
-        "vision_model": vision_model,
+        "llm_provider": text.provider,
+        "llm_mode": text.mode,
+        "llm_adapter": text.adapter,
+        "model": text.model,
+        "vision_provider": vision.provider,
+        "vision_mode": vision.mode,
+        "vision_model": vision.model,
+        "configured_provider": settings.llm_provider,
         "has_api_key": bool(
             settings.anthropic_api_key or settings.deepseek_api_key or settings.openai_api_key
         ),
@@ -928,14 +957,24 @@ def delete_entry_photo(eid: str, photo_id: str, db: Session = Depends(get_sessio
 
 @app.delete("/api/conversations/{cid}/insights/{iid}")
 def delete_insight(cid: str, iid: str, db: Session = Depends(get_session)) -> dict:
-    """Delete one memory insight (user memory correction)."""
+    """Delete one memory insight (user memory correction).
+
+    Rows this insight superseded are **retired**, not revived: their
+    `superseded_by` pointer is cleared so nothing dangles, but `expires_at` is
+    also set to now. Deleting a wrong memory must not resurrect the statement it
+    replaced — that stale statement was deliberately hidden by the successor, and
+    bringing it back would make the coach quote a claim the user already
+    contradicted (issue #19).
+    """
     ins = db.query(Insight).filter_by(id=iid).first()
     if ins is None:
         raise HTTPException(status_code=404, detail="insight not found")
     if ins.conversation_id not in (cid, None):
         raise HTTPException(status_code=403, detail="insight belongs to another conversation")
-    # Clear superseded_by pointers that reference this insight before deleting.
-    db.query(Insight).filter(Insight.superseded_by == iid).update({"superseded_by": None})
+    # No dangling pointer, but the predecessor stays out of the read paths.
+    db.query(Insight).filter(Insight.superseded_by == iid).update(
+        {"superseded_by": None, "expires_at": utcnow()}
+    )
     db.delete(ins)
     db.commit()
     return {"status": "ok", "deleted": iid}

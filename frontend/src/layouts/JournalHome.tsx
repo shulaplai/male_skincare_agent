@@ -146,9 +146,9 @@ export function JournalHome({ p, nav }: HomeProps) {
                       {ATTRIBUTE_META[a.key]?.zh ?? a.key} {severityText(a.severity)} · {a.severity}/3
                     </span>
                   ))}
-                  {(entry.products ?? []).map((product) => (
+                  {(entry.products ?? []).map((product, i) => (
                     <span key={product} className="chip">
-                      <Icon name="droplet" size={13} /> {product}
+                      <Icon name="droplet" size={13} /> {entry.product_names?.[i] ?? product}
                     </span>
                   ))}
                   {(entry.metrics ?? []).map((m) => (

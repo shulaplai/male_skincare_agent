@@ -205,7 +205,7 @@ reload 保持、Back 真係返上一頁、`?scene=guide` 出到指南（3806）�
 ```
 backend:  ./.venv/bin/python -m pytest -q         → 312 passed
           ./.venv/bin/python -m eval.run_eval --fake → exit 0（4 scenario 全 PASS）
-frontend: npm run ui:check                        → 60 passed
+frontend: npm run ui:check                        → 61 passed
           （typecheck + eslint 0 error + stylelint 0 error + 40 snapshot + axe 12（淺/暗）
             + heading 層級 2 + 互動 5 + 相片模糊 5 + consult 串流 2）
 真 app:   iPhone 390×844 同桌面 1280×900 —— console 0 error、失敗請求 0、溢出 0、

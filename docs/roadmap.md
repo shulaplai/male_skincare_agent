@@ -5,7 +5,7 @@
 > ⚠️ **2026-10-05 定位更正（issue #11 判決）**：呢份文件係 **changelog**，唔係 forward plan —— 每個 phase 嘅 ✅ 都係事後補寫，唔應該當成計劃去 re-plan。前望嘅工作在 wayfinder map（[#1](https://github.com/shulaplai/male_skincare_agent/issues/1)）同 issue 度。
 > **真正嘅 binding constraint 唔係時間**，係兩樣：(1) 從來未喺真環境行過一次完整部署（image 未 build 過）；(2) 冇任何唔係我自己嘅使用者。三個月時間線係已經發生嘅事。
 > 呢一輪 frontier 嘅決定推翻咗下面三處敘述（Phase 2 RAG／Phase 5 gate／Docker 狀態），已逐處更正。
-> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 317 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
+> 而家位置：**Phase 0–5 嘅核心全部完成**（backend 334 tests 綠、5-node agent 真、RAG 有 corpus、chat-first UI 真、eval 入 CI、Layer 2 全部落地）。剩低嘅係收尾 + 打磨 + 記錄。
 
 ---
 
@@ -78,8 +78,8 @@
 - [ ] 真 vision smoke test（☁️ 開、影相 → `vision_used: true`、badge 出現）
 - [ ] 新 conversation 第一次 upload → 詳盡 onboarding reply
 - [ ] Reload 頁面 → thread 仲喺度
-- [ ] `cd backend && ./.venv/bin/python -m pytest -q`（**317 綠**）+ `npm run typecheck` + `npm run build`
-- [ ] `cd frontend && npm run ui:check`（**60 passed**）
+- [ ] `cd backend && ./.venv/bin/python -m pytest -q`（**334 綠**）+ `npm run typecheck` + `npm run build`
+- [ ] `cd frontend && npm run ui:check`（**61 passed**）
 - [ ] `eval.run_eval --fake` PASS（semantic baseline recall 100% / MRR 0.90；hybrid（runtime path）100% / 1.00；**4** agent scenarios，其中 **3/4** 有 `expect_tool` gate）
 - [ ] `scripts/seed_demo.py` → demo DB 行得起（interview 零準備 demo 用）
 - [ ] Docker `compose up --build` 撳得郁（#18）／或敘事用「local dev + seed demo」

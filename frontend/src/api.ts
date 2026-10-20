@@ -2,6 +2,7 @@ import type {
   CorrelationResult,
   DetectedEvent,
   Guide,
+  LLMProvenance,
   ServerMessage,
   Summary,
   VideoUpload,
@@ -24,13 +25,22 @@ export interface ConsultResult {
   tool_results: { tool: string; result: unknown }[]
   advice: { reply?: string; items: string[]; disclaimer: string; escalate: boolean; detected_events?: DetectedEvent[] }
   escalate: boolean
-  vision_used: boolean
+  /** 三態（issue #14）：null = 未知，UI 唔可以當成「未睇相」。 */
+  vision_used: boolean | null
+  /** 今次 turn 用咗邊個 resolved adapter／model；舊後端可能冇。 */
+  provenance?: LLMProvenance | null
 }
 
 export interface Settings {
   llm_provider: string
+  /** `fake` = 冇 key，resolver 靜靜 fallback 咗去 FakeLLM（issue #14）。 */
+  llm_mode?: 'live' | 'fake'
+  llm_adapter?: string
   model: string
+  vision_provider?: string
+  vision_mode?: 'live' | 'fake'
   vision_model?: string
+  configured_provider?: string
   has_api_key: boolean
 }
 

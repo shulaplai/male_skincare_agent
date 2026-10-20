@@ -62,6 +62,17 @@ def main() -> None:
     rag_scenarios = json.loads((here / "rag_scenarios.json").read_text())
     scenarios = json.loads((here / "scenarios.json").read_text())
 
+    # A gate over zero cases is vacuous — it passes for every implementation,
+    # including the ones this harness exists to catch. Deleting the golden files
+    # is therefore a failure, not an empty green.
+    if not rag_scenarios or not scenarios:
+        print(
+            "eval: golden inputs are empty (rag_scenarios.json / scenarios.json) — "
+            "a gate over zero cases proves nothing.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     embedder = build_embedder(args.fake)
     llm = FakeLLM() if args.fake else get_llm("text")
 
@@ -76,6 +87,9 @@ def main() -> None:
 
         session = Session()
         n_chunks = ingest_golden(session, embedder)
+        if n_chunks == 0:
+            print("eval: the golden corpus ingested 0 chunks — nothing to retrieve from.", file=sys.stderr)
+            sys.exit(1)
         from app import crud  # noqa: E402
 
         session.close()

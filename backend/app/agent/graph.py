@@ -511,6 +511,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             # UI needs to re-render the reply identically.
             advice = state.get("advice") or {}
             reply_text = advice.get("reply") or analysis.summary
+            vision_used = state.get("vision_used")
             session.add(
                 ChatMessage(
                     conversation_id=conv_id,
@@ -529,6 +530,8 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                     conversation_id=conv_id,
                     role="coach",
                     text=reply_text,
+                    # Real column, not a payload key: survives reload and stays queryable.
+                    provenance=state.get("provenance"),
                     payload={
                         "summary": analysis.summary,
                         "reply": advice.get("reply", ""),
@@ -537,7 +540,9 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                         "advice": advice.get("items", []),
                         "disclaimer": advice.get("disclaimer", ""),
                         "escalate": bool(state.get("escalate")),
-                        "vision_used": bool(state.get("vision_used")),
+                        # Three-state: None must survive as None, otherwise the UI
+                        # asserts「未睇相」about a turn that simply has no signal.
+                        "vision_used": None if vision_used is None else bool(vision_used),
                         # Persisted so the「我留意到…✅ 記低」chips survive a reload
                         # (Q51 / issue #22). `events_applied` 之後由 confirm 嗰條 route
                         # 寫入 → reload 唔會再出已經記低咗嘅 chip。
@@ -563,6 +568,10 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
                             "insights_created": insights_created,
                             "insights_strengthened": insights_strengthened,
                             "insights_superseded": insights_superseded,
+                            # Provenance belongs in the per-node trace too, so a
+                            # wrong-looking reply can be traced to live vs fake.
+                            "llm_mode": (state.get("provenance") or {}).get("mode"),
+                            "llm_model": (state.get("provenance") or {}).get("model"),
                         },
                     )
                 ]

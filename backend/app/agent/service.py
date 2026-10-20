@@ -22,7 +22,7 @@ from ..db import SessionLocal
 from ..models import Conversation
 from ..rag.embeddings import FastembedEmbedder
 from .graph import build_graph
-from .llm import get_llm
+from .llm import consult_provenance, get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +45,21 @@ def write_run_log(conversation_id: str, text: str, result: dict) -> None:
     try:
         path = Path(settings.run_log_path)
         path.parent.mkdir(parents=True, exist_ok=True)
+        provenance = result.get("provenance") or {}
+        vision_used = result.get("vision_used")
         record = {
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
             "conversation_id": conversation_id,
             "user_text": text,
-            "vision_used": bool(result.get("vision_used")),
+            # Tri-state, not bool(): None means "unknown", and the log must not
+            # turn that into a false「未睇相」claim (issue #14).
+            "vision_used": None if vision_used is None else bool(vision_used),
+            # Resolved provenance, flat so the line is greppable: fake vs live
+            # and the adapter/model the resolver actually picked.
+            "llm_mode": provenance.get("mode"),
+            "llm_provider": provenance.get("provider"),
+            "llm_adapter": provenance.get("adapter"),
+            "llm_model": provenance.get("model"),
             "escalate": bool(result.get("escalate")),
             "tool_calls": (result.get("analysis") or {}).get("tool_calls", []),
             "tools": [
@@ -109,12 +119,21 @@ def open_consult(conversation_id: str, photo_paths: list[str] | None) -> bool:
 
 
 def _build_consult_graph():
-    return build_graph(
-        llm=get_llm("text"),
-        vision_llm=get_llm("vision"),
+    """Build the graph AND the provenance record from the same resolved adapters.
+
+    The adapters come from `get_llm` exactly once, so `mode`/`provider`/`model`
+    cannot drift from the object that actually answers. Returns `(graph,
+    provenance)`; callers put the record into the state so `persist` writes it.
+    """
+    text_llm = get_llm("text")
+    vision_llm = get_llm("vision")
+    graph = build_graph(
+        llm=text_llm,
+        vision_llm=vision_llm,
         session_factory=SessionLocal,
         embedder=_get_embedder(),
     )
+    return graph, consult_provenance(text_llm, vision_llm)
 
 
 def _consult_state(
@@ -123,6 +142,7 @@ def _consult_state(
     photo_paths: list[str] | None,
     clip: dict | None,
     cloud_analysis: bool,
+    provenance: dict | None = None,
 ) -> dict:
     return {
         "conversation_id": conversation_id,
@@ -132,12 +152,19 @@ def _consult_state(
         # 有呢個 flag，prompt 才會叫 model 講「條片」而唔係「幾張相」。
         "clip": clip,
         "cloud_analysis": cloud_analysis,
+        # Resolved once, consumed by `persist` / the messages API / run log.
+        "provenance": provenance,
         "trace": [],
     }
 
 
+def _vision_used(value) -> bool | None:
+    """Keep the three states: True / False / None (unknown), never coerce None→False."""
+    return None if value is None else bool(value)
+
+
 def _finish_consult(conversation_id: str, text: str, result: dict) -> dict:
-    result["vision_used"] = bool(result.get("vision_used"))
+    result["vision_used"] = _vision_used(result.get("vision_used"))
     write_run_log(conversation_id, text, result)
     return result
 
@@ -149,10 +176,10 @@ def run_consult(
     clip: dict | None = None,
 ) -> dict:
     cloud_analysis = open_consult(conversation_id, photo_paths)
-    graph = _build_consult_graph()
+    graph, provenance = _build_consult_graph()
     try:
         result = graph.invoke(
-            _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis)
+            _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis, provenance)
         )
     except OutputParserException as e:
         # The model kept answering in the wrong shape even after the corrective retry.
@@ -182,8 +209,8 @@ def stream_consult(
     `cloud_analysis` 由 caller 傳入（route 已經行咗 `open_consult`），令 404 可以
     喺串流開始之前就係一個真 HTTP status。
     """
-    graph = _build_consult_graph()
-    state = _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis)
+    graph, provenance = _build_consult_graph()
+    state = _consult_state(conversation_id, text, photo_paths, clip, cloud_analysis, provenance)
     final: dict = state
     try:
         # 兩個 mode 一齊要：「updates」話我知邊個 node 行完咗，「values」最後一個

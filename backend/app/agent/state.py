@@ -25,7 +25,15 @@ class AgentState(TypedDict, total=False):
     # Privacy consent mirror (Q18): True only when the conversation opted in to
     # cloud analysis. analyze refuses to send photos when it is False.
     cloud_analysis: bool
-    vision_used: bool
+    # Three-state on purpose (issue #14): True = looked at a photo; False = looked
+    # / had a photo but saw nothing usable; None = unknown (legacy turn / no
+    # signal). The UI must not claim「未睇相」for None.
+    vision_used: bool | None
+    # How this consult was actually produced (issue #14), resolved by
+    # `service._build_consult_graph` from the adapter itself:
+    # `{"mode": "live"|"fake", "provider", "adapter", "model", "vision": {...}}`.
+    # `persist` writes it to `ChatMessage.provenance`; the run log records it too.
+    provenance: dict
     # *Why* vision did or did not contribute: `photo_unreadable | vision_error | used |
     # consent_off | fake_llm | no_photo`. Declared here because two consumers read it —
     # `build_advise_prompt` decides whether the model may claim to have seen a photo,

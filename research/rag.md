@@ -22,7 +22,7 @@ files. The brief is accurate about the code it points at.
 | Golden chunk lengths | 402, 291, 500, 272 chars | `chunk_text()` on golden files |
 | Clean-clone rebuild of the *real* corpus dirs | **22 chunks** | `ingest_corpus.py` dirs, temp DB |
 | Production index (`data/skincoach.db`) | **3220 chunks / 218 sources / 384 dims** | `SELECT COUNT(*) FROM chunks` on the copy |
-| Production chunk text | avg **2520** chars, max **53172** chars | `AVG/MIN/MAX(LENGTH(text))` |
+| Production chunk text | avg **2520** chars, max **53342** chars | `AVG/MIN/MAX(LENGTH(text))` |
 | Production chunks beyond the model's 512-token window | **1046 / 3220 (32.5%)** (>2048 chars, char/4 heuristic) | bucket query |
 | Production chunks containing CJK | **250 / 3220 = 7.8%** (2 of 218 sources) | regex scan |
 | Production `section` column populated | **0 / 3220** | `SUM(section<>'')` |
@@ -76,7 +76,7 @@ split into sentences, and the packer at `chunking.py:22-32` can only break where
   data/corpus/PMC10709101.xml: 35139 chars -> 7 chunks, lengths [3748, 121, 5297, 10971, 13606, 570, 1306]
   data/corpus/PMC11031619.xml: 39507 chars -> 3 chunks, lengths [2687, 102, 36878]
 ```
-The result is visible in the production index: **avg 2520 chars/chunk, max 53172 chars**, with
+The result is visible in the production index: **avg 2520 chars/chunk, max 53342 chars**, with
 **1046/3220 (32.5%) above ~2048 chars** — while `chunk_size=500` (`chunking.py:12`). Only 1342/3220 (41.7%)
 are actually ≤500. The configured chunk size is effectively ignored for every non-CJK source.
 Why it matters beyond tidiness: the embedder is `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`,
@@ -119,7 +119,7 @@ seeds **12 chunks, 10 of which are a URL list** — and `README.md:33`/`#18` adv
 
 **Smallest honest correction:** keep the corrected row text, but stop calling the corpus "真" without
 qualification. Replace the row's `RAG 真（chunks + cosine）` with something like:
-`RAG 存儲真（chunks + JSON + cosine）；但 chunker 只對中日韓標點有效 → 88% 語料（PMC 英文）平均 2520 字/chunk、最大 53172 字，超出 MiniLM 512-token 窗；`data/corpus/` 只有 10 chunks，3220-chunk 生產索引唔可以 clean clone 重建；`zh_sources_curated.txt`（URL list）被當內容 ingest（10 chunks）。`
+`RAG 存儲真（chunks + JSON + cosine）；但 chunker 只對中日韓標點有效 → 88% 語料（PMC 英文）平均 2520 字/chunk、最大 53342 字，超出 MiniLM 512-token 窗；`data/corpus/` 只有 10 chunks，3220-chunk 生產索引唔可以 clean clone 重建；`zh_sources_curated.txt`（URL list）被當內容 ingest（10 chunks）。`
 
 ---
 
@@ -359,7 +359,7 @@ cd backend
 ./.venv/bin/python -m eval.run_eval --fake                  # 4 chunks; 100%/0.90 semantic, 100%/1.00 hybrid; exit 0
 cp data/skincoach.db /tmp/ragcopy.db                        # read the copy, never the original
 sqlite3 /tmp/ragcopy.db "SELECT COUNT(*), json_array_length(embedding) FROM chunks GROUP BY 2;"   # 3220|384
-sqlite3 /tmp/ragcopy.db "SELECT CAST(AVG(LENGTH(text)) AS INT), MAX(LENGTH(text)) FROM chunks;"   # 2520|53172
+sqlite3 /tmp/ragcopy.db "SELECT CAST(AVG(LENGTH(text)) AS INT), MAX(LENGTH(text)) FROM chunks;"   # 2520|53342
 ```
 Probe scripts used for the numbers above were written under `/tmp/ragaudit/` (`probe.py`…`probe6.py`,
 `gateprobe.py`); nothing was written into `backend/app`, `backend/data/corpus`,

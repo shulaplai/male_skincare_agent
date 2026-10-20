@@ -190,6 +190,8 @@ function AppInner() {
           disclaimer: res.advice.disclaimer,
           escalate: res.escalate,
           vision_used: res.vision_used,
+          // 回覆一出就帶 provenance（issue #14），唔使等 reload 先見到 chip。
+          provenance: res.provenance ?? null,
           events: res.advice.detected_events?.length ? res.advice.detected_events : undefined,
         }
         setMessages((prev) => ({

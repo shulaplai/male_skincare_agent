@@ -1,4 +1,4 @@
-import type { AttributeKey, ServerMessage, Message } from './types'
+import type { AttributeKey, LLMProvenance, ServerMessage, Message } from './types'
 
 export const ATTRIBUTE_META: Record<AttributeKey, { label: string; zh: string }> = {
   acne: { label: 'acne', zh: '暗瘡' },
@@ -47,6 +47,30 @@ export function ymd(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/**
+ * 三態 vision 徽章（issue #14）：`null` / `undefined` 係「未知」，唔係「未睇相」。
+ * 舊 payload 冇 `vision_used`，以前會靜靜當 false → UI 對一個真睇過相嘅回覆講
+ * 「文字分析（未睇相）」。未知就唔出徽章，比講錯好。
+ */
+export function visionClaim(
+  used: boolean | null | undefined,
+): { icon: 'eye' | 'pencil'; text: string; tone: 'seen' | 'text' } | null {
+  if (used === true) return { icon: 'eye', text: '已睇相分析（雲端）', tone: 'seen' }
+  if (used === false) return { icon: 'pencil', text: '文字分析（未睇相）', tone: 'text' }
+  return null
+}
+
+/**
+ * Provenance chip 文案（issue #14）：fake 一定要講明係測試模式，唔可以扮真模型；
+ * live 就出 resolver 真正揀咗嘅 provider · model（例如 `openai · gpt-4o-mini`）。
+ * 舊訊息冇 provenance → null（唔出 chip）。
+ */
+export function provenanceLabel(p?: LLMProvenance | null): string | null {
+  if (!p) return null
+  if (p.mode === 'fake') return 'FakeLLM · 測試模式'
+  return p.model ? `${p.provider} · ${p.model}` : p.provider
+}
+
 /** Map a persisted server message back to a display Message (Q7 reload). */
 export function fromServerMessage(m: ServerMessage): Message {
   if (m.role === 'user') {
@@ -77,7 +101,9 @@ export function fromServerMessage(m: ServerMessage): Message {
     },
     disclaimer: p.disclaimer,
     escalate: p.escalate,
-    vision_used: p.vision_used,
+    // 保留三態：冇呢個欄位嘅舊 row = 未知（null），唔可以降級成 false。
+    vision_used: p.vision_used ?? null,
+    provenance: m.provenance ?? null,
     // AI 抽出嘅自報事件要跟埋 reload 返嚟（以前只在 live state → reload 就消失，
     // 用戶永遠確認唔到 diet／product，成因時間線亦餵唔到料）。已經確認過嘅唔再出。
     events: !p.events_applied && p.detected_events?.length ? p.detected_events : undefined,

@@ -1254,6 +1254,10 @@ body {
 .vision-badge { display: inline-block; font-size: var(--f-xs); border-radius: 999px; padding: 2px 8px; margin: 6px 0 2px; }
 .vision-badge.seen { background: var(--tint-info); color: var(--info); }
 .vision-badge.text { background: var(--panel); color: var(--muted); }
+/* 回覆出處 chip（issue #14）：非互動，live／fake 用現有 tint token 分色。
+   fake 一定要搶眼，唔可以令測試模式嘅回覆睇落同真模型一樣。 */
+.vision-badge.provenance.fake { background: var(--tint-bad); color: var(--danger); }
+.vision-badge.provenance.live { background: var(--tint-info); color: var(--info); }
 .msg.coach.err .bubble { border-color: var(--warn); }
 .empty.small { font-size: var(--f-xs); color: var(--muted); }
 .btn.ghost.small {

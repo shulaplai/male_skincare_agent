@@ -94,11 +94,23 @@ export function SettingsView(props: Props) {
         </div>
         <div className="setting">
           <div className="k">文字 Model</div>
-          <div className="v">{settings?.model ?? '…'}</div>
+          <div className="v">
+            {settings
+              ? settings.llm_mode === 'fake'
+                ? 'FakeLLM · 測試模式'
+                : settings.model
+              : '…'}
+          </div>
         </div>
         <div className="setting">
           <div className="k">Vision Model（睇相）</div>
-          <div className="v">{settings?.vision_model ?? '（冇設定）'}</div>
+          <div className="v">
+            {settings
+              ? settings.vision_mode === 'fake'
+                ? 'FakeLLM · 測試模式'
+                : settings.vision_model || '（冇設定）'
+              : '…'}
+          </div>
         </div>
         <div className="setting">
           <div className="k">API Key</div>
