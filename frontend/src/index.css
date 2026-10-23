@@ -2628,7 +2628,10 @@ textarea:focus {
   border-radius: 50%;
   background: var(--card);
 }
-.mob-ring span {
+/* ⚠️ 一定要 `> span:not(.mob-ring-cap)`：原本寫 `.mob-ring span`，specificity (0,1,1)
+   高過 `.mob-ring-cap` (0,1,0)，所以圈內「項指標」個 label 都食到 24px —— 實測 72px 闊，
+   直接頂出 64px 內圈（用戶回報「字太大，頂咗出去」）。 */
+.mob-ring > span:not(.mob-ring-cap) {
   position: relative;
   font-family: var(--mono);
   font-size: var(--f-2xl);
@@ -2641,9 +2644,10 @@ textarea:focus {
 }
 /* 「項指標」：解釋 2/6 係咩。冇呢個字，用戶只見到兩個數（實測 critique 第一句就問）。 */
 .mob-ring-cap {
-  font-size: 11px; /* 唯一 11px：圈內空間有限，而 11px 仍然可讀（axe 會驗） */
+  font-size: 10px; /* 圈內空間有限：10px + 數字 24px 仍然放得落 64px 內圈（實測 33px 闊） */
   color: var(--faint);
   line-height: 1;
+  letter-spacing: 0;
 }
 .mob-cta {
   width: 100%;
