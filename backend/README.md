@@ -30,8 +30,8 @@ SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn ap
 |---|---|---|
 | `SKINCOACH_LLM_PROVIDER` | `deepseek` | `deepseek \| anthropic \| openai`（HK 直連得 DeepSeek；Anthropic/OpenAI 香港係 403） |
 | `SKINCOACH_DEEPSEEK_API_KEY` | — | 真 key 只喺本地 `.env`，唔好 commit |
-| `SKINCOACH_DEEPSEEK_TEXT_MODEL` | `deepseek-v4-flash` | advise／text 用 |
-| `SKINCOACH_DEEPSEEK_VISION_MODEL` | `deepseek-v4-flash-vision-exp` | analyze 睇相用 |
+| `SKINCOACH_DEEPSEEK_TEXT_MODEL` | `deepseek-flash` | advise／text 用 |
+| `SKINCOACH_DEEPSEEK_VISION_MODEL` | `deepseek-flash` | analyze 睇相用 |
 | `SKINCOACH_ANTHROPIC_MODEL` / `SKINCOACH_OPENAI_MODEL` | `claude-sonnet-5` / `gpt-5` | 其他 provider（要自己 set key） |
 | `SKINCOACH_CLOUD_ANALYSIS_DEFAULT` | `false` | 新 conversation 嘅雲分析默認（self-hoster 可 set `true`） |
 | `SKINCOACH_DATABASE_URL` | `sqlite:///./data/skincoach.db` | data 全部喺 `data/` |
@@ -42,7 +42,7 @@ SKINCOACH_DATABASE_URL=sqlite:///./data/demo.db ./.venv/bin/python -m uvicorn ap
 
 ```
 POST /api/consult  ──►  LangGraph：analyze → tools → advise → guardrail → persist
-                            analyze   ：有相＋cloud consent → vision model（deepseek-v4-flash-vision-exp）
+                            analyze   ：有相＋cloud consent → vision model（deepseek-flash）
                                         否則 text model 純文字（標明「未睇相」）
                             tools     ：whitelist（get_skin_profile / get_recent_entries / search_knowledge）
                                         profile 包括 global-scope insights（Q31）；knowledge 用 hybrid retrieval

@@ -21,7 +21,7 @@ function dayLabel(date: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} · 星期${wd}`
 }
 
-/** 每條 entry 當日最後一條教練回覆（用 App 已載入嘅 messages，唔另 fetch） */
+/** 每條 entry 當日最後一條顧問回覆（用 App 已載入嘅 messages，唔另 fetch） */
 function lastCoachByDate(messages: Message[]): Map<string, Message> {
   const map = new Map<string, Message>()
   for (const m of messages) {
@@ -73,8 +73,8 @@ export function JournalHome({ p, nav }: HomeProps) {
             <div className="k">皮膚日記 · {active.bodyPart}</div>
             <div className="t">
               {entries.length === 0
-                ? '未有記錄。撳右下角同教練打卡／影相，agent 會自動寫低每日皮膚狀態。'
-                : `共 ${entries.length} 日記錄。逐日卡：相、指標、筆記、同當日教練回覆。`}
+                ? '未有記錄。撳右下角同顧問打卡／影相，agent 會自動寫低每日皮膚狀態。'
+                : `共 ${entries.length} 日記錄。逐日卡：相、指標、筆記、同當日顧問回覆。`}
             </div>
           </div>
           <button className="btn" onClick={() => nav.go('chat')}>
@@ -92,7 +92,7 @@ export function JournalHome({ p, nav }: HomeProps) {
           <div className="jm-empty">
             <p className="empty">未有記錄。呢度會由你嘅真數據逐日砌出嚟。</p>
             <button className="btn" onClick={() => nav.go('chat')}>
-              <Icon name="camera" size={16} /> 今日打卡／問教練
+              <Icon name="camera" size={16} /> 今日打卡／問顧問
             </button>
           </div>
         ) : (
@@ -185,7 +185,7 @@ export function JournalHome({ p, nav }: HomeProps) {
 
                 {reply && (
                   <div className="jm-reply">
-                    <div className="k">當日教練回覆{reply.vision_used ? <>{' · '}<Icon name="eye" size={12} /> 已睇相</> : ''}</div>
+                    <div className="k">當日顧問回覆{reply.vision_used ? <>{' · '}<Icon name="eye" size={12} /> 已睇相</> : ''}</div>
                     <div className="t">{reply.text}</div>
                   </div>
                 )}
@@ -204,10 +204,10 @@ export function JournalHome({ p, nav }: HomeProps) {
           <h2>因果時間線</h2>
           {summary && <TimelineList events={summary.timeline} />}
         </section>
-        <p className="hint">時間線／記憶會同「教練對話」右欄同步 —— 真數據，冇 demo。</p>
+        <p className="hint">時間線／記憶會同「顧問對話」右欄同步 —— 真數據，冇 demo。</p>
       </aside>
 
-      <button className="jm-fab" title="今日打卡／問教練" onClick={() => setDrawer(true)}>
+      <button className="jm-fab" title="今日打卡／問顧問" onClick={() => setDrawer(true)}>
         <Icon name="camera" size={16} /> 今日打卡
       </button>
 
@@ -219,24 +219,24 @@ export function JournalHome({ p, nav }: HomeProps) {
           <button
             type="button"
             className="jm-drawer-backdrop"
-            aria-label="閂咗教練對話"
+            aria-label="閂咗顧問對話"
             onClick={() => setDrawer(false)}
           />
           <div
             className="jm-drawer"
             role="dialog"
             aria-modal="true"
-            aria-label={`${active.bodyPart} · 教練對話`}
+            aria-label={`${active.bodyPart} · 顧問對話`}
           >
             <div className="jm-drawer-head">
               <b>
-                {active.icon} {active.bodyPart} · 教練對話
+                {active.icon} {active.bodyPart} · 顧問對話
               </b>
               {/* 以前係 `<i onClick>`：鍵盤／讀屏都閂唔到 drawer，而且 Esc 冇 handler。 */}
               <button
                 type="button"
                 className="jm-drawer-x"
-                aria-label="閂咗教練對話"
+                aria-label="閂咗顧問對話"
                 title="閂咗"
                 onClick={() => setDrawer(false)}
               >

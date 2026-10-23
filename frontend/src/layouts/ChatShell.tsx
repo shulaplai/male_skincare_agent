@@ -11,7 +11,7 @@ import type { View } from '../types'
 import type { ShellProps } from './defs'
 
 /**
- * 結構 1：教練對話（對話主導）—— 即係原本成個 app 嘅排法。
+ * 結構 1：顧問對話（對話主導）—— 即係原本成個 app 嘅排法。
  * Sidebar 全導覽 + chat 場景（中間對話＋右欄實時數據）+ records/progress/settings 頁。
  *
  * ⚠️ **場景一定要經 `useSceneRoute`（URL），唔可以係 `useState`。**
@@ -22,7 +22,7 @@ import type { ShellProps } from './defs'
  * 新 shell 一律用 `useSceneRoute`；`fallback` 係第一個 tab。
  */
 const CHAT_TABS: SceneTab[] = [
-  { key: 'chat', label: '教練對話', icon: 'message-square' },
+  { key: 'chat', label: '顧問對話', icon: 'message-square' },
   { key: 'records', label: '皮膚記錄', icon: 'clipboard-list' },
   { key: 'progress', label: '進度追蹤', icon: 'chart-column' },
   { key: 'settings', label: '設定', icon: 'settings' },

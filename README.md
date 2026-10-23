@@ -1,13 +1,13 @@
-# SkinCoach — Local-first 男性護膚 AI 教練
+# SkinCoach — Local-first 男性護膚 AI 顧問
 
 > 每日／每週影相記錄皮膚 → AI 視覺分析（opt-in 雲端）→ 對話 check-in 追問（食咗咩、用咗咩產品）→ 長期記憶 + 美容知識庫 → 一段時間後可以 trace 返「邊個原因令皮膚變咗」。
 
 一個**真係落地嘅 AI Agent product**（唔係薄薄哋包層 API 嘅 chatbot）：
 - **多步 stateful agent**（LangGraph，5 nodes）：分析相/文字 → 揀工具 → 生成建議 → guardrail → 寫入日記
-- **視覺分析**：有相＋conversation 開咗「雲分析」→ 送 `deepseek-v4-flash-vision-exp`（HK 直連）；冇相／off → 純文字降級，UI 標明
+- **視覺分析**：有相＋conversation 開咗「雲分析」→ 送 `deepseek-flash`（HK 直連）；冇相／off → 純文字降級，UI 標明
 - **長期記憶**：facts / derived / preferences 三類；derived per-attribute reconcile（tag+direction：strengthen / supersede versioning + 30 日 expiry）；preference 低頻抽取（Q48）；自報事件自動寫 global fact / timeline（Q25/Q31）
 - **Local-first**：相永遠留喺用戶機；每 conversation 一個雲分析開關（default off，self-hoster 可 env 改 default）；冇 key 行 FakeLLM 示範
-- **四套可揀嘅 UI 結構**：教練對話（原本）／皮膚日記（逐日 feed）／進度儀表板（widgets 大廳）／手機版（窄屏 ≤760px 自動啟用，頂部 bar + 底部 5 tab）—— Settings「介面結構」即時切換（`localStorage` persist，`/?layout=chat|journal|dash|mobile` 可 preview）；全部食同一批真數據 API
+- **四套可揀嘅 UI 結構**：顧問對話（原本）／皮膚日記（逐日 feed）／進度儀表板（widgets 大廳）／手機版（窄屏 ≤760px 自動啟用，頂部 bar + 底部 5 tab）—— Settings「介面結構」即時切換（`localStorage` persist，`/?layout=chat|journal|dash|mobile` 可 preview）；全部食同一批真數據 API
 - **RAG 美容知識庫**：文字/PDF 語料 → chunk → embed → SQLite（Python cosine，升級路徑留咗）
 - **Eval harness 入 CI**：RAG recall + agent golden scenarios + 安全 check（+ 有 key 時 LLM-as-judge），FAIL 唔准 merge
 
@@ -28,7 +28,7 @@
 | 儲存 | **SQLite**（SQLAlchemy）＋ 相落 file system |
 | 向量庫 | **SQLite `chunks` 表（JSON embedding + Python cosine）**；抽象層留 sqlite-vec/pgvector 升級路 |
 | Embedding | fastembed（ONNX、無 torch、多語言 MiniLM） |
-| LLM | **DeepSeek V4**（`deepseek-v4-flash` text／`deepseek-v4-flash-vision-exp` vision，HK 直連）；冇 key → FakeLLM |
+| LLM | **DeepSeek V4**（`deepseek-flash` text／`deepseek-flash` vision，HK 直連）；冇 key → FakeLLM |
 | 前端 | React + Vite + TypeScript |
 | 部署 | Docker Compose（frontend nginx proxy `/api`→backend、bind volume、corpus bake） |
 | Eval | 自建 harness（recall@3 + MRR + agent golden + 安全 + judge）入 CI |

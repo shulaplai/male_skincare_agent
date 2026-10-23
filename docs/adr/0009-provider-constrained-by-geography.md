@@ -1,6 +1,6 @@
 # LLM provider 由地理位置決定，唔係由質素決定
 
-文字同 vision 都用 DeepSeek（`deepseek-v4-flash`／`deepseek-v4-flash-vision-exp`）。呢個唔係技術偏好，係約束：香港直連 OpenAI 同 Anthropic 都係 403（唔喺 supported regions），所以兩間嘅任何型號都揀唔到。
+文字同 vision 都用 DeepSeek（`deepseek-flash`／`deepseek-flash`）。呢個唔係技術偏好，係約束：香港直連 OpenAI 同 Anthropic 都係 403（唔喺 supported regions），所以兩間嘅任何型號都揀唔到。
 
 **Considered options**：Anthropic／OpenAI —— 唔可行（403）。經第三方 relay／proxy —— 可行但拒絕，因為要將一個有醫療 guardrail 嘅 app 嘅流量交俾一個唔知條款點寫嘅中間人，而呢個 app 處理嘅係用戶嘅自拍。其他 OpenAI-compatible provider（Gemini／OpenRouter／DashScope Qwen／GLM）**技術上**換 base_url ＋ key 就用到，但未實測過，所以唔當係已支持。
 

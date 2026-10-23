@@ -77,11 +77,24 @@ export function LayoutPicker() {
   return (
     <div className="layout-picker">
       {LAYOUTS.map((l) => (
-        <button key={l.id} className={`layout-opt ${layout === l.id ? 'active' : ''}`} onClick={() => setLayout(l.id)}>
+        <button
+          key={l.id}
+          className={`layout-opt ${layout === l.id ? 'active' : ''}`}
+          onClick={() => setLayout(l.id)}
+          // 唔可以只靠顏色表示「使用中」（WCAG 1.4.1）：aria-pressed 之外，
+          // 卡片入面仲有一個可見嘅「使用中 ✓」+ 實心底色。
+          aria-pressed={layout === l.id}
+        >
           <Thumb id={l.id} />
           <span className="name">
             <Icon name={l.icon} size={16} /> {l.name}
-            <em>{l.tagline}</em>
+            {layout === l.id ? (
+              <em className="in-use">
+                <Icon name="check" size={12} /> 使用中
+              </em>
+            ) : (
+              <em>{l.tagline}</em>
+            )}
           </span>
           <span className="desc">{l.blurb}</span>
         </button>

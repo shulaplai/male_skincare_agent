@@ -53,7 +53,7 @@ export function useSceneRoute(tabs: readonly SceneTab[]): [ShellScene, (s: Shell
  *
  * 點解要真 `href`：桌面 Sidebar 同 `ShellTop` 嘅 scene 導覽以前係 `<a>` **冇 href**
  * 加 `onClick`。冇 href 嘅 `<a>` 唔入 tab order、唔會被讀成 link —— 實測 Tab 40 次
- * 完全去唔到「教練對話／皮膚記錄／進度追蹤／護膚指南／設定」，即係純鍵盤用戶
+ * 完全去唔到「顧問對話／皮膚記錄／進度追蹤／護膚指南／設定」，即係純鍵盤用戶
  * **入唔到設定同記錄**（axe 都唔會報，因為冇規則要求 `<a onClick>` 要 focusable）。
  * 有咗 href 仲順便拎到 Cmd／中鍵開新 tab 同「複製連結」。
  */

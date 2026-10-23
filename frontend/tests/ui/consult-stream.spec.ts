@@ -53,7 +53,7 @@ test('等緊嘅時候顯示後端行緊邊個步驟，最後出建議', async ({
   await page.goto('?layout=mobile&scene=chat')
   await page.waitForLoadState('networkidle')
 
-  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('textbox', { name: /顧問對話/ }).fill('下巴爆咗兩粒瘡')
   await page.getByRole('button', { name: '發送' }).click()
 
   // 撳完即刻唔應該係「約 5–10 秒」嗰句，而係講緊而家做咩。
@@ -85,7 +85,7 @@ test('串流中途解析失敗：出錯誤氣泡同「重試」掣，唔會靜�
   await page.goto('?layout=mobile&scene=chat')
   await page.waitForLoadState('networkidle')
 
-  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('textbox', { name: /顧問對話/ }).fill('下巴爆咗兩粒瘡')
   await page.getByRole('button', { name: '發送' }).click()
 
   await expect(page.locator('.bubble').last()).toContainText('出錯：我今次分析唔到')
@@ -99,7 +99,7 @@ test('串流中途解析失敗：出錯誤氣泡同「重試」掣，唔會靜�
  * 即刻出全句。呢個 test 專登開返 motion，確認三件事：①真係逐字（第一步短過全句）
  * ②最後一定出齊全句（唔會卡住／食字）③打完之後仍然貼住底部（唔會令用戶睇唔到最新一行）。
  */
-test('教練回覆逐字打出嚟，而且會打齊同貼住底部', async ({ page }) => {
+test('顧問回覆逐字打出嚟，而且會打齊同貼住底部', async ({ page }) => {
   const FULL = '建議你溫和清潔，一日洗兩次面，唔好擠。之後記得補水同防曬。'
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await installFixtures(page)
@@ -120,7 +120,7 @@ test('教練回覆逐字打出嚟，而且會打齊同貼住底部', async ({ pa
   await page.goto('?layout=mobile&scene=chat')
   await page.waitForLoadState('networkidle')
 
-  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('textbox', { name: /顧問對話/ }).fill('下巴爆咗兩粒瘡')
   await page.getByRole('button', { name: '發送' }).click()
 
   const bubble = page.locator('.bubble').last()
@@ -158,7 +158,7 @@ test('回覆分三段出：標題 → 正文 → AI 分析卡，而且冇內部�
   await page.goto('?layout=mobile&scene=chat')
   await page.waitForLoadState('networkidle')
 
-  await page.getByRole('textbox', { name: /教練對話/ }).fill('下巴爆咗兩粒瘡')
+  await page.getByRole('textbox', { name: /顧問對話/ }).fill('下巴爆咗兩粒瘡')
   await page.getByRole('button', { name: '發送' }).click()
 
   const bubble = page.locator('.bubble').last()

@@ -94,7 +94,7 @@ extra_body={"thinking": {"type": "disabled"}}   # "off" 呢個字串唔得，會
 service.run_consult(...)  # 同時傳 llm=get_llm("text") 同 vision_llm=get_llm("vision")
 ```
 
-- 有相 + 用戶同意 → 用 **vision model**（`deepseek-v4-flash-vision-exp`）睇相
+- 有相 + 用戶同意 → 用 **vision model**（`deepseek-flash`）睇相
 - 冇相／唔同意 → 用 **text model**，而且 prompt 會講明「用戶有相但你睇唔到」
 - **唔可以**用 text model 去 call `structured_vision`（會靜靜 fallback，你就以為睇咗相）
 

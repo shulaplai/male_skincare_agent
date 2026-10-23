@@ -82,9 +82,9 @@ body {
 .brand .dot {
   width: 32px;
   height: 32px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  box-shadow: 0 4px 14px -4px var(--accent);
+  box-shadow: var(--shadow-2);
   flex: none;
 }
 .brand b {
@@ -119,7 +119,7 @@ body {
   padding: 0;
   width: 24px;
   height: 24px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--accent-deep);
@@ -140,19 +140,19 @@ body {
   /* padding 搬咗落 `.convo-open`：咁樣「撳得嘅範圍」就係成行（62px 高），
      唔係得入面個 40px 內容盒。 */
   padding: 0;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   cursor: pointer;
   border: 1px solid transparent;
 }
 .convo.active {
   background: var(--card);
   border: 1px solid var(--line);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .convo .part {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   flex: none;
   display: grid;
   place-items: center;
@@ -191,7 +191,7 @@ body {
 .new-convo {
   margin-top: 6px;
   border: 1.5px dashed var(--line);
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 11px;
   background: transparent;
   color: var(--muted);
@@ -229,7 +229,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   color: var(--muted);
   text-decoration: none;
   font-size: var(--f-sm);
@@ -318,7 +318,7 @@ body {
 .chathead .cur .part {
   width: 36px;
   height: 36px;
-  border-radius: 12px;
+  border-radius: var(--r-md);
   display: grid;
   place-items: center;
   font-size: var(--f-lg);
@@ -354,7 +354,7 @@ body {
   color: var(--faint);
   cursor: pointer;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 4px 8px;
   display: flex;
   align-items: center;
@@ -395,7 +395,7 @@ body {
 .theme {
   width: 40px;
   height: 40px;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--card);
   cursor: pointer;
@@ -450,7 +450,7 @@ body {
 .hello {
   background: linear-gradient(135deg, var(--glow), transparent);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px 18px;
   font-size: var(--f-md);
   line-height: 1.55;
@@ -493,11 +493,11 @@ body {
 .bubble {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 13px 16px;
   font-size: var(--f-md);
   line-height: 1.62;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .msg.me {
   flex-direction: row-reverse;
@@ -519,7 +519,7 @@ body {
 .photo {
   position: relative;
   display: inline-block;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   overflow: hidden;
   border: 1px solid var(--line);
   margin-top: 8px;
@@ -549,7 +549,7 @@ body {
   transform: translate(-50%, -50%);
   white-space: nowrap;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.92);
   color: var(--text);
@@ -557,7 +557,7 @@ body {
   font-size: var(--f-xs);
   font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 [data-theme='dark'] .photo .reveal {
   background: rgba(28, 22, 24, 0.9);
@@ -565,7 +565,7 @@ body {
 /* composer 未送出嘅預覽：更細、同 `×` 掣排一行 */
 .attach .photo {
   margin-top: 0;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
 }
 .photo.thumb img {
   width: 48px;
@@ -586,7 +586,7 @@ body {
      6px 高）。grid 版只出現喺 flex 格仔度，block 唔會影響排法。 */
   display: block;
   margin-top: 0;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 .photo.grid .reveal {
   padding: 5px 10px;
@@ -595,10 +595,10 @@ body {
 .card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
   margin-top: 6px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .card :is(h2, h4) {
   font-family: var(--serif);
@@ -615,7 +615,7 @@ body {
 }
 .metric {
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 10px 12px;
   background: var(--panel);
 }
@@ -664,7 +664,7 @@ body {
   flex: none;
   margin-top: 2px;
   background: var(--tint-accent);
-  border-radius: 7px;
+  border-radius: var(--r-xs);
   width: 22px;
   height: 22px;
   display: grid;
@@ -705,7 +705,7 @@ body {
 .iconbtn {
   width: var(--tap);
   height: var(--tap);
-  border-radius: 13px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--muted);
@@ -729,8 +729,10 @@ body {
 .compose textarea {
   flex: 1;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  /* WCAG 1.4.11：呢條邊**識別**輸入框（盒背景同卡片底差 1.04:1，冇邊就睇唔到），
+     所以要 3:1。裝飾用嘅 --line（1.31:1）唔可以用喺控件。 */
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
   /* 10px（唔係 12px）：1.5 行高 + 20px padding + 2px 邊框 = 44px，同相機／發送掣
      一樣高。實測 12px 會變 48px，輸入嘅字同左右兩個掣差 2px，睇落歪。 */
   padding: 10px 16px;
@@ -751,7 +753,9 @@ body {
 }
 .compose input:focus,
 .compose textarea:focus {
-  border-color: var(--accent);
+  /* focus indicator 要 3:1（WCAG 1.4.11）：--accent 喺白底只有 2.2:1，
+     所以邊用 --accent-deep（4.61:1），外環用 --glow 只做裝飾。 */
+  border-color: var(--accent-deep);
   box-shadow: 0 0 0 3px var(--glow);
 }
 /* 發送：圓形箭嘴掣（唔再係「發送」兩個字佔一大塊） */
@@ -766,7 +770,7 @@ body {
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 6px 18px -8px var(--accent);
+  box-shadow: var(--shadow-2);
 }
 .send svg {
   width: 21px;
@@ -802,10 +806,10 @@ body {
 }
 .score {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
   background: linear-gradient(160deg, var(--card), var(--panel));
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .score .sh {
   display: flex;
@@ -833,7 +837,7 @@ body {
 }
 .score .big {
   font-family: var(--mono);
-  font-size: 46px;
+  font-size: var(--f-4xl);
   font-weight: 500;
   letter-spacing: -2px;
 }
@@ -870,7 +874,7 @@ body {
 }
 .sc-metrics .m {
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   padding: 8px 9px;
   background: var(--card);
 }
@@ -906,9 +910,9 @@ body {
 .mem {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 10px 13px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .mem .t {
   font-family: var(--mono);
@@ -934,7 +938,7 @@ body {
 .mem .conf {
   margin-top: 7px;
   height: 4px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--line);
   overflow: hidden;
 }
@@ -964,7 +968,7 @@ body {
   bottom: 6px;
   width: 2px;
   background: var(--line);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
 }
 .tl .ev {
   position: relative;
@@ -1014,7 +1018,7 @@ body {
   background: rgba(217, 138, 102, 0.14);
   border: 1px solid var(--warn);
   color: var(--warn);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 9px 12px;
   font-size: var(--f-sm);
   font-weight: 700;
@@ -1047,8 +1051,8 @@ body {
   min-width: 160px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
   padding: 6px;
   z-index: 30;
 }
@@ -1064,7 +1068,7 @@ body {
   background: none;
   color: inherit;
   font: inherit;
-  border-radius: 9px;
+  border-radius: var(--r-sm);
   font-size: var(--f-sm);
   cursor: pointer;
 }
@@ -1083,7 +1087,7 @@ body {
   width: 44px;
   height: 44px;
   object-fit: cover;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
 }
 .attach .x {
@@ -1137,7 +1141,7 @@ body {
   border: 1px solid var(--accent-deep);
   background: transparent;
   color: var(--accent-deep);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 10px 16px;
   font-weight: 700;
   font-size: var(--f-sm);
@@ -1165,11 +1169,11 @@ body {
 }
 .entry-card {
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   padding: 15px 17px;
   margin-bottom: 12px;
   background: var(--card);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .entry-date {
   font-family: var(--mono);
@@ -1190,7 +1194,7 @@ body {
 }
 .chip {
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   padding: 5px 11px;
   font-size: var(--f-xs);
   font-family: var(--mono);
@@ -1210,9 +1214,162 @@ body {
   width: 72px;
   height: 72px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--line);
 }
+/* ---------- Settings → 顧問（persona，2026-10-21） ---------- */
+.persona-card {
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--shadow-1);
+}
+.persona-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.persona-field.block {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.persona-field .k {
+  width: 116px;
+  flex: none;
+  font-size: var(--f-sm);
+  color: var(--muted);
+}
+.persona-field.block .k {
+  width: auto;
+}
+.persona-field input,
+.persona-field textarea {
+  flex: 1;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--f-md);
+}
+.persona-field textarea {
+  min-height: 76px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.persona-field input:focus-visible,
+.persona-field textarea:focus-visible,
+.persona-field .seg button:focus-visible,
+.persona-field .switch:focus-visible {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
+}
+.persona-field .seg {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+.persona-field .seg button {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--f-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.persona-field .seg button.on {
+  background: var(--accent-deep);
+  color: var(--card);
+}
+.persona-greet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* 26px 高嘅視覺 track，但**撳得嘅範圍係 44px**（專案規則：冇 tap target < 44px）。
+   做法：button 本身 44px 高、透明，track 用 ::before 畫，knob 用 span 定位。 */
+.persona-greet .switch {
+  position: relative;
+  width: 46px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex: none;
+}
+.persona-greet .switch::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 26px;
+  transform: translateY(-50%);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.persona-greet .switch span {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--muted);
+  transition: left 160ms ease, background 160ms ease;
+}
+.persona-greet .switch.on::before {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+.persona-greet .switch.on span {
+  left: 24px;
+  background: var(--card);
+}
+.persona-field .hint,
+.persona-greet .hint {
+  display: block;
+  font-size: var(--f-xs);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.persona-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* 窄屏（手機）一律 label 擺上面：390px 之下 116px label + 控件 + 說明文字會擠成
+   三行（實測「主動問候」嗰行最嚴重），而且左邊界會跳。 */
+@media (max-width: 560px) {
+  .persona-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .persona-field .k {
+    width: auto;
+  }
+  .persona-greet {
+    flex-wrap: wrap;
+  }
+}
+
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1220,11 +1377,10 @@ body {
   max-width: 720px;
 }
 .setting {
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   padding: 16px;
   background: var(--card);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .setting .k {
   font-family: var(--mono);
@@ -1287,11 +1443,11 @@ body {
   min-height: var(--tap); font-size: var(--f-xs); padding: 2px 8px; margin-left: 8px; }
 .good { color: var(--good); }
 .bad { color: var(--danger); }
-.tl .ev .src { margin-left: 6px; font-size: var(--f-xs); padding: 1px 6px; border-radius: 999px; background: var(--panel); color: var(--muted); }
+.tl .ev .src { margin-left: 6px; font-size: var(--f-xs); padding: 1px 6px; border-radius: var(--r-pill); background: var(--panel); color: var(--muted); }
 
 /* ---- upload / sending feedback ---- */
 .pending-dot { font-size: var(--f-xs); color: var(--muted); margin-left: 6px; font-style: italic; }
-.chip { font-size: var(--f-xs); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+.chip { font-size: var(--f-xs); border-radius: var(--r-pill); padding: 3px 10px; white-space: nowrap; }
 .chip.uploading { background: var(--panel); color: var(--muted); }
 .chip.upload-err { background: var(--tint-bad); color: var(--danger); }
 /* What happened to the uploaded clip (frames taken, whether it was re-encoded). It can
@@ -1314,10 +1470,10 @@ body {
 /* ---- confirmed self-report events (Q49/Q51) ---- */
 .events-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
 .ev-label { font-size: var(--f-xs); color: var(--muted); }
-.event-chip { font-size: var(--f-xs); padding: 3px 10px; border-radius: 999px; background: var(--tint-info); color: var(--info); }
+.event-chip { font-size: var(--f-xs); padding: 3px 10px; border-radius: var(--r-pill); background: var(--tint-info); color: var(--info); }
 .event-chip.t-product_stop { background: var(--tint-bad); color: var(--danger); }
 .ev-actions { margin-left: auto; }
-.ev-yes { font-size: var(--f-xs); border: none; border-radius: 999px; min-height: 36px; padding: 4px 14px; background: var(--good); color: var(--card); cursor: pointer; }
+.ev-yes { font-size: var(--f-xs); border: none; border-radius: var(--r-pill); min-height: 36px; padding: 4px 14px; background: var(--good); color: var(--card); cursor: pointer; }
 .ev-yes:hover { filter: brightness(1.05); }
 .iconbtn.on { color: var(--info); }
 .metric .v.neutral { color: var(--muted); }
@@ -1362,7 +1518,7 @@ body {
   border: 0;
   background: none;
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   font-size: var(--f-xs);
   cursor: pointer;
   opacity: 0;
@@ -1397,7 +1553,7 @@ body {
 .note-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .entry-photos { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
 .photo-cell { position: relative; display: inline-block; }
-.photo-cell img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; display: block; }
+.photo-cell img { width: 96px; height: 96px; object-fit: cover; border-radius: var(--r-sm); display: block; }
 .photo-x {
   /* 真 `<button>`（以前係 `<i onClick>`，鍵盤完全撳唔到）。視覺上仲係 18px 圓點，
      但**撳得到嘅範圍係 44×44**：`::before` 畫嗰粒圓點，button 自己撐到 `--tap`。
@@ -1418,7 +1574,7 @@ body {
 
 /* ---- global scope + memory delete ---- */
 .scope-badge {
-  font-size: var(--f-xs); margin-left: 6px; padding: 1px 5px; border-radius: 999px;
+  font-size: var(--f-xs); margin-left: 6px; padding: 1px 5px; border-radius: var(--r-pill);
   background: var(--tint-good); color: var(--good); vertical-align: middle;
 }
 .mem .t { position: relative; padding-right: 0; display: flex; align-items: center; gap: 4px; }
@@ -1464,8 +1620,8 @@ body {
 .corr-note { font-size: var(--f-xs); color: var(--muted); margin: 2px 0 8px; }
 .corr-list { display: flex; flex-direction: column; gap: 8px; }
 .corr-item {
-  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
-  background: var(--card, #fff); box-shadow: var(--shadow, none);
+  border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px;
+  background: var(--card, #fff); box-shadow: var(--shadow-1, none);
 }
 .corr-item.strong { border-left: 3px solid #e8862e; }
 .corr-item.weak { border-left: 3px solid var(--line, #ccc); opacity: 0.85; }
@@ -1546,10 +1702,10 @@ body {
 .top-row .cur .part {
   width: 34px;
   height: 34px;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
-  font-size: 16px;
+  font-size: var(--f-md);
   background: var(--card);
   border: 1px solid var(--line);
   flex: none;
@@ -1637,7 +1793,7 @@ body {
 .jm-hero {
   background: linear-gradient(135deg, var(--glow), transparent);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 15px 18px;
   display: flex;
   align-items: center;
@@ -1660,7 +1816,7 @@ body {
 }
 .jm-empty {
   border: 1.5px dashed var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 34px 22px;
   text-align: center;
   background: var(--card);
@@ -1671,9 +1827,9 @@ body {
 .day-card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 18px 20px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   animation: rise 0.35s both;
 }
 .day-card-head {
@@ -1686,7 +1842,7 @@ body {
 .day-date {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--f-md);
   color: var(--accent-deep);
 }
 .jm-photos {
@@ -1705,7 +1861,7 @@ body {
   width: 148px;
   height: 148px;
   object-fit: cover;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   display: block;
 }
@@ -1724,9 +1880,12 @@ body {
   font-size: var(--f-sm);
   line-height: 1.55;
 }
-/* 手機首頁嘅「最近幾日」只係摘要：教練回覆長篇大論會令首頁變成 scroll 地獄
+/* 手機首頁嘅「最近幾日」只係摘要：顧問回覆長篇大論會令首頁變成 scroll 地獄
    （實測呢張卡 491px，佔手機一屏 58%）。詳細全文去「記錄」睇。 */
-.mob-home .jm-reply {
+/* ⚠️ 唔可以 clamp `.jm-reply` 本身：佢入面有 `.k`（block 標籤），而
+   `-webkit-line-clamp` 係用 box child 做行 → 標籤同正文會重疊（實測「鬼影」）。
+   要 clamp 嘅係純文字嗰個 <p>。 */
+.mob-home .jm-reply-text {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -1765,14 +1924,14 @@ body {
   bottom: 22px;
   z-index: 45;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: var(--card);
   font-weight: 700;
   font-size: var(--f-md);
   font-family: var(--sans);
   padding: 13px 20px;
-  box-shadow: 0 10px 26px -8px var(--accent);
+  box-shadow: var(--shadow-3);
   cursor: pointer;
 }
 .jm-fab:hover {
@@ -1804,7 +1963,7 @@ body {
   background: var(--panel);
   display: flex;
   flex-direction: column;
-  box-shadow: -18px 0 48px -22px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-4);
   animation: jm-drawer-in 0.22s both;
 }
 @keyframes jm-drawer-in {
@@ -1837,7 +1996,7 @@ body {
   cursor: pointer;
   width: var(--tap);
   min-height: var(--tap);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   display: grid;
   place-items: center;
   background: var(--glow);
@@ -1892,9 +2051,9 @@ body {
   grid-column: span 6;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px 18px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   min-width: 0;
 }
 .dash-card :is(h2, h3) {
@@ -1933,9 +2092,12 @@ body {
   gap: 12px;
 }
 .layout-opt {
-  border: 1.5px solid var(--line);
-  border-radius: 16px;
-  padding: 13px;
+  /* 1px（唔係 1.5px）：半像素邊喺 1x 螢幕會 render 成 2px 灰邊，同其他卡唔一致。
+     卡本身有底色 + 邊；縮圖 preview 唔再加邊（下面 .mini 改純底色）——一個盒
+     一條邊就夠，兩條邊會變成「盒感」來源。 */
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s4);
   background: var(--card);
   cursor: pointer;
   text-align: left;
@@ -1950,7 +2112,15 @@ body {
 }
 .layout-opt.active {
   border-color: var(--accent-deep);
+  /* 實心淡底 + 邊：唔止用邊色表示選中（顏色唔係唯一訊號） */
+  background: var(--tint-accent);
   box-shadow: 0 0 0 3px var(--glow);
+}
+.layout-opt.active .name em.in-use {
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 .layout-opt .name {
   font-size: var(--f-md);
@@ -1975,21 +2145,21 @@ body {
 }
 .mini {
   display: block;
-  height: 74px;
-  border-radius: 10px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 7px;
+  height: 64px; /* 縮圖只係示意：由 74 降到 64，令卡片細 ~15%（佢佔咗成張卡 45% 高度） */
+  border-radius: var(--r-sm);
+  /* 冇邊：底色已經同卡唔同（--bg vs --card），兩樣一齊做 = 盒感 */
+  background: var(--bg);
+  padding: var(--s2);
 }
 .mini i {
   display: block;
   background: var(--line);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 .mini b {
   display: block;
   background: var(--accent-soft);
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   height: 4px;
 }
 .mini-chat {
@@ -2101,16 +2271,16 @@ body {
   gap: 10px;
   border: 1px solid var(--line);
   background: var(--card);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 9px 12px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .conv-mgr-row.active {
   border-color: var(--accent-soft);
   background: linear-gradient(135deg, var(--glow), transparent);
 }
 .conv-mgr-row .part {
-  font-size: 16px;
+  font-size: var(--f-md);
 }
 .conv-mgr-row .nm {
   font-weight: 700;
@@ -2128,12 +2298,12 @@ body {
 .btn.small {
   padding: 6px 12px;
   font-size: var(--f-xs);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 textarea {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-md);
   padding: 10px 12px;
   color: var(--text);
   font-family: var(--sans);
@@ -2223,7 +2393,7 @@ textarea:focus {
   /* < 16px 會令 iOS Safari focus 輸入框時自動 zoom 成個 page */
   .compose input,
   .compose textarea {
-    font-size: 16px;
+    font-size: var(--f-md);
     min-width: 0;
   }
   /* 手機：相再細一格（168px 喺 390px 螢幕太搶眼） */
@@ -2386,7 +2556,9 @@ textarea:focus {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 14px 22px;
+  /* 底部要留够位：`MobileShell` 嘅 tab bar 係 sticky 喺 scene 下面，padding 太細
+     最後一行 chip 會被切一半（實測 390×844 有切）。+ safe-area 應付 iPhone 底條。 */
+  padding: 14px 14px calc(28px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 13px;
@@ -2395,15 +2567,20 @@ textarea:focus {
 .mob-home > * {
   flex: none;
 }
+/* Hero：以前「最近一次記錄」用 30px serif，係畫面最大最黑嘅嘢 —— 但佢只係一個
+   **標籤**，真正嘅資料（2/6）反而細。Refactoring UI：標題通常係 label，16–18px 夠；
+   數據才係主角。所以標題降到 --f-lg，環形數字升到 --f-2xl。
+   同時去咗漸變底（「平底睇落 plain 所以加 gradient」係典型業餘訊號）。 */
 .mob-hero {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: linear-gradient(150deg, var(--glow), transparent 62%), var(--card);
+  gap: var(--s4);
+  background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 16px 17px;
-  box-shadow: var(--shadow);
+  border-radius: var(--r-lg);
+  padding: var(--s4);
+  box-shadow: var(--shadow-1);
 }
 .mob-hero-txt {
   flex: 1;
@@ -2419,10 +2596,10 @@ textarea:focus {
 .mob-hero .h1 {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 28px;
-  line-height: 1.08;
-  letter-spacing: -0.3px;
-  margin: 6px 0 7px;
+  font-size: var(--f-lg);
+  line-height: 1.2;
+  letter-spacing: -0.1px;
+  margin: 4px 0 6px;
 }
 .mob-hero .sub {
   font-size: var(--f-sm);
@@ -2431,13 +2608,17 @@ textarea:focus {
 }
 /* 環形進度：顯示「今日記低咗幾個指標」（--v = 0–100），唔係膚況分數 */
 .mob-ring {
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
   flex: none;
   position: relative;
-  display: grid;
-  place-items: center;
+  /* flex column：數字 + 「項指標」一齊放喺圈內（caption 浮喺圈外會變成「吊住」） */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
   background: conic-gradient(var(--accent) calc(var(--v, 0) * 1%), var(--line) 0);
 }
 .mob-ring::before {
@@ -2450,17 +2631,24 @@ textarea:focus {
 .mob-ring span {
   position: relative;
   font-family: var(--mono);
-  font-size: var(--f-xl);
+  font-size: var(--f-2xl);
   font-weight: 500;
+  color: var(--text);
 }
 .mob-ring span small {
   font-size: var(--f-xs);
   color: var(--faint);
 }
+/* 「項指標」：解釋 2/6 係咩。冇呢個字，用戶只見到兩個數（實測 critique 第一句就問）。 */
+.mob-ring-cap {
+  font-size: 11px; /* 唯一 11px：圈內空間有限，而 11px 仍然可讀（axe 會驗） */
+  color: var(--faint);
+  line-height: 1;
+}
 .mob-cta {
   width: 100%;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
   font-family: var(--sans);
   font-size: var(--f-md);
@@ -2468,21 +2656,23 @@ textarea:focus {
   letter-spacing: 0.2px;
   color: var(--card);
   cursor: pointer;
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  box-shadow: 0 12px 26px -12px var(--accent);
+  background: var(--accent-deep);
+  box-shadow: var(--shadow-2);
 }
 .mob-card {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 16px 17px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .mob-card :is(h2, h3) {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: var(--f-md);
-  color: var(--accent-deep);
+  /* 14px + muted：呢啲係**標籤**唔係標題；之前同 hero 標題一樣搶眼，兩個粉紅色
+     標題互相競爭。 */
+  font-size: var(--f-sm);
+  color: var(--muted);
   letter-spacing: 0.2px;
   margin-bottom: 12px;
 }
@@ -2512,7 +2702,7 @@ textarea:focus {
     max-width: 420px;
     border-left: 1px solid var(--line);
     border-right: 1px solid var(--line);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-1);
   }
 }
 
@@ -2570,7 +2760,7 @@ textarea:focus {
   text-align: left;
   padding: 9px 11px;
   border: 1px solid transparent;
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   background: none;
   cursor: pointer;
   font-family: var(--sans);
@@ -2590,7 +2780,7 @@ textarea:focus {
   color: var(--accent-deep);
   background: var(--card);
   border-color: var(--line);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .guide-toc-foot {
   margin-top: 14px;
@@ -2661,7 +2851,7 @@ textarea:focus {
 .guide-callout {
   border: 1px solid var(--line);
   border-left-width: 3px;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 12px 15px;
   font-size: var(--f-md);
   line-height: 1.7;
@@ -2699,7 +2889,7 @@ textarea:focus {
   flex: none;
   width: 22px;
   height: 22px;
-  border-radius: 7px;
+  border-radius: var(--r-xs);
   display: grid;
   place-items: center;
   background: var(--glow);
@@ -2728,10 +2918,10 @@ textarea:focus {
 }
 .guide-actives li {
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 11px 14px;
   background: var(--card);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -2754,7 +2944,7 @@ textarea:focus {
   font-family: var(--mono);
   font-size: var(--f-xs);
   letter-spacing: 0.06em;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 2px 8px;
 }
 .guide-actives .tier.primary {
@@ -2787,7 +2977,7 @@ textarea:focus {
   font-size: var(--f-xs);
   color: var(--muted);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 2px 8px;
   background: var(--panel);
   cursor: help;
@@ -2802,7 +2992,7 @@ textarea:focus {
   position: relative;
   aspect-ratio: 16 / 9;
   border: 1.5px dashed var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: repeating-linear-gradient(
     45deg,
     var(--panel) 0 12px,
@@ -2843,7 +3033,7 @@ textarea:focus {
   text-transform: uppercase;
   color: var(--warn);
   border: 1px solid var(--warn);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 1px 7px;
 }
 
@@ -2861,7 +3051,7 @@ textarea:focus {
   line-height: 1.5;
   padding: 8px 11px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: var(--r-sm);
   background: var(--panel);
 }
 .guide-sourcelist .src {
@@ -2911,9 +3101,9 @@ textarea:focus {
   text-align: left;
   padding: 15px 17px;
   border: 1.5px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   background: var(--card);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   cursor: pointer;
   font-family: var(--sans);
   transition: border-color 0.15s;
@@ -2935,7 +3125,7 @@ textarea:focus {
 .guide-entry-btn .t b {
   font-family: var(--serif);
   font-weight: 600;
-  font-size: 16px;
+  font-size: var(--f-md);
 }
 .guide-entry-btn .t em {
   font-style: normal;
@@ -2991,13 +3181,13 @@ textarea:focus {
   width: 100%;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   padding: 26px 24px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
 }
 .consent-card :is(h1, h2) {
   font-family: var(--serif);
-  font-size: 21px;
+  font-size: var(--f-2xl);
   margin-bottom: 14px;
   color: var(--accent-deep);
 }
@@ -3014,7 +3204,7 @@ textarea:focus {
   font-family: var(--mono);
   font-size: var(--f-xs);
   background: var(--panel);
-  border-radius: 6px;
+  border-radius: var(--r-xs);
   padding: 1px 5px;
 }
 .consent-check {
@@ -3025,7 +3215,7 @@ textarea:focus {
   line-height: 1.5;
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--panel);
   cursor: pointer;
 }
@@ -3046,7 +3236,7 @@ textarea:focus {
   width: 100%;
   padding: 13px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   color: var(--card);
   font-family: var(--sans);
@@ -3073,13 +3263,13 @@ textarea:focus {
   max-width: 100%;
   padding: 6px 26px 6px 6px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: var(--card);
 }
 .clip-thumb {
   width: 54px;
   height: 54px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   object-fit: cover;
   background: var(--panel);
   flex: none;
@@ -3117,7 +3307,7 @@ textarea:focus {
 .clip-bar {
   display: block;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--line);
   overflow: hidden;
 }
@@ -3174,7 +3364,7 @@ textarea:focus {
   margin-top: 8px;
   padding: 6px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--panel);
   font-size: var(--f-xs);
   color: var(--muted);
@@ -3275,12 +3465,12 @@ textarea:focus {
   max-width: 560px;
   margin: 0 auto;
   background: var(--card);
-  border-radius: 22px 22px 0 0;
+  border-radius: var(--r-lg) 22px 0 0;
   padding: var(--s4) var(--s4) calc(var(--s4) + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   animation: sheet-up var(--t-sheet) var(--ease);
 }
 @keyframes sheet-up {
@@ -3326,7 +3516,7 @@ textarea:focus {
   background: var(--panel);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: var(--f-md);
   padding: 11px 13px;
 }
 /* Toast：底部、tab bar 之上 */
@@ -3352,7 +3542,7 @@ textarea:focus {
   border-radius: var(--r-md);
   padding: 12px 14px;
   font-size: var(--f-sm);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-1);
   animation: toast-in var(--t-base) var(--ease);
 }
 .toast.err {
@@ -3389,7 +3579,7 @@ textarea:focus {
   position: relative;
   overflow: hidden;
   height: 14px;
-  border-radius: 7px;
+  border-radius: var(--r-xs);
   background: var(--line);
 }
 /* 閃光用 `transform` 掃一個 pseudo-element：`background-position` 每格都要 repaint

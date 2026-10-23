@@ -40,7 +40,7 @@
 |---|---|---|---|
 | `.meta` 對話時間「你 · 18:00」 | **1.19** | 4.5 | 9.5 |
 | `.advice li .n` 建議步驟編號 | **1.00** | 4.5 | 11 |
-| `.meta`（教練）/ `.disclaimer` | 2.22 | 4.5 | 9.5–11 |
+| `.meta`（顧問）/ `.disclaimer` | 2.22 | 4.5 | 9.5–11 |
 | `.v bad` / `.v good` 指標值 | 2.55 / 2.86 | 3（大字） | 18 |
 | `.k` 指標 label / `.tl` tab label（**`.tl` 2026-10-20 已刪，見下**） | 3.1 | 4.5 | 9.5–11 |
 | `.entry-date` / `.pct` | 2.22 | 4.5 | 8.5–10 |
@@ -59,7 +59,7 @@
 | `:focus-visible` | **0** | keyboard／switch access 完全冇 focus 提示 |
 | `prefers-reduced-motion` | **0**（13 transitions + 5 keyframes） | 關唔到動畫 |
 | `<h1>` | 每屏 **2 個**，之後直接跳 `<h4>` | heading 階層斷（a11y） |
-| `aria-live` | 0 | 「教練諗緊…」／錯誤唔會讀出嚟 |
+| `aria-live` | 0 | 「顧問諗緊…」／錯誤唔會讀出嚟 |
 | 原生對話框 | `window.alert` / `window.prompt` 仍在（改名／刪除／錯誤） | 手機上樣衰、阻塞，而且 in-app browser 會封 `prompt()` |
 
 ### 1.5 一致性（用戶講嘅「細微改變」）
@@ -106,7 +106,7 @@
 2. 文字下限 12px：`.meta` 12、`.k` 12、`.entry-date` 12、`.pct` 12。**tab label 2026-10-20 之後取消**（改 icon-only，見 §7 決定 5 嘅更新）。
 3. 對比度：`--muted` 由 3.0 拉到 ≥4.5（對話時間、disclaimer、link-btn、指標值），
    步驟編號 `.n` 換深色底或深色字（而家 1.0 = 睇唔到）。
-4. 對話：`aria-live` 播「教練諗緊…」；送出後 optimistic 顯示；錯誤 inline 而唔係 `alert`。
+4. 對話：`aria-live` 播「顧問諗緊…」；送出後 optimistic 顯示；錯誤 inline 而唔係 `alert`。
 5. 記錄／設定：改名／新增部位／刪除 → **bottom sheet ＋ inline 確認**（取代 `prompt`/`alert`）。
 6. 載入：每個 scene 出 skeleton（唔係「載入中…」）；空態統一一個空態元件。
 7. 動效：tab 切換加 120ms cross-fade、訊息入場收短、sheet 用 spring；
@@ -278,3 +278,45 @@
 
 **批咗之後**：Phase 1（token ＋ 元件 ＋ icon sweep）→ Phase 2（字級／對比度／tap target／sheet／toast／skeleton）→ Phase 3（相片 viewer、鍵盤感知、暗色覆核），
 每步都要 `npm run ui:check` 綠 ＋ snapshot diff 逐個解釋。
+
+## 8. Refactoring UI 一輪（2026-10-22）
+
+用戶要求：「install refactoring-ui-skill, then use it to perfect ui ux」。
+
+Skill 裝喺 `~/.claude/skills/refactoring-ui`（`s0xDk/refactoring-ui-skill`，內容係 Wathan & Schoger 嘅機械規則：固定 scale、用 weight/color 做層級、elevation 分五級、hard rules）。**注意：skill 只提供規則，實際值仍然要落 `tokens.css`**，唔可以另外開一套。
+
+### 8.1 量到嘅問題（改之前，真瀏覽器 6 個 scene）
+
+| 類別 | 改之前 | 問題 |
+|---|---|---|
+| 字級 | 12 / 13 / 15 / **16** / 17 / 19 / 22 / 24 / 28 | 唔喺 scale、級距太密（~7%），分唔出「大少少」同「大好多」 |
+| 圓角 | **10 種**（2/3/4/6/7/8/9/10/11/12/13/14/16/18/20/22/999） | 「業餘感」最大來源 |
+| 陰影 | 1 個 `--shadow` ＋ 5 個散裝 accent 陰影 | 卡／選單／sheet／toast 浮喺同一層 |
+| 邊框 | **106 個** `1px var(--line)`（1.31:1） | 盒感重；而且**輸入框邊都係用佢** → 1.31:1，違反 WCAG 1.4.11（控件邊界要 3:1） |
+| 間距 | 8/10/6/13/7/11/… 共 30+ 個值 | 唔係 scale |
+
+### 8.2 改咗咩
+
+- `tokens.css`：type scale → **12 14 16 18 20 24 30 36**；spacing 加 `--s7 48`／`--s8 64`；圓角收成 **xs 6 / sm 10 / md 16 / lg 24 / pill**；陰影 → **`--shadow-1..4`**（卡／下拉／sheet／modal，暖灰）；新增 **`--line-strong`**（燈 3.67:1、暗 3.31:1）**只**用喺控件邊界，`--line` 留返做裝飾分隔。
+- `index.css`：所有 raw 字級／圓角換 token；`var(--shadow)` → 對應 elevation；散裝 accent 陰影收斂；**控件邊界（compose textarea、sheet textarea、persona 卡嘅 input／textarea／segmented、switch）改用 `--line-strong`**；focus 邊由 `--accent`（2.2:1）改 `--accent-deep`；`.setting`／`.persona-card` 去掉「邊框＋底色＋陰影」三重分隔。
+- **手機首頁（MobileHome）**：hero 標題 30px → **18px**（佢係 label，唔應該大過數據）、環 64 → **76px**、環內數字 → 24px、新增圈內「項指標」（之前 2/6 完全冇解釋）、hero 去漸變底、CTA 由漸變改**實色 `--accent-deep`**、卡片標題 16 → 14px 兼轉 `--muted`（唔再同 hero 爭）、日期格式統一 `10-01 週四`（同一屏本來出現 3 次）、timeline chip 排序跟 `ATTRIBUTE_KEYS`（兩個卡次序本來唔同）、「顧問回覆 · Agent」→「顧問回覆」。
+- **修好一個真 render bug**：`-webkit-line-clamp` 貼喺 `.jm-reply` 容器（入面有 `.k` block 標籤），clamp 用 box child 做行 → 標籤同正文重疊（「鬼影」）。改成 clamp 純文字 `<p class="jm-reply-text">`。實測前後都有截圖。
+- **`LayoutPicker`**：選中卡由「只有邊色」變成**實心底 `--tint-accent` ＋ ✓ 使用中 ＋ `aria-pressed`**（顏色唔可以係唯一訊號）；縮圖 preview 去邊（一卡一邊）；badge 只有選中嗰張係粉紅；1.5px → 1px；padding 入 scale。
+
+### 8.3 改之後（同一支量度 script）
+
+```
+FONTS  12(148) 16(78) 14(21) 20(16) 18(9) 30(2) 24(1)      ← 全部喺 scale
+RADII  16(61) 6(49) 999(24) 10(20) 24(4) ＋ 50%(圓)          ← 4 級 + pill
+SHADOW shadow-1(31) shadow-3(1) ＋ focus ring
+BORDER line(103 裝飾) accent-deep(8) line-strong(4 控件)
+```
+
+`npm run ui:check` 全綠（64 passed，含 axe 淺／暗 12 個 scene），snapshot 已重生。
+
+### 8.4 未做
+
+- **106 個裝飾邊框**仍然多（尤其桌面三欄）。下一步可以按「有底色就唔要邊」逐個卡種減。
+- 桌面 dashboard 未逐格 critique（今輪集中手機首頁＋settings）。
+- `--line-strong` 只用喺 4 個控件；如果有新控件（select／checkbox）要跟同一條規則。
+- a11y：`--line-strong` 令控件邊由 1.31:1 → 3.67:1，但 axe **唔會**報 1.4.11 嘅 non-text contrast，所以呢個要靠 code review／手量。

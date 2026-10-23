@@ -8,7 +8,7 @@ import { LayoutProvider, useLayout } from './layouts/LayoutContext'
 import { Shell } from './layouts/Shells'
 import { ThemeProvider } from './theme'
 import * as api from './api'
-import { fromServerMessage } from './format'
+import { buildAnalysis, fromServerMessage } from './format'
 import type { ConsultAttempt, Conversation, DetectedEvent, Message } from './types'
 import type { ShellProps } from './layouts/defs'
 
@@ -188,7 +188,8 @@ function AppInner() {
           title: res.advice.title || undefined,
           time: '現在',
           date: new Date().toISOString().slice(0, 10),
-          analysis: { title: 'AI 分析', metrics: res.analysis.metrics, advice: res.advice.items },
+          // 冇指標又冇建議就唔出分析卡（同 format.buildAnalysis 同一個判斷）。
+          analysis: buildAnalysis(res.analysis.metrics, res.advice.items),
           disclaimer: res.advice.disclaimer,
           escalate: res.escalate,
           vision_used: res.vision_used,

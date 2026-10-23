@@ -307,6 +307,32 @@ export async function applyEvents(
   )
 }
 
+/** 顧問人設（Settings → 顧問）。全部由後端驗證同 cap 長度。 */
+export interface Persona {
+  gender: '' | 'male' | 'female'
+  ethnicity: string
+  prompt: string
+  /** 用戶冇填自由文字時後端用嘅預設人設（前端顯示做 placeholder，唔好自己 hardcode） */
+  default_prompt: string
+  max_prompt_length: number
+  /** 主動問候（朝 09:00／晚 21:00）開關 */
+  greet_enabled: boolean
+}
+
+export async function getPersona(): Promise<Persona> {
+  return parse(await fetch('/api/persona'))
+}
+
+export async function patchPersona(patch: Partial<Pick<Persona, 'gender' | 'ethnicity' | 'prompt' | 'greet_enabled'>>): Promise<Persona> {
+  return parse(
+    await fetch('/api/persona', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    }),
+  )
+}
+
 export async function getSettings(): Promise<Settings> {
   return parse(await fetch('/api/settings'))
 }

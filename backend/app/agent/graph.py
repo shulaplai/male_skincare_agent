@@ -231,7 +231,7 @@ def build_graph(*, llm: FakeLLM, session_factory, embedder, vision_llm: FakeLLM 
             )
             recent_messages = []
             for m in reversed(recent):
-                who = "你" if m.role == "user" else "教練"
+                who = "你" if m.role == "user" else "顧問"
                 recent_messages.append(f"{who}：{m.text}")
 
             # First check-in = no entries at all yet (its photo becomes the

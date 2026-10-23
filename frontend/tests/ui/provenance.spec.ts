@@ -18,7 +18,7 @@ import { installFixtures } from './fixtures'
  * payload 特意用「難睇嘅」形狀（`vision_used: null`、`vision_clip: true`、
  * `mode: 'fake'`）：如果邊日有人手痕加返徽章，呢兩個 case 會即刻紅。
  */
-test('教練氣泡唔會顯示雲端／模型／睇相狀態', async ({ page }) => {
+test('顧問氣泡唔會顯示雲端／模型／睇相狀態', async ({ page }) => {
   await installFixtures(page)
   // Registered AFTER the catch-all so it wins (Playwright matches last-first).
   await page.route('**/api/conversations/*/messages', (r) =>

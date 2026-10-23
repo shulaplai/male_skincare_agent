@@ -42,7 +42,7 @@ export function DashHome({ p, nav }: HomeProps) {
         </div>
         <div className="dash-btns">
           <button className="btn" onClick={() => nav.go('chat')}>
-            <Icon name="camera" size={16} /> 今日打卡／問教練
+            <Icon name="camera" size={16} /> 今日打卡／問顧問
           </button>
           <button className="btn ghost" onClick={() => nav.go('records')}>
             <Icon name="clipboard-list" size={16} /> 完整記錄

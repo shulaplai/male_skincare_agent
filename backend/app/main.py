@@ -1,10 +1,11 @@
 """FastAPI entrypoint."""
+import asyncio
 import datetime
 import json
 import logging
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from pathlib import Path
 
@@ -119,6 +120,26 @@ class ProductEvalRequest(BaseModel):
     pigmentation: bool | None = None
 
 
+GREETING_TICK_SECONDS = 60
+
+
+async def _greeting_loop() -> None:
+    """每分鐘問一次「而家應該唔應該主動問候？」（`scheduler.maybe_greet` 自己做去重）。
+
+    放喺 lifespan 而唔係 cron：呢個 app 係單用戶 self-host，冇 scheduler 依賴；
+    server 唔行 = 唔會有「背景突然發訊息」呢件事，亦唔會偷偷用 API credit。
+    """
+    from app.scheduler import maybe_greet
+
+    while True:
+        try:
+            if settings.greet_scheduler_enabled:
+                await asyncio.to_thread(maybe_greet)
+        except Exception:  # pragma: no cover - 背景 task 永遠唔可以整死 app
+            logger.warning("greeting loop error", exc_info=True)
+        await asyncio.sleep(GREETING_TICK_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # App-module logs (vision failures, tool errors, embedder fallback) must be
@@ -129,7 +150,16 @@ async def lifespan(_: FastAPI):
         format="%(levelname)s %(name)s: %(message)s",
     )
     init_db()
-    yield
+    task = None
+    if settings.greet_scheduler_enabled:
+        task = asyncio.create_task(_greeting_loop())
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            with suppress(BaseException):
+                await task
 
 
 logger = logging.getLogger(__name__)
@@ -851,6 +881,66 @@ def get_settings() -> dict:
             settings.anthropic_api_key or settings.deepseek_api_key or settings.openai_api_key
         ),
     }
+
+
+class PersonaRequest(BaseModel):
+    """Settings → 顧問：性別／背景／自由文字 ＋ 主動問候開關（全部 optional）。"""
+
+    gender: str | None = None
+    ethnicity: str | None = None
+    prompt: str | None = None
+    greet_enabled: bool | None = None
+
+
+@app.get("/api/persona")
+def get_persona(db: Session = Depends(get_session)) -> dict:
+    """現時嘅顧問人設（+ 預設文字，令前端唔使 hardcode 一份）。"""
+    from app import persona as persona_module
+
+    user = crud.get_or_create_default_user(db)
+    return {
+        **persona_module.as_dict(persona_module.from_user(user)),
+        "greet_enabled": bool(user.greet_enabled),
+    }
+
+
+@app.patch("/api/persona")
+def patch_persona(req: PersonaRequest, db: Session = Depends(get_session)) -> dict:
+    """Update the persona. Validation lives in `app.persona` (trim + hard caps)."""
+    from app import persona as persona_module
+
+    user = crud.get_or_create_default_user(db)
+    current = persona_module.from_user(user)
+    next_persona = persona_module.normalise(
+        req.gender if req.gender is not None else current.gender,
+        req.ethnicity if req.ethnicity is not None else current.ethnicity,
+        req.prompt if req.prompt is not None else current.free_text,
+    )
+    user.persona_gender = next_persona.gender
+    user.persona_ethnicity = next_persona.ethnicity
+    user.persona_prompt = next_persona.free_text
+    if req.greet_enabled is not None:
+        user.greet_enabled = bool(req.greet_enabled)
+    db.commit()
+    return {
+        **persona_module.as_dict(next_persona),
+        "greet_enabled": bool(user.greet_enabled),
+    }
+
+
+class GreetRequest(BaseModel):
+    """`slot` 留空 = 跟而家時間自動判斷；`force` = 跳過窗口同去重（手動測試用）。"""
+
+    slot: str | None = None
+    force: bool = False
+
+
+@app.post("/api/greet/run")
+def run_greeting_route(req: GreetRequest, db: Session = Depends(get_session)) -> dict:
+    """主動問候嘅手動入口（demo／驗證用；背景 loop 行同一條 `scheduler.run_greeting`）。"""
+    from app import scheduler
+
+    return scheduler.run_greeting(db, slot=req.slot, force=req.force)
 
 
 class EntryNoteRequest(BaseModel):

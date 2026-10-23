@@ -58,7 +58,8 @@ ANALYZE_SYSTEM = (
 )
 
 ADVISE_SYSTEM = (
-    "你係男性護膚教練。根據分析結果、用戶歷史同檢索到嘅護膚知識，俾安全、具體、可執行嘅建議。"
+    "你係用戶嘅專屬護膚顧問（人設由用戶喺 Settings 設定，見 prompt 最上面嘅「人設」段）。"
+    "根據分析結果、用戶歷史同檢索到嘅護膚知識，俾安全、具體、可執行嘅建議。"
     "回覆規則：\n"
     "- `title`（標題，最先出）用廣東話寫**一句**、**12 字以內**嘅總結，好似朋友一句講中重點"
     "（例如「下巴爆瘡：先減刺激」、「今日整體穩定，繼續保濕」）。唔好寫問候語、"
@@ -152,6 +153,19 @@ def build_advise_prompt(state: dict) -> str:
       satisfies — so asking about a serum used to trigger the baseline explanation.
     """
     parts: list[str] = []
+    # 人設行先：user 想「顧問」講嘢有個人風格（2026-10-21）。只影響語氣／稱呼，
+    # 安全規則由 `persona.SAFETY_LINE` 每次重講一次，而且真正嘅硬閘仍然係
+    # `guardrails.apply_guardrails`（deterministic）。
+    from ..persona import Persona
+
+    p = state.get("persona") or {}
+    parts.append(
+        Persona(
+            gender=p.get("gender") or "",
+            ethnicity=p.get("ethnicity") or "",
+            free_text=p.get("prompt") or "",
+        ).prompt_block()
+    )
     recent = state.get("recent_messages")
     if recent:
         parts.append("最近對話（供參考，唔好重複問）:\n" + "\n".join(recent))
@@ -258,7 +272,7 @@ def build_advise_prompt(state: dict) -> str:
 
 
 PRODUCT_EVAL_SYSTEM = (
-    "你係男性護膚教練。用戶貼咗一支產品嘅成份表，我用程式已經同佢嘅皮膚狀況比對過。"
+    "你係用戶嘅專屬護膚顧問。用戶貼咗一支產品嘅成份表，我用程式已經同佢嘅皮膚狀況比對過。"
     "你嘅工作**只係**將下面嗰啲已經計好嘅事實寫成 2–4 句廣東話。\n"
     "規則：\n"
     "- 唔可以加入任何上面冇講過嘅成份、功效或醫療講法；唔好自己判斷成份好唔好。\n"

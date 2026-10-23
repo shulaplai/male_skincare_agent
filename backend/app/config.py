@@ -29,10 +29,20 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     openai_api_key: str = ""
 
-    # DeepSeek V4 model tiering: photo analysis uses the vision model, other
-    # tasks (advice, memory) use the plain text model.
-    deepseek_text_model: str = "deepseek-v4-flash"
-    deepseek_vision_model: str = "deepseek-v4-flash-vision-exp"
+    # Model tiering is still *possible* (photo analysis reads `deepseek_vision_model`,
+    # everything else reads `deepseek_text_model`), but since 2026-10-21 it is no longer
+    # *needed*: DeepSeek serves ONE multimodal model. `/v1/models` lists exactly two ids
+    # — `deepseek-flash` (V4.1-Flash, 1M ctx, `input_modalities: ["text","image"]`) and
+    # `deepseek-v4-pro` (text only) — and `deepseek-flash` answers both plain and image
+    # calls (measured: 3/3 ids accepted an image; see docs/open-findings.md §十一).
+    # The old `deepseek-v4-flash-vision-exp` id still resolves as an alias but is gone
+    # from `/models`, so pinning it would break the day the alias is dropped.
+    deepseek_text_model: str = "deepseek-flash"
+    deepseek_vision_model: str = "deepseek-flash"
+
+    # 主動問候（2026-10-21）：每日 09:00／21:00 各一次，見 `app/greeting.py`。
+    # 測試同 CI 一律關掉（conftest 會 override），避免背景 task 喺 test DB 寫嘢。
+    greet_scheduler_enabled: bool = True
 
     # Model names for the other providers (only used when a key is set).
     anthropic_model: str = "claude-sonnet-5"

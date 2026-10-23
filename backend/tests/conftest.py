@@ -31,6 +31,19 @@ def _forbid(*args, **kwargs):
 
 
 @pytest.fixture(autouse=True)
+def no_background_greeting(monkeypatch):
+    """主動問候嘅背景 loop 喺 test 一律熄（佢會自己開 session 寫 ChatMessage）。
+
+    佢本身有 `mode == "fake"` 同 `_client` 兩重閘，但「唔會寫嘢」唔應該靠兩重閘
+    同時成立 —— test 要 deterministic，唔可以有背景 task 喺度動 DB。
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "greet_scheduler_enabled", False)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def no_real_llm(request, monkeypatch):
     if request.node.get_closest_marker("no_real_llm_opt_out"):
         yield

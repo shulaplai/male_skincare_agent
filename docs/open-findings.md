@@ -9,7 +9,7 @@
 
 ## 一、已經修好（有驗證）
 
-全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 348）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
+全部改動都跑過 `pytest -q`（當時 77 綠；呢個 repo 而家係 373）+ `npm run typecheck` + `npm run build` + `eval.run_eval --fake`（exit 0）。
 
 | 原本問題 | 改動 | 點證明 |
 |---|---|---|
@@ -126,7 +126,7 @@
 
 ```bash
 cd backend
-./.venv/bin/python -m pytest -q                    # 348 passed（2026-10-05）
+./.venv/bin/python -m pytest -q                    # 373 passed（2026-10-21）
 ./.venv/bin/python -m eval.run_eval --fake         # exit 0
 md5 -q data/skincoach.db                           # 應該係 40823465d6041edf11c05a44f07d88b9
 
@@ -297,3 +297,60 @@ cd ../frontend && npm run typecheck && npm run build
 - **41 張 snapshot 係機械重生**（`npm run ui:update` → 63 passed），我冇逐張人眼睇 diff。
 - **打字仍然唔係跟 SSE token**：SSE 係逐 node 到，最終文字仍然一次過落 `fresh` 訊息 → 「成段一次過打」。要真 token streaming 要改 `App.tsx` 收 delta（唔喺今次要求內）。
 - **`title` 係 LLM 生成**：真 LLM 今次出 11 字合規，但 prompt 只係「≤12 字」嘅指示，冇 deterministic 截斷。如果將來見到超長標題，前端會照 render（`coach-title` 冇 clamp）—— 要嘛加 `.slice` 截斷，要嘛喺 guardrail 加長度檢查。
+
+## 十二、DeepSeek 上游模型改咗（2026-10-21）
+
+用戶報「upload 相／片好似成功咗，你 check 下係咪一定要用 vision-exp」。查 `GET /v1/models`（用真 key，冇 print key）：
+
+| id | input modalities | 備註 |
+|---|---|---|
+| `deepseek-flash` | `["text","image"]` | V4.1-Flash、1M context、`effort` low/high/max（default high） |
+| `deepseek-v4-pro` | `["text"]` | 純文字 |
+
+`deepseek-v4-flash` 同 `deepseek-v4-flash-vision-exp` **已經唔喺 list 入面**（但仍然 resolve 成 alias）。實測三個 id **全部**接受圖片（`structured_vision` 都成功回覆），所以「vision 一定要另一個 model」呢個前提已經消失。
+
+改動：`app/config.py` 兩個 default 都改 `deepseek-flash`（保留 `deepseek_text_model`／`deepseek_vision_model` 兩個設定，將來想 pin `deepseek-v4-pro` 做文字都得），`docker-compose.yml`／`backend/README.md`／`README.md`／`docs/architecture.md`／`blog-post`／`user-notes`／`adr/0009`／`learn/02-llm.md`／`AGENTS.md`／`frontend/tests/ui/fixtures.ts` 一齊改。
+
+驗證：真端到端（temp DB + 合成圖）`vision_used=True`、`images_loaded=1`，而模型**照實講**「睇唔到真實皮膚紋理，只見到兩個色斑」——即係冇作嘢。`pytest` 348、`eval --fake` EXIT 0、`ui:check` EXIT 0（63 passed）。
+
+⚠️ 仲未做：**真人真相／真片**嘅 smoke test（我只可以用合成圖證明 wiring）。
+
+## 十三、「顧問」：人設＋主動問候（2026-10-21）
+
+用戶要求（原話意思）：介面而家叫「教練」，想改成「顧問」，Settings 可以設定人設（性別／種族／自由文字，default 一位有多年經驗嘅皮膚科醫生），令佢講嘢人性化啲；回覆可以分 2–4 個 message；就算用戶冇開口，每日朝早／夜晚各問候一次。排咗喺 18:00 之後做。
+
+四個決定（用戶逐個揀）：①回覆**一條 bubble**（標題＋正文＋分析卡，維持 2026-10-20 嘅三段式，唔拆多條）②人設存**後端 DB** ③問候 **09:00 ＋ 21:00、每日上限 2、23:00–08:00 靜音** ④UI **全部改叫「顧問」**。
+
+### 13.1 做咗咩
+
+| 部分 | 實作 | 證據 |
+|---|---|---|
+| 人設資料 | `User.persona_gender`／`persona_ethnicity`／`persona_prompt`／`greet_enabled` ＋ `db._COLUMN_MIGRATIONS` 補欄 | `tests/test_memory_guards.py::test_column_migrations_target_existing_model_columns`（更新 expected 清單） |
+| 人設邏輯 | `backend/app/persona.py`：`Persona`／`normalise()`（trim ＋ 400 字硬上限）／`prompt_block()`（**每次都帶 `SAFETY_LINE`**）／`as_dict()` | `tests/test_persona.py` |
+| prompt 注入 | `app/agent/state.py` 加 `persona: dict`；`service._load_persona()` 每次 consult 由 DB 讀一次；`build_advise_prompt` 第一段就係人設 | 同上 |
+| API | `GET /api/persona`、`PATCH /api/persona`（含 `greet_enabled`） | round-trip test |
+| 主動問候 | `app/greeting.py`（純：窗口／去重／prompt／長度）＋ `app/scheduler.py`（DB＋LLM）＋ `main` lifespan 每 60s 嘅 `_greeting_loop()` ＋ `POST /api/greet/run` 手動入口 | 窗口／去重／opt-out／fake 四個 test |
+| UI | `SettingsView` 新增「顧問」卡（性別 segmented、背景、人設 textarea、主動問候 switch、儲存）；`api.getPersona/patchPersona`；`tests/ui/fixtures.ts` 加 `PERSONA` | `ui:check` 63 passed；390／760px 量過冇 overflow、所有 tap target ≥44 |
+
+### 13.2 真 LLM 實測（1 次 call）
+
+`POST /api/greet/run {"slot":"evening","force":true}` →
+
+> 「夜晚啦，仲未瞓呀？你之前話下半面好易出暗瘡，呢幾日點呀，有冇試新嘢搽？」
+
+**佢引用咗真 DB 入面最後一條 entry 嘅原話**（「下半面好易出暗瘡」），冇作數、冇講分數。呢句已經寫入真 conversation（`payload.proactive="evening"`），所以今晚唔會再發第二次。
+
+### 13.3 刻意嘅限制（避免變成 spam）
+
+- 背景 loop **只喺 server 行緊嗰陣**才會 tick；server 唔行就唔會發（唔用系統 cron，唔會偷偷用 API credit）。
+- `FakeLLM` 模式**唔會**寫問候（罐頭文字寫入真對話就係假問候）。
+- 同一 slot 每日一次（靠 `payload.proactive`，重啟都唔會重複）；窗口外（深夜／靜音）唔發。
+- 長度硬上限 180 字（`greeting.compose`）＋ prompt 明講 1–2 句。
+- **從來唔寫 `Entry`**：打招呼唔係皮膚觀察，所以唔會污染當日數據。
+
+### 13.4 未做／要留意
+
+- **Persona 唔會傳去 `analyze`**（只影響 `advise`）。刻意：分析結果要跨人設一致，否則換個顧問就會影響歷史比較。
+- **問候時間固定喺 code**（09:00／21:00），Settings 未有得改時間；要改就加兩個欄位 + UI。
+- **測試用 `greet_enabled` 關掉背景 loop**（`tests/conftest.py` autouse fixture）—— test 唔可以靠「fake 唔會寫」呢重閘。
+- 41 張 snapshot 又重生過一次（`教練→顧問` 出現在 nav／meta／多處文案 ＋ 新增 Settings 卡），**diff 未逐張人眼睇**。

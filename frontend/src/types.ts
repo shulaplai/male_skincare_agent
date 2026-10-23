@@ -78,7 +78,7 @@ export interface Message {
   photo?: string
   /** 用戶今次上傳嘅係一段片（UI 出「🎬 皮膚影片」，唔會顯示抽格出嚟嘅相） */
   clip?: { duration: number }
-  /** 教練回覆嗰個 turn 係唔係一條片（保留俾 trace／診斷用，UI 唔再出徽章）。 */
+  /** 顧問回覆嗰個 turn 係唔係一條片（保留俾 trace／診斷用，UI 唔再出徽章）。 */
   vision_clip?: boolean
   /** 啱啱由 consult 收到嘅回覆（＝可以逐段揭示）。reload 返嚟嘅舊訊息冇呢個 flag。 */
   fresh?: boolean

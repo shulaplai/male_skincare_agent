@@ -144,8 +144,17 @@ export const GUIDE = {
   sources: ['www.nhs.uk :: Acne'],
 }
 
+export const PERSONA = {
+  gender: 'female',
+  ethnicity: '香港人',
+  prompt: '講嘢輕鬆啲，鍾意用生活化例子',
+  default_prompt: '一位有多年護膚經驗、講嘢直接但溫和嘅皮膚科顧問',
+  max_prompt_length: 400,
+  greet_enabled: true,
+}
+
 export const SETTINGS = {
-  llm_provider: 'deepseek', model: 'deepseek-v4-flash', vision_model: 'deepseek-v4-flash-vision-exp', has_api_key: true,
+  llm_provider: 'deepseek', model: 'deepseek-flash', vision_model: 'deepseek-flash', has_api_key: true,
 }
 
 export const HEALTH = { status: 'ok' }
@@ -176,6 +185,14 @@ export async function installFixtures(page: import('@playwright/test').Page): Pr
   await page.route('**/api/conversations/*/summary', (r) => r.fulfill({ json: SUMMARY }))
   await page.route('**/api/conversations/*/correlations', (r) => r.fulfill({ json: CORRELATIONS }))
   await page.route('**/api/guide', (r) => r.fulfill({ json: GUIDE }))
+  await page.route('**/api/persona', (r) => {
+    // PATCH 之後回同一份（前端會用 response 覆蓋 state）；內容唔重要，形狀要對。
+    if (r.request().method() === 'PATCH') {
+      const patch = r.request().postDataJSON() as Partial<typeof PERSONA>
+      return r.fulfill({ json: { ...PERSONA, ...patch } })
+    }
+    return r.fulfill({ json: PERSONA })
+  })
   // 相片：回一張固定嘅 PNG（唔係 JSON），令 <img> 有嘢顯示（snapshot 要確定性）
   await page.route('**/api/photos/*', (r) =>
     r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(PHOTO_PNG_B64, 'base64') }),

@@ -20,9 +20,11 @@ function dayLabel(date: string, short = false): string {
     if (diff === 1) return '昨天'
     return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 週${wd}`
   }
-  if (diff <= 0) return `今天 · 星期${wd}`
-  if (diff === 1) return `昨天 · 星期${wd}`
-  return `${date} · 星期${wd}`
+  // 同一個畫面唔應該同時出現 `2026-10-01 · 星期四` 同 `10-01 週四`（兩種格式、兩種星期寫法）。
+  // 一律用短格式：10-01 週四。年份只喺跨年時才需要，而家未有跨年紀錄。
+  if (diff <= 0) return `今天 · 週${wd}`
+  if (diff === 1) return `昨天 · 週${wd}`
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 週${wd}`
 }
 
 /** 本地今日 `YYYY-MM-DD`（entry.date 已經係呢個 shape）。 */
@@ -35,7 +37,7 @@ function todayYmd(): string {
 const severityOf = (e: RecordEntry | undefined, key: string): number | null =>
   e ? (e.attributes ?? []).find((a) => a.key === key)?.severity ?? null : null
 
-/** 每條 entry 當日最後一條教練回覆（用 App 已載入嘅 messages，唔另 fetch） */
+/** 每條 entry 當日最後一條顧問回覆（用 App 已載入嘅 messages，唔另 fetch） */
 function lastCoachByDate(messages: Message[]): Map<string, Message> {
   const map = new Map<string, Message>()
   for (const m of messages) {
@@ -97,7 +99,8 @@ export function MobileHome({ p, nav }: HomeProps) {
   const heroSub = () => {
     if (loading) return '載入緊…'
     if (!latest || today.recorded === 0) return '未有指標。撳下面打卡／影相，agent 會寫低今日狀態。'
-    if (!isToday) return `上次記錄係 ${latestLabel}。撳下面打卡記低今日。`
+    // 日期已經喺 kicker 同 hero 標題出咗，呢句唔再重複（實測一屏三次）
+    if (!isToday) return '撳下面打卡，記低今日嘅狀態。'
     if (!today.compared) return '第一次記錄，暫時未有得同上次比較。'
     return `${today.improved} 項改善 · ${today.worse} 項惡化 · ${today.same} 項持平`
   }
@@ -115,15 +118,16 @@ export function MobileHome({ p, nav }: HomeProps) {
           style={{ ['--v' as string]: (today.recorded / ATTRIBUTE_KEYS.length) * 100 }}
           title={`${isToday ? '今日' : latestLabel}記低咗 ${today.recorded}/${ATTRIBUTE_KEYS.length} 個指標`}
         >
-          <span>
+          <span aria-label={`已記低 ${today.recorded} / ${ATTRIBUTE_KEYS.length} 項指標`}>
             {today.recorded}
             <small>/{ATTRIBUTE_KEYS.length}</small>
           </span>
+          <span className="mob-ring-cap">項指標</span>
         </div>
       </section>
 
       <button className="mob-cta" onClick={() => nav.go('chat')}>
-        <Icon name="camera" size={16} /> 今日打卡／問教練
+        <Icon name="camera" size={16} /> 今日打卡／問顧問
       </button>
 
       {error && (
@@ -155,7 +159,7 @@ export function MobileHome({ p, nav }: HomeProps) {
                 )
               })}
             </div>
-            {!isToday && <p className="empty small">呢啲係 {latestLabel} 嘅數字。</p>}
+            {/* 日期只在 hero 出一次（以前同一日喺一屏出現 5 次） */}
           </>
         )}
       </section>
@@ -169,7 +173,11 @@ export function MobileHome({ p, nav }: HomeProps) {
         ) : (
           entries.slice(0, 3).map((e) => {
             const reply = coachByDate.get(e.date)
-            const attrs = (e.attributes ?? []).filter((a) => a.severity != null)
+            // 排序跟 ATTRIBUTE_KEYS：上面「最近一次指標」用同一個次序，兩個卡唔應該唔同
+            const attrs = (e.attributes ?? [])
+              .filter((a) => a.severity != null)
+              .slice()
+              .sort((a, b) => ATTRIBUTE_KEYS.indexOf(a.key) - ATTRIBUTE_KEYS.indexOf(b.key))
             return (
               <article className="entry-card" key={e.id}>
                 <div className="entry-date">{dayLabel(e.date, true)}</div>
@@ -187,8 +195,9 @@ export function MobileHome({ p, nav }: HomeProps) {
                     自拍 grid 擺喺呢度太搶眼／太多。相繼續喺「記錄」scene 睇。 */}
                 {reply && (
                   <div className="jm-reply">
-                    <div className="k">教練回覆 · Agent</div>
-                    {reply.text}
+                    <div className="k">顧問回覆</div>
+                    {/* 只 clamp 文字段落（見 index.css 註解）：clamp 成個盒會同標籤重疊 */}
+                    <p className="jm-reply-text">{reply.text}</p>
                   </div>
                 )}
               </article>

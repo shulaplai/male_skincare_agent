@@ -9,7 +9,7 @@
 # Backend（一定要喺 backend/ 度行，.env 由 CWD 讀）
 cd backend
 ./.venv/bin/python -m uvicorn app.main:app --reload --port 8001   # dev server
-./.venv/bin/python -m pytest -q                                   # 348 個 test，綠先算完成
+./.venv/bin/python -m pytest -q                                   # 373 個 test，綠先算完成
 ./.venv/bin/python -m eval.run_eval --fake                        # deterministic eval（CI 用）
 FASTEMBED_CACHE_PATH=./.hf-cache ./.venv/bin/python -m eval.run_eval  # 真 embedder + 有 key 時連埋 LLM-as-judge
 ./.venv/bin/python scripts/ingest_corpus.py                       # 重建 RAG corpus（chunks table）
@@ -22,7 +22,7 @@ cd frontend
 npm run typecheck    # tsc --noEmit，一定要過
 npm run build        # typecheck + vite build
 npm run dev          # :5173（proxy /api -> :8001，所以 backend 要同時行）
-npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（41 snapshot + axe 14（淺／暗＋heading 層級）＋ 5 互動 ＋ 5 相片模糊 ＋ 3 consult 串流 ＋ provenance）
+npm run ui:check     # ⭐ typecheck + eslint + stylelint + Playwright（41 snapshot + axe 14（淺／暗＋heading 層級）＋ 5 互動 ＋ 5 相片模糊 ＋ 3 consult 串流 ＋ provenance ＋ greeting）
 npm run ui:update    # UI 改動**預期之內**時更新 baseline snapshot（要逐個解釋）
 npm run ui:test      # 只跑 Playwright（會自己起 Vite :5180，唔撞 :5173/:5174）
 npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（baseline 係 macOS-only，見下面陷阱）
@@ -43,10 +43,13 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 | `backend/app/models.py` | SQLAlchemy tables：users / conversations / entries / photos / insights / timeline_events / chat_messages / **products** / **videos** / chunks | 加 column 要同步 `db.py` `_COLUMN_MIGRATIONS`（SQLite 唔會自動 ALTER）；**新表**唔使，`create_all` 會建 |
 | `backend/app/guide.py` | In-app「男士護膚基本資料」內容（Pydantic 樹 + 每句 `citations`）；「應該用咩產品」由 `recommend.RULES` **生成**，所以指南同 agent 唔可能唔一致 | 純函數；`tests/test_guide.py` 對真 DB 逐條驗引文（CI skip） |
 | `backend/app/video.py` | 影片 → 抽格：`video_path` / `probe` / `extract_frames` / `compress_video` / `save_video` / `video_file` / `delete_video`。**≤20 秒**、上限 **100MB**（`MAX_BYTES`，串流途中驗）、最多 **6 格**、去重（32×32 灰階平均差 <6.0）。>40MB（`COMPRESS_OVER_BYTES`）自動重編碼（縮到 1280px、CRF 26、**丟音軌**）。原始片**本機儲**（`data/videos/<32hex>`）＋ `Video` row | ⚠️ **imageio 個 ffmpeg plugin 唔收 `BytesIO`**，所以一定要先寫落 disk 再解碼。⚠️ **`compress_video` 會將條片改名做 `<id>.c.mp4`** —— 搵／刪片一定要經 `video_file()`／`delete_video()`（兩個 spelling 都認），自己砌 `data_dir / v.path` 就會漏（見 `backend-flow.md` §7） |
+| `backend/app/persona.py` | **「顧問」人設**（2026-10-21）：`Persona`／`normalise()`（trim＋400 字硬上限）／`prompt_block()`（**每次都帶 `SAFETY_LINE`**）／`from_user`／`for_conversation`／`as_dict`。純函數（DB import 喺 function 入面，所以 `prompts.py` 可以安全 import） | 人設只影響 `advise` 嘅語氣，**唔會**傳去 `analyze`；安全規則仍然由 `guardrails` 硬攔 |
+| `backend/app/greeting.py` | **主動問候嘅純邏輯**：`slot_for()`（朝 09:00–11:59／晚 21:00–22:59，其餘 None = 靜音）、`already_sent()`、`build_prompt()`、`compose()`（180 字上限）、`GreetingProse` | 窗口、去重、長度全部 deterministic；`tests/test_persona.py` 有 parametrised 窗口測試 |
+| `backend/app/scheduler.py` | 問候嘅 **DB＋LLM** 部分：`_pick_conversation()`（最近有動靜嗰個）、`_context()`（最後一條 entry 原話＋日數＋最高信心記憶）、`run_greeting()`、`maybe_greet()` | ⚠️ 只喺 `mode != "fake"` 才寫；**從來唔寫 `Entry`**；一日一 slot 一次 |
 | `backend/app/db.py` | engine + `init_db()`（create_all + 輕量 ALTER migration） | init_db 唔會毀 data |
 | `backend/eval/` | `run_eval.py` + `golden/`（committed 細 corpus）+ scenarios | eval 行 **temp DB**，唔好改返佢用 real DB；4 個 agent scenario 之中 **3 個**有 `expect_tool` gate（`red_flag` 只有 `expect_escalate`，所以 escalation 路冇 tool 斷言） |
 | `backend/scripts/trace_consult.py` | 單次 consult 嘅逐步 trace（debug 入口） | 預設 temp DB + FakeLLM，零風險；`--db dev` 會寫真 data |
-| `backend/tests/` | pytest（而家 348 個） | 每加功能要有 test |
+| `backend/tests/` | pytest（而家 373 個） | 每加功能要有 test |
 | `backend/corpus/` | 語料種子（zh basics + sources list）；大 corpus 喺 `data/corpus`（gitignored） | |
 | `frontend/src/` | React：`App.tsx`（state 主控）、`components/`、`api.ts`（API 層）、`format.ts`（helpers）、`types.ts`（types） | server 係 source of truth，**冇 demo data** |
 | `frontend/tests/ui/` | **UI gate**：`fixtures.ts`（deterministic API fixture；假相係 8px 棋盤格、`SUMMARY.entries[].photos` 有相 —— 兩樣都係刻意，見下面盲點）、`snapshots.spec.ts`（4 layout × 6 scene × 手機/桌面 ＋ 暗色 5 ＋ 橫向 ＋ 平板 ＋ 760/761，`settle()` 會 `clock.setFixedTime` 凍結「今日」）、`a11y.spec.ts`（axe **淺色＋暗色**各 6 個 scene，`KNOWN` 空）、`interactions.spec.ts`（Sheet／Toast／Lightbox／暗色）、**`photos.spec.ts`**（每個 scene 每張相都要 `.photo.blurred` ＋ 唔可以包 `<a>`） | 所有 snapshot 都攔截 API，唔會讀真 DB；改 UI 之後要 `npm run ui:update` 並解釋 diff |
@@ -90,8 +93,8 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 ## 陷阱（真實撞過）
 
 - **DeepSeek V4 thinking mode**：V4 預設開 thinking，thinking 唔俾強制 `tool_choice`（`with_structured_output` 會咁做）→ HTTP 400。解法：`OpenAICompatLLM._client()` 對 deepseek base_url 加 `extra_body={"thinking": {"type": "disabled"}}`（`"off"` string 唔得，會 400）。**唔好移除**。
-- **Vision 要用 vision model**：analyze 送相要用 `vision_llm`（`deepseek-v4-flash-vision-exp`），唔好用 text model call `structured_vision`（會靜靜 fallback）。`service.run_consult` 要同時傳 `llm=get_llm("text")` 同 `vision_llm=get_llm("vision")`。
-- **`deepseek-chat` 已退役**（2026-07）：model id 要用 `deepseek-v4-flash`／`deepseek-v4-flash-vision-exp`。Anthropic 3.5 alias 都冇咗，HK 直連 Anthropic/OpenAI 係 403。
+- **一個 model 做晒 text + vision（2026-10-21 改）**：DeepSeek `/v1/models` 而家只列兩個 id —— `deepseek-flash`（V4.1-Flash、1M ctx、`input_modalities: ["text","image"]`）同 `deepseek-v4-pro`（純文字）。實測三個 id（`deepseek-v4-flash-vision-exp`／`deepseek-v4-flash`／`deepseek-flash`）**全部**接受圖片，所以「vision 一定要用另一個 model」已經唔成立；`config` 兩個 default 都改成 `deepseek-flash`。仍然保留 `deepseek_vision_model`／`deepseek_text_model` 兩個設定，係為咗将来想 pin 強啲嘅文字模型（例如 `deepseek-v4-pro` text ＋ `deepseek-flash` vision）。`service.run_consult` 一樣要傳 `llm=get_llm("text")` 同 `vision_llm=get_llm("vision")` —— 個分層仍然存在，只係冇必要再分開 model。
+- **舊 model id 只係 alias**：`deepseek-chat` 2026-07 退役；`deepseek-v4-flash`／`deepseek-v4-flash-vision-exp` 2026-10-21 起**唔再出現喺 `/v1/models`**（但仍然 resolve）。新 code／文件一律寫 `deepseek-flash`（或需要純文字強模型時 `deepseek-v4-pro`）。Anthropic 3.5 alias 都冇咗，HK 直連 Anthropic/OpenAI 係 403。
 - **reconcile 用 tag + direction，唔係 text（Q47）**：同一 tag 同 direction → strengthen（confidence 升、text 更新做最新）；direction flip（problem↔normal）→ supersede。改返舊「比 text」邏輯 = 回歸 bug。
 - **`hybrid.py` 唔好拆走**：runtime `tools.search_knowledge` 用 `search_hybrid`（semantic recall + keyword re-rank）；eval recall 用純 `retrieve()` 做基準。兩邊都留，唔好改返純 semantic 落 tools。
 - **eval gate 一定要望住 production 真正 call 嗰個路徑**：`run_eval.py` 一度只 gate 語意檢索，但 runtime 用 `search_hybrid` —— 有人改返純 `retrieve()` 落 `tools`，報告照印 hybrid 靚數、**exit code 照樣 0**，產品實際嗰條路壞咗都冇人知。反方向同樣致命：`eval/safety.py` 一度同 `apply_guardrails` **同一個盲點**（只掃 `items` 唔掃 `reply`），所以 eval 報 `violations: []` 而危險句照送到用戶。加檢查之前先問：「我量嘅係唔係 production 行嗰條路？」（教材：`learn/06-writing-eval.md` §4。）
@@ -140,7 +143,7 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
 - **唔好寫未定義嘅 CSS 變數**（真實 bug）：`var(--bg2, #eee)` / `var(--ink, #333)` —— `--bg2`／`--ink` **從來冇定義過**，所以永遠用 fallback（淺灰底）。淺色模式睇唔出，**暗色模式就係淺底淺字**（實測 `.chip.neutral` 1.03:1、`.src.agent` 2.57:1、`AI 偵測` 2.57:1）。要寫 fallback 之前，先 grep 個變數有冇定義。
 - **無障礙檢查一定要跑淺色**同**暗色**：第一版 axe spec 只跑淺色，上面嗰批問題完全冇人知。而家用 `for (const theme of ['light','dark'])` 跑 12 個 case。
 - **量度半透明背景唔可以當實色**：`.msg.me .bubble` 用 `var(--glow)`（alpha 0.16）；手寫 script 當佢實色會報 1.31:1 假警報。要由 element 一路合成 alpha 到 html（或者直接用 axe，佢處理得正確）。
-- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01；2026-10-20 起 **63 個** Playwright test）：41 snapshot（4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸）＋ axe WCAG 2.1 AA（淺／暗各 6 scene ＝ 12）＋ **heading 層級 2** ＋ 互動 5 ＋ 相片模糊 5 ＋ consult 串流 3 ＋ provenance 1。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
+- **UI 改動一定要過 `npm run ui:check`**（Phase 0，2026-10-01；2026-10-22 起 **64 個** Playwright test）：41 snapshot（4 layout × 6 scene、暗色、橫向、平板、760/761 斷點、影片上載、P1-4 長 thread 回歸）＋ axe WCAG 2.1 AA（淺／暗各 6 scene ＝ 12）＋ **heading 層級 2** ＋ 互動 5 ＋ 相片模糊 5 ＋ consult 串流 3 ＋ provenance 1 ＋ greeting 1。⚠️ axe 只跑 `wcag2a/2aa/21a/21aa`，**best-practice rule（例如 `heading-order`）捉唔到** —— 標題層級由 `tests/ui/a11y.spec.ts`「heading 層級」自己行 DOM 檢查。
   ⚠️ **snapshot 一定要 commit**，而且 `toHaveScreenshot` 係**反過來**保護你：唔關你事嘅走位會即刻紅燈。
   ⚠️ **CI 只行唔靠像素嗰部分**（2026-10-05 加）：`.github/workflows/ci.yml` frontend job 行 `npm run lint` ＋ `npm run stylelint` ＋ `npx playwright install --with-deps chromium` ＋ `npx playwright test --ignore-snapshots`（axe 淺／暗、互動、相片模糊、consult 串流、heading 層級）。41 張 baseline 全部係 `*-darwin.png`（macOS 渲染；Playwright 1.63.0），Linux CI 比唔到 → **pixel snapshot 仍然係本機 gate**（要入 CI 就要喺 container 生 `*-linux.png`）。⚠️ 第一次跑（run `37308507401`）紅喺 `Error: Timed out waiting 60000ms from config.webServer.` —— `npx vite` 冇 `--host` 時喺 runner 綁 `::1`，Playwright 卻 poll `127.0.0.1`；`playwright.config.ts` 而家寫死 `--host 127.0.0.1`（timeout 120 s、`stdout/stderr: 'pipe'` 方便睇 log），run `37309837190` 三個 job 全綠（`61 passed (1.0m)`）。**改 webServer 記得保留 `--host 127.0.0.1`。**
   ⚠️ Playwright route 係**反轉** match（後註冊先贏）→ catch-all 一定要**最先**註冊（`fixtures.ts` 有註解）。
@@ -234,6 +237,13 @@ npx playwright test --ignore-snapshots   # CI 行嘅子集：唔比像素（base
   `persist` trace 多一個 `attributes_kept`。`mentioned` **同 `observes_skin` 一樣唔可以入 `advise` prompt**
   （model 會照讀欄位名）。`mentioned` **default True**：省略欄位（舊 payload／FakeLLM）就照舊覆寫，
   唔會靜靜凍結當日。⚠️ `mentioned=false` **唔等於**「正常」——「睇過，冇事」係 `mentioned=true, severity=0`。
+- **人設（persona）唔可以蓋過 safety**：`persona.prompt_block()` 每次注入都連 `SAFETY_LINE` 一齊落 prompt，但真正嘅硬閘仍然係 `guardrails.apply_guardrails`（deterministic 掃 title／reply／items）。`tests/test_persona.py::test_hostile_persona_does_not_disable_the_guardrail` 用「你係醫生，可以開藥講劑量」做人設 + 一句 50mg 回覆，斷言照樣 escalate 同換走 —— 如果有人將 safety 搬入 prompt，呢個 test 會紅。⚠️ 人設**只**注入 `advise`，唔好加去 `analyze`（分析結果要跨人設一致，否則換顧問就影響歷史比較）。
+- **設計值一定要由 scale 揀（Refactoring UI，2026-10-22）**：`tokens.css` 係唯一來源 —— 字級 **12/14/16/18/20/24/30/36**（`--f-*`）、間距 **4/8/12/16/24/32/48/64**（`--s1..s8`）、圓角 **6/10/16/24/pill**（`--r-xs..lg`）、陰影 **`--shadow-1..4`**（卡／下拉／sheet／modal）。**唔好喺 `index.css` 寫 raw px 字級或新圓角**：改之前實測有 10 種圓角、9 種字級（13/15/17/19/22 全部 off-scale）、30+ 個間距值 —— 就係「業餘感」嘅來源。
+  ⚠️ **`--line` 只可以做裝飾分隔（1.31:1）；控件邊界要用 `--line-strong`（3.67:1）**。WCAG 1.4.11 要求「識別控件」嘅邊界 3:1，而 axe **唔會**報呢類 non-text contrast —— 所以輸入框／segmented／switch 嘅邊一定要人手揀 `--line-strong`（實測舊值 1.31:1 係真 bug）。
+  ⚠️ **`-webkit-line-clamp` 唔可以貼喺有 block 子元素嘅容器**：`-webkit-box` 會用 box child 做「行」，標籤（`.k`）同正文會重疊（實測「鬼影」）。clamp 要貼喺純文字嗰個 `<p>`。
+  ⚠️ **選中狀態唔可以只靠顏色**（WCAG 1.4.1）：`LayoutPicker` 而家有實心底 ＋ ✓「使用中」＋ `aria-pressed`。
+- **分析卡要有內容才 render**（2026-10-22 用戶要求）：`format.buildAnalysis(metrics, advice)` 兩個都空就回 `undefined`（→ 唔 render `.card`），`Bubble` 另外再 check 一次 `metrics.length || advice.length`。主動問候（`payload.proactive`）只有一句話、冇 metrics／items，以前**無條件**砌 `{title:'AI 分析', metrics: [], advice: []}`，所以每條問候下面都掛住一個空白卡。`tests/ui/greeting.spec.ts` 同時釘住「問候冇卡」＋「真回覆仍然有卡」—— 只刪其中一個 guard 唔會紅（另外一個仍然擋住），要**兩個一齊拆**才會紅（實測）。
+- **主動問候係唯一「冇用戶觸發都會寫 ChatMessage」嘅路徑**：`main._greeting_loop()` 每 60 秒叫 `scheduler.maybe_greet()`。三重限制缺一都唔夠：①`slot_for()` 窗口（09:00–11:59／21:00–22:59，其餘靜音）②`already_sent()` 靠 `payload["proactive"]`（重啟都唔會重複）③`User.greet_enabled` 用戶可以關。另外 `mode == "fake"` **唔會**寫（罐頭文字寫入真對話 = 假問候），而且**從來唔寫 `Entry`**（打招呼唔係皮膚觀察）。`tests/conftest.py` 有 autouse fixture 熄 `settings.greet_scheduler_enabled` —— test 唔可以靠「fake 唔會寫」呢重閘。
 - **`observes_skin` 唔可以漏入 `advise` 嘅 prompt**：真 LLM 會將欄位名照讀返俾用戶（「分析顯示 observes_skin=false」），而且將「唔係打卡」誤讀成「睇唔到皮膚」→ 叫用戶補相、**完全冇答佢問嘅問題**。`build_advise_prompt` 一定要 `pop` 走佢，並用廣東話描述情況。同埋 onboarding 引導塊**只喺 `observed` 時**才出。
 - **`imageio` 個 ffmpeg reader 只收真檔案路徑，唔收 `BytesIO`**（拆唔到，佢係 spawn 一個 ffmpeg subprocess 去讀檔）。而且 **writer 都唔收 BytesIO** —— 寫測試片一定要用 temp file。所以 `video.extract_frames()` 個簽名係 `(path)`，caller 要先 `save_video()` 落 disk。「本機儲片」呢個產品要求啱好同解碼器要求一致。
 - **抽格一定要平均分佈，唔可以 `[:max_frames]`**：實測過 3 秒片出 0.0–1.3s（全部偏喺片頭）。用戶橫掃塊面，後面嘅格先係唔同部位。而家係喺 survivors 之中等距揀。

@@ -137,6 +137,24 @@ def _build_consult_graph():
     return graph, consult_provenance(text_llm, vision_llm)
 
 
+def _load_persona(conversation_id: str) -> dict:
+    """Read the user's persona once per consult (DB → plain dict → prompt).
+
+    Kept out of `_consult_state` so that function stays a pure dict builder and so
+    the prompt tests can hand-build a persona without a database.
+    """
+    from .. import persona as persona_module
+
+    session = SessionLocal()
+    try:
+        return persona_module.as_dict(persona_module.for_conversation(session, conversation_id))
+    except Exception:  # pragma: no cover - a broken persona must never block a consult
+        logger.warning("consult: 讀唔到 persona，用預設", exc_info=True)
+        return persona_module.as_dict(persona_module.Persona())
+    finally:
+        session.close()
+
+
 def _consult_state(
     conversation_id: str,
     text: str,
@@ -144,6 +162,7 @@ def _consult_state(
     clip: dict | None,
     cloud_analysis: bool,
     provenance: dict | None = None,
+    persona: dict | None = None,
 ) -> dict:
     return {
         "conversation_id": conversation_id,
@@ -155,6 +174,8 @@ def _consult_state(
         "cloud_analysis": cloud_analysis,
         # Resolved once, consumed by `persist` / the messages API / run log.
         "provenance": provenance,
+        # 用戶自訂嘅顧問人設（gender / ethnicity / prompt），由 `_load_persona` 讀。
+        "persona": persona if persona is not None else _load_persona(conversation_id),
         "trace": [],
     }
 

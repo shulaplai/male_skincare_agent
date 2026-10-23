@@ -27,7 +27,10 @@
   --bg: #faf3f0;
   --panel: #fdf7f5;
   --card: #fff;
-  --line: #f1dcd9;
+  --line: #f1dcd9; /* 只做裝飾分隔線：1.31:1，唔可以單獨識別一個控件 */
+  /* WCAG 1.4.11：**識別控件**嘅邊界要 3:1（唔係裝飾線）。輸入框／textarea／
+     segmented control 用呢個；實測舊值 1.31:1，係真 a11y bug。 */
+  --line-strong: #a9797d; /* 3.67:1 on #fff、3.35:1 on --bg */
   --text: #382c31; /* 13.35:1 */
   --muted: #7d6169; /* 5.06:1（次要文字：時間、label、提示） */
   --faint: #82686f; /* 4.60:1（最淡但仍要讀得到） */
@@ -38,7 +41,14 @@
   --warn: #a8552b; /* 4.79:1 */
   --danger: #b3453f; /* 4.99:1 */
   --glow: rgba(230, 128, 156, 0.18);
-  --shadow: 0 8px 28px -16px rgba(160, 90, 110, 0.28);
+  /* ---------- 陰影：五級 elevation（Refactoring UI） ----------
+     以前一個 `--shadow` 走天涯，所以卡、選單、sheet、toast 全部「浮」喺同一層。
+     而家按 z 軸揀：1 卡／2 下拉／3 sheet／4 modal＋toast。暖色底用暖灰陰影。 */
+  --shadow-1: 0 1px 3px rgba(56, 44, 49, 0.12);
+  --shadow-2: 0 4px 10px -2px rgba(56, 44, 49, 0.16);
+  --shadow-3: 0 8px 24px -8px rgba(56, 44, 49, 0.22);
+  --shadow-4: 0 18px 44px -14px rgba(56, 44, 49, 0.3);
+  --shadow: var(--shadow-2); /* legacy alias */
   /* 淺色底（chip／badge 用），同文字色一對： */
   --tint-accent: #f6dfe6;
   /* 淡色底上面嘅文字色：`--accent-deep` 喺純白係 4.61:1，但喺 --tint-accent 上只有 4.0:1，
@@ -57,27 +67,41 @@
   /* 字級 scale。⭐ 下限 12px：手機上 9.5px 係讀唔到嘅（實測 axe 同肉眼都係）。
      底部 tab label（--f-tab）而家都係 12px：icon 同文字橫排之後唔再有
      「字要遷就 icon 底邊」嘅限制。 */
+  /* Refactoring UI 嘅 type scale（2026-10-22）：12 14 16 18 20 24 30 36。
+     以前係 12/13/15/17/19/22/24 —— 級距太密（每級差 ~7%），結果「大少少」同
+     「大好多」分唔開，標題要靠字級硬撐。而家用官方 scale，級與級之間差 17–20%，
+     大細一眼睇得出；細楷唔再靠 13px 呢種 off-scale 值。 */
   --f-tab: 12px;
   --f-xs: 12px;
-  --f-sm: 13px;
-  --f-md: 15px;
-  --f-lg: 17px;
-  --f-xl: 19px;
-  --f-2xl: 22px;
-  --f-3xl: 24px;
+  --f-sm: 14px;
+  --f-md: 16px;
+  --f-lg: 18px;
+  --f-xl: 20px;
+  --f-2xl: 24px;
+  --f-3xl: 30px;
+  --f-4xl: 36px;
 
-  /* ---------- 尺寸 scale（4 嘅倍數） ---------- */
+  /* ---------- 尺寸 scale ----------
+     Refactoring UI：4 8 12 16 24 32 48 64 96…（相鄰最少差 ~25%，令選擇有「答案」）。
+     以前得 4–32，所以 36／40／48 呢類值散落喺 index.css。 */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
   --s5: 24px;
   --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
 
-  /* ---------- 圓角 ---------- */
+  /* ---------- 圓角 ----------
+     Refactoring UI：揀一套就一路用。實測改之前有 **10 種** 圓角喺度
+     （2/3/4/6/7/8/9/10/11/12/13/14/16/18/20/22/999），係「業餘感」最大來源之一。
+     而家四級：xs=6（chips、細徽章）、sm=10（輸入框、細卡）、md=16（卡、sheet 內塊）、
+     lg=24（大卡、bubble 群組）、pill=999（膠囊、tab）。 */
+  --r-xs: 6px;
   --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 18px;
+  --r-md: 16px;
+  --r-lg: 24px;
   --r-pill: 999px;
 
   /* ---------- 觸控目標 ---------- */
@@ -98,6 +122,7 @@
   --panel: #241a20;
   --card: #2c2127;
   --line: #3d2f35;
+  --line-strong: #8a6c74; /* 3.31:1 on --card、3.60:1 on --panel */
   --text: #f4e7ec;
   --muted: #c9b2b9; /* 7.79:1（舊 #b399a1 = 5.90:1） */
   --faint: #a88f97; /* 5.20:1（舊 #7a636b = 2.82:1 ← 等於睇唔到） */
@@ -108,7 +133,11 @@
   --warn: #d99a6c; /* 6.49:1 */
   --danger: #f08b83; /* 6.44:1 */
   --glow: rgba(239, 143, 174, 0.16);
-  --shadow: 0 8px 28px -16px rgba(0, 0, 0, 0.5);
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 10px -2px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  --shadow-4: 0 18px 44px -14px rgba(0, 0, 0, 0.65);
+  --shadow: var(--shadow-2);
   --tint-accent: #46313a;
   --accent-ink: #f7c3d4; /* on --tint-accent = 7.79:1 */
   --tint-good: #2b3f36;

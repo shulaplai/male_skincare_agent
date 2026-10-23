@@ -25,12 +25,12 @@ LLM 係**一個組件**，唔係**個 product**。下面每一層都係「點控
 ```
 用戶影相/打字（相永遠儲喺本地；用戶一次性同意之後，相先會送去雲端 vision）
    ▼
-analyze   「而家」張相 → vision model（deepseek-v4-flash-vision-exp，consent off / 冇相 → 純文字降級）
+analyze   「而家」張相 → vision model（deepseek-flash，consent off / 冇相 → 純文字降級）
    ▼
 tools     執行 analysis 揀嘅 whitelist 工具（讀 memory / 讀日記 / 檢索知識庫）
           + load 最近 10 條 chat messages 做 context
    ▼
-advise    text model（deepseek-v4-flash）出 Advice：reply 正文（2–5 句解釋）+ items（行動點）
+advise    text model（deepseek-flash）出 Advice：reply 正文（2–5 句解釋）+ items（行動點）
    ▼
 guardrail deterministic：紅旗 → 轉介；藥物/劑量詞 → 收起建議；自動 disclaimer
    ▼
@@ -83,8 +83,8 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 
 | 任務 | model | 理由 |
 |---|---|---|
-| 視覺分析（analyze） | `deepseek-v4-flash-vision-exp` | 一次性、要睇相；同 text 同價（image ≈384 tok） |
-| 建議生成 / 正文（advise） | `deepseek-v4-flash` | 深度文字 |
+| 視覺分析（analyze） | `deepseek-flash` | 一次性、要睇相；同 text 同價（image ≈384 tok） |
+| 建議生成 / 正文（advise） | `deepseek-flash` | 深度文字 |
 | 記憶更新 | —（唔用 LLM） | memory 係 deterministic code（reconcile/preferences/facts），唔靠 prompt 寫記憶 |
 | Embedding | 本地 fastembed MiniLM（ONNX） | 離線、免費、無 torch |
 
@@ -100,11 +100,11 @@ persist   upsert 當日 Entry（attributes/metrics/photos）+ code 對歷史 dif
 
 ## 9. 香港直連 provider（2026 實測更新）
 
-OpenAI 官方 API 香港仍然 403；**Anthropic 亦 403**（唔喺 supported regions）。後端係 server-to-server（冇 CORS 問題），實際用 **DeepSeek**（HK 直連 ✅，2026-08 起有 vision：`deepseek-v4-flash-vision-exp`）。其他 provider（Gemini／OpenRouter／DashScope Qwen／GLM）都係 OpenAI-compatible 形狀，換 base_url + key 就用到 `OpenAICompatLLM`。詳細背景見 `archive/skinfile/DECISIONS.md` §9（博物館）。
+OpenAI 官方 API 香港仍然 403；**Anthropic 亦 403**（唔喺 supported regions）。後端係 server-to-server（冇 CORS 問題），實際用 **DeepSeek**（HK 直連 ✅，2026-08 起有 vision：`deepseek-flash`）。其他 provider（Gemini／OpenRouter／DashScope Qwen／GLM）都係 OpenAI-compatible 形狀，換 base_url + key 就用到 `OpenAICompatLLM`。詳細背景見 `archive/skinfile/DECISIONS.md` §9（博物館）。
 
 ## 10. 前端設計方向（已鎖定＋已實現）
 
-- **主界面：教練對話優先（chat-first）** —— 對話係主角，右側 panel 顯示**真實**皮膚指標、AI 記憶、因果時間線（live，冇 hardcode demo 分數）。
+- **主界面：顧問對話優先（chat-first）** —— 對話係主角，右側 panel 顯示**真實**皮膚指標、AI 記憶、因果時間線（live，冇 hardcode demo 分數）。
 - **多部位對話**：一個對話 = 一個身體部位（面部／頭皮／背部／手腳…）。default 一個「面部皮膚」，用戶可開新對話；**每個部位有獨立 entries/photos/insights/timeline/messages**。
 - **Global scope（Q31，已實現）**：`Insight`／`TimelineEvent` 嘅 conversation FK 可 NULL = 全身性記錄。diet 自報事件寫 **global timeline**（飲食影響所有部位）；每個 conversation 嘅 `/summary` timeline = 自己嘅事件 + global events merge（UI 標 🌐）。`get_skin_profile` tool 連 global insights 一齊俾 coach；correlation detector 亦睇 global diet 事件。
 - **相關性觀察（Q30，已實現）**：`app/correlation.py` —— deterministic cause→effect candidate：product 首次使用日／diet 事件日做 cause episode，比較 episode 前後 window 嘅 attribute severity；≥2 次重複先算 strong（UI 明示「唔等於因果」）。LLM 唔參與判斷。

@@ -36,6 +36,15 @@ class User(Base):
     # it in `service.run_consult`, so the guarantee does not depend on the UI.
     photo_cloud_consent: Mapped[bool] = mapped_column(default=False)
     consent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    # 「顧問」人設（2026-10-21，用戶要求）：Settings 揀性別／種族／自由文字。
+    # 放喺 User 而唔係 Conversation，因為人設係「用戶同一個顧問嘅關係」，唔應該
+    # 每個部位唔同。讀寫全部經 `app/persona.py`（驗證 + prompt render），
+    # 唔好喺其他 module 直接砌字串 —— 唔係就會有兩份人設文字而慢慢分岔。
+    persona_gender: Mapped[str] = mapped_column(String(10), default="")
+    persona_ethnicity: Mapped[str] = mapped_column(String(40), default="")
+    persona_prompt: Mapped[str] = mapped_column(String(400), default="")
+    # 主動問候開關（朝 09:00／晚 21:00，見 `app/greeting.py`）。預設開，用戶可以關。
+    greet_enabled: Mapped[bool] = mapped_column(default=True)
 
     conversations: Mapped[list[Conversation]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

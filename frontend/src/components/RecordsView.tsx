@@ -101,7 +101,7 @@ export function RecordsView({ conversation }: { conversation: Conversation }) {
             <Icon name="circle-alert" size={16} /> {error}（請確認 backend 已起）
           </p>
       ) : entries.length === 0 ? (
-        <EmptyState icon="clipboard-list">未有記錄。去「教練對話」影相／打卡，agent 會自動寫入日記。</EmptyState>
+        <EmptyState icon="clipboard-list">未有記錄。去「顧問對話」影相／打卡，agent 會自動寫入日記。</EmptyState>
       ) : (
         entries.map((e) => (
           <div key={e.id} className="entry-card">

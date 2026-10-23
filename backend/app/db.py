@@ -34,6 +34,10 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     "users": [
         ("photo_cloud_consent", "BOOLEAN NOT NULL DEFAULT 0"),
         ("consent_at", "DATETIME"),
+        ("persona_gender", "VARCHAR(10) NOT NULL DEFAULT ''"),
+        ("persona_ethnicity", "VARCHAR(40) NOT NULL DEFAULT ''"),
+        ("persona_prompt", "VARCHAR(400) NOT NULL DEFAULT ''"),
+        ("greet_enabled", "BOOLEAN NOT NULL DEFAULT 1"),
     ],
     "conversations": [
         ("cloud_analysis", "BOOLEAN NOT NULL DEFAULT 0"),

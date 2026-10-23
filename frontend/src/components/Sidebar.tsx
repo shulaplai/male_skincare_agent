@@ -27,7 +27,7 @@ interface Props {
  * 冇 href 嘅 `<a>` 唔入 tab order，純鍵盤用戶入唔到記錄／進度／設定。
  */
 const NAV: { key: View; label: string; icon: IconName }[] = [
-  { key: 'chat', label: '教練對話', icon: 'message-square' },
+  { key: 'chat', label: '顧問對話', icon: 'message-square' },
   { key: 'records', label: '皮膚記錄', icon: 'clipboard-list' },
   { key: 'progress', label: '進度追蹤', icon: 'chart-column' },
   { key: 'guide', label: '護膚指南', icon: 'book-open' },
@@ -44,7 +44,7 @@ export function Sidebar({ conversations, activeId, view, online, onSelect, onAdd
           而 axe 嘅 `heading-order` 係 **best-practice** rule、唔在 wcag tag 入面，所以
           12 條 axe test 捉唔到（2026-10-05 實測：記錄／進度／設定／指南頁嘅第一個
           heading 係 h2）。`tests/ui/a11y.spec.ts`「heading 層級」就係補呢個盲點。 */}
-      <h1 className="sr-only">{NAV.find((n) => n.key === view)?.label ?? '教練對話'}</h1>
+      <h1 className="sr-only">{NAV.find((n) => n.key === view)?.label ?? '顧問對話'}</h1>
       <div className="brand">
         <span className="dot" />
         <div>

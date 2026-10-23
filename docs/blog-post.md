@@ -1,6 +1,6 @@
 # 點樣控制一個 AI Agent，而唔係俾佢控制你
 
-> SkinCoach —— local-first 男性護膚 AI 教練嘅技術筆記。全文對應 repo 嘅真實實作（`docs/status-vs-claims.md` 係 live 對照）；模型名用 DeepSeek V4、eval 數字用最新 `--fake` report。
+> SkinCoach —— local-first 男性護膚 AI 顧問嘅技術筆記。全文對應 repo 嘅真實實作（`docs/status-vs-claims.md` 係 live 對照）；模型名用 DeepSeek V4、eval 數字用最新 `--fake` report。
 
 「AI Agent」呢個詞，由 2024 開始就係 buzzword。大部分你見到嘅「agent」其實係包咗一層嘅 API chatbot：你 call model → 攞到一段文字 → 顯示出嚟。冇狀態、冇合約、冇質素門檻、冇得 debug。我做 SkinCoach 嘅時候，目標係相反：**LLM 只係成個 product 入面其中一個組件，而唔係個 product 本身。**
 
@@ -12,7 +12,7 @@
 
 ## 1. 背景：點解「包層 API」唔夠
 
-SkinCoach 係一個皮膚記錄 + 教練 app：每日影相／打字 check-in，agent 分析皮膚、俾建議，同時**記住你一段時間**。
+SkinCoach 係一個皮膚記錄 + 顧問 app：每日影相／打字 check-in，agent 分析皮膚、俾建議，同時**記住你一段時間**。
 
 「包層 API」做唔到核心件事：*ChatGPT 唔記得你上個月張相*。你要嘅唔係一次過嘅建議，而係一個**跨時間閉環**：
 
@@ -41,7 +41,7 @@ analyze → tools → advise → guardrail → persist
 
 **LLM 只出現喺 `analyze` 同 `advise`。** 其他三個 node —— 工具分派、guardrail、persist —— 全部係我自己寫嘅 deterministic code。
 
-`analyze`：有相 + 用戶 consent → 送 vision model（DeepSeek V4 `deepseek-v4-flash-vision-exp`）；冇相／consent off → 純文字降級。出嚟係**結構化** `SkinAnalysis`：固定 attribute schema + summary + metrics。
+`analyze`：有相 + 用戶 consent → 送 vision model（DeepSeek V4 `deepseek-flash`）；冇相／consent off → 純文字降級。出嚟係**結構化** `SkinAnalysis`：固定 attribute schema + summary + metrics。
 
 `tools`：執行 analysis 揀嘅 whitelist 工具（見控制點四）。`advise`：text model 出建議正文。`guardrail`：硬規則（見控制點五）。`persist`：寫日記、detect 變化寫 timeline、更新 memory、寫 chat message。
 

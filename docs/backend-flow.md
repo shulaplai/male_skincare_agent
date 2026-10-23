@@ -450,7 +450,7 @@ POST /api/consult( /stream )
 `main.sweep_orphan_photos` 唔會清走佢哋。
 
 **顯示真相**：coach 訊息 payload 多一個 `vision_clip: bool`（**唔係 clip object**，
-唔可以喺教練 bubble 出第二個片 chip）。⚠️ 2026-10-20 之後**氣泡唔再出徽章**（用戶要求
+唔可以喺顧問 bubble 出第二個片 chip）。⚠️ 2026-10-20 之後**氣泡唔再出徽章**（用戶要求
 隱藏雲端／模型資訊），`vision_clip` 只係留住喺 payload 做 audit —— 前端唔 render，
 但 `data/runs.jsonl` 同 `/api/consult` response 仍然有，所以「有冇睇過」照樣查得到。
 
@@ -499,7 +499,7 @@ delete 同 export 都無從入手。
 
 ## 8. 商品評估：兩條入口，同一條算式
 
-用戶嘅要求係「AI 推薦咗成份之後，用戶自己搵咗產品返嚟，教練要講返兩者夾唔夾」，
+用戶嘅要求係「AI 推薦咗成份之後，用戶自己搵咗產品返嚟，顧問要講返兩者夾唔夾」，
 而且**唔要一個獨立 UI** —— 喺 chat 度出一個對話就夠。
 
 ```
@@ -575,3 +575,42 @@ persist             = {observes_skin: false, entry_written: false, entry_reused:
 - `docs/product-eval-plan.md` §2.5 —— T1–T5 嘅修法建議
 - `docs/architecture.md` —— 設計約束（tool whitelist、privacy consent）
 - `AGENTS.md` 陷阱一節 —— 全部撞過嘅嘢
+
+## 10. 「顧問」人設 ＋ 主動問候（2026-10-21）
+
+### 10.1 人設（persona）
+
+| 位置 | 做咩 |
+|---|---|
+| `users.persona_gender`／`persona_ethnicity`／`persona_prompt`／`greet_enabled` | 存 DB（`db._COLUMN_MIGRATIONS` 補舊 DB 欄） |
+| `app/persona.py` | `Persona`／`normalise()`（trim＋400 字硬上限）／`prompt_block()`（**每次帶 `SAFETY_LINE`**）／`as_dict()` |
+| `GET/PATCH /api/persona` | 讀寫（`PATCH` 只改有傳嘅欄位；`greet_enabled` 亦喺呢度） |
+| `service._load_persona(cid)` | 每次 consult 由 DB 讀一次 → `state["persona"]`（dict） |
+| `build_advise_prompt()` | **第一段**就係 `Persona(...).prompt_block()` |
+
+人設**只**注入 `advise`，唔會傳去 `analyze` —— 分析結果必須跨人設一致，否則換個顧問就令
+歷史比較唔可比。安全規則唔靠 prompt：`guardrails.apply_guardrails` 一樣掃 title／reply／items。
+
+### 10.2 主動問候
+
+```
+main.lifespan → asyncio task `_greeting_loop()`（每 60 秒）
+   → scheduler.maybe_greet()
+        → greeting.slot_for(now)        09:00–11:59 morning ／ 21:00–22:59 evening ／ 其餘 None
+        → User.greet_enabled?            False → 唔發
+        → greeting.already_sent(today)   payload["proactive"] 已有同 slot → 唔發
+        → describe_llm(llm).mode        fake → 唔發（唔可以寫罐頭問候入真對話）
+        → greeting.build_prompt(...)    人設 ＋ 已知事實（最後 entry 原話／日數／記憶）
+        → llm.structured(..., GreetingProse)
+        → ChatMessage(role="coach", payload={"proactive": slot})
+```
+
+`POST /api/greet/run {slot, force}` 係手動入口（demo／驗證用），行同一個
+`scheduler.run_greeting`。**永遠唔寫 `Entry`**：打招呼唔係皮膚觀察。
+
+真 LLM 實測（2026-10-21，1 次 call）：
+
+> 「夜晚啦，仲未瞓呀？你之前話下半面好易出暗瘡，呢幾日點呀，有冇試新嘢搽？」
+
+佢引用咗真 DB 最後一條 entry 嘅原話，冇作數。限制：180 字上限、每日每 slot 一次、
+23:00–08:00 靜音、用戶可關。時間窗寫死喺 `greeting.py`（Settings 未有得改時間）。

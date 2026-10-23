@@ -6,7 +6,7 @@
 
 **字卡**：「ChatGPT 唔記得你上個月張相。」
 
-旁白：「ChatGPT 俾你一次性護膚建議，但唔會記得你上個月塊面係點。SkinCoach 係一個 local-first 嘅 AI 皮膚教練：影相 → AI 分析 → 對話追問 → 長期記憶 → 幾個月後可以 trace 返『因為咩原因令皮膚變』。」
+旁白：「ChatGPT 俾你一次性護膚建議，但唔會記得你上個月塊面係點。SkinCoach 係一個 local-first 嘅 AI 皮膚顧問：影相 → AI 分析 → 對話追問 → 長期記憶 → 幾個月後可以 trace 返『因為咩原因令皮膚變』。」
 
 ## 0:20–0:50 影相 + local-first
 
@@ -40,7 +40,7 @@
 
 **畫面**：切返面部，打「塊面突然大面積爛晒好痛」→ show 紅旗 banner「建議轉介皮膚科醫生」。再開 terminal show `python -m eval.run_eval --fake`。
 
-旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋4 個 agent 場景全綠，仲有 348 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
+旁白：「護膚係 health-adjacent，所以有硬 guardrail：唔診斷、唔開藥、紅旗強制轉介、每答帶 disclaimer。質素靠 eval harness——RAG recall + agent golden scenarios，5 個 recall 場景＋4 個 agent 場景全綠，仲有 373 個 unit test；eval 入咗 CI，FAIL 唔可以 merge。」
 
 ## 2:30 收尾
 

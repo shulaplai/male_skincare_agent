@@ -36,7 +36,15 @@ from app.rag import DeterministicEmbedder
 # mirror of `db._COLUMN_MIGRATIONS` so deleting a migration entry (the exact drift this
 # guards) turns red instead of silently leaving old databases one column short.
 EXPECTED_LATE_COLUMNS = {
-    "users": {"photo_cloud_consent", "consent_at"},
+    # persona（2026-10-21）＋ greet_enabled：全部係舊 DB 冇、要靠 migration 補嘅欄
+    "users": {
+        "photo_cloud_consent",
+        "consent_at",
+        "persona_gender",
+        "persona_ethnicity",
+        "persona_prompt",
+        "greet_enabled",
+    },
     "conversations": {"cloud_analysis"},
     "entries": {"attributes"},
     "insights": {"direction"},

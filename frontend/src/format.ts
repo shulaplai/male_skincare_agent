@@ -1,4 +1,4 @@
-import type { AttributeKey, ServerMessage, Message } from './types'
+import type { Analysis, AttributeKey, Metric, ServerMessage, Message } from './types'
 
 export const ATTRIBUTE_META: Record<AttributeKey, { label: string; zh: string }> = {
   acne: { label: 'acne', zh: '暗瘡' },
@@ -47,6 +47,23 @@ export function ymd(iso: string): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+/**
+ * 只有真有內容時才砌 `Analysis`（否則 `undefined` → 唔 render 分析卡）。
+ *
+ * 2026-10-22：主動問候只係一句話，但舊 code 無條件砌 `{title:'AI 分析', metrics: [],
+ * advice: []}`，所以每一條問候下面都掛住一個空白卡。空嘅就唔應該出 —— 同「冇數據 =
+ * empty state」同一個原則。
+ */
+export function buildAnalysis(
+  metrics: Metric[] | undefined,
+  advice: string[] | undefined,
+): Analysis | undefined {
+  const m = metrics ?? []
+  const a = advice ?? []
+  if (m.length === 0 && a.length === 0) return undefined
+  return { title: 'AI 分析', metrics: m, advice: a }
+}
+
 /** Map a persisted server message back to a display Message (Q7 reload). */
 export function fromServerMessage(m: ServerMessage): Message {
   if (m.role === 'user') {
@@ -72,11 +89,10 @@ export function fromServerMessage(m: ServerMessage): Message {
     title: p.title || undefined,
     time: hhmm(m.created_at),
     date: ymd(m.created_at),
-    analysis: {
-      title: 'AI 分析',
-      metrics: p.metrics ?? [],
-      advice: p.advice ?? [],
-    },
+    // 冇指標又冇建議就**唔要**個分析卡（2026-10-22 用戶要求）。主動問候
+    // （`payload.proactive`）就係呢種：佢只有一句問候，冇 metrics／items，
+    // 以前照出一個空白「AI 分析」卡（連標題都出），睇落好似壞咗。
+    analysis: buildAnalysis(p.metrics, p.advice),
     disclaimer: p.disclaimer,
     escalate: p.escalate,
     // 保留三態：冇呢個欄位嘅舊 row = 未知（null），唔可以降級成 false。

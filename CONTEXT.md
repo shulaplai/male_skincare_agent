@@ -1,6 +1,6 @@
 # SkinCoach
 
-單一用戶、local-first 嘅男士護膚教練。呢個 context 存在嘅理由：將「用戶今日皮膚點」變成機器讀得嘅每日紀錄，再用一個唔可以亂講嘢嘅 agent 回答佢。
+單一用戶、local-first 嘅男士護膚顧問。呢個 context 存在嘅理由：將「用戶今日皮膚點」變成機器讀得嘅每日紀錄，再用一個唔可以亂講嘢嘅 agent 回答佢。
 
 呢份係**詞彙表**，唔係 spec、唔係設計文件、唔係實作筆記。實作睇 `AGENTS.md` 同 `docs/architecture.md`；決定嘅理由睇 `docs/adr/`。
 
@@ -86,8 +86,8 @@ _Avoid_: score、certainty、probability、accuracy
 
 ## Agent
 
-**Consult（問教練）**：
-由一個 user turn 到一條教練回覆嘅完整一次運行。
+**Consult（問顧問）**：
+由一個 user turn 到一條顧問回覆嘅完整一次運行。
 _Avoid_: request、chat、query、consultation
 
 **Analysis**：

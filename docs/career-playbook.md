@@ -5,7 +5,7 @@
 
 ## 0. 一句話定位（電梯簡報）
 
-> 「我一個人由零建咗一個 AI 護膚教練：5-node agent、hybrid retrieval、348 個 backend test、CI gate。
+> 「我一個人由零建咗一個 AI 護膚顧問：5-node agent、hybrid retrieval、373 個 backend test、CI gate。
 > 但真正學到嘢嘅係——我發現自己個 gate **唔會 fail**，然後用成個 audit 去修正『我以為我做咗』同『我真係做咗』之間嘅距離。」
 
 呢句嘅威力在最後半句。大部分 junior 講「我用咗 X、Y、Z；你講嘅係「我發現自己講大話，然後修好」。後者係 senior 思維。
@@ -15,7 +15,7 @@
 | 能力 | 證據（面試可以指名道姓） | 一句話點講 |
 |---|---|---|
 | 讀 code 對文件 | `docs/status-vs-claims.md` 27 行逐行 verdict；#16 sweep | 「我寫咗張表，每一行 claim 都要講清楚係 offline 定真環境驗證過」 |
-| 設計驗證機器 | 348 test ＋ `eval.run_eval --fake` 入 CI ＋ 非像素 Playwright 入 CI | 「綠代表 source-level 行為同 wiring 過，唔代表 ranking 質素」 |
+| 設計驗證機器 | 373 test ＋ `eval.run_eval --fake` 入 CI ＋ 非像素 Playwright 入 CI | 「綠代表 source-level 行為同 wiring 過，唔代表 ranking 質素」 |
 | 捉「假綠」 | #17：eval 量 function、產品行 wiring；我加咗 reciprocal wiring test 同 mutation 驗證 | 「我試過故意 revert 個 tool，睇下 gate 會唔會紅——會」 |
 | Debug 環境 | CI 紅：`npx vite` 喺 runner 綁 `::1`，Playwright poll `127.0.0.1` → 加 `--host 127.0.0.1` | 「呢個 bug 本機永遠重現唔到」 |
 | 資源生命週期 | #23 orphan 相（24h sweep ＋ 409 規則）、#27 未送出嘅片 | 「刪嘢要分兩條路：用戶撳掣即時刪，同離開頁面嘅 TTL 掃描」 |
@@ -81,7 +81,7 @@
 
 - **你點 test 一個 LLM 功能？** → 三層：deterministic fake mode 嘅 eval harness（wiring、schema、safety）、source-level wiring 斷言、錄真 provider response 喺 CI replay。加一句「綠代表 wiring，唔代表質素」。
 - **你點知 RAG 有冇用？** → 老實答：我呢個 4-chunk index 證明唔到；我會要 ≥3000 條真 chunks、≥100 條標註 query、random ＋ BM25 baseline。
-- **設計一個教練嘅記憶系統** → write／read path 對稱（過期嘢唔可以喺 prompt 出現）、supersede、delete 語義（retire 唔係 revive）、global vs per-body-part scope。
+- **設計一個顧問嘅記憶系統** → write／read path 對稱（過期嘢唔可以喺 prompt 出現）、supersede、delete 語義（retire 唔係 revive）、global vs per-body-part scope。
 - **你點 deploy？** → compose（backend＋frontend）、boot 時行 migration（`_COLUMN_MIGRATIONS` ＋ NOT NULL rebuild）、`/health` 報 resolved adapter、data dir 掛 volume；未做：auth、multi-user、備份策略。
 - **最難嘅 bug？** → 三個都講得：同一日覆寫、orphan 資源、CI IPv4。
 - **你個 pipeline 算唔算 agent？** → 唔算 autonomous agent；分支喺 model 嘅 `tool_calls` 同 deterministic guardrail，唔喺圖嘅邊。呢個係故意嘅控制決定。
@@ -89,7 +89,7 @@
 
 ## 7. CV／LinkedIn 用字（有數字，唔 overclaim）
 
-- Built a single-user AI skincare coach (FastAPI · React · SQLite): 5-node agent, hybrid retrieval, **348 backend tests**, CI gate (pytest + eval + Playwright) on every push.
+- Built a single-user AI skincare coach (FastAPI · React · SQLite): 5-node agent, hybrid retrieval, **373 backend tests**, CI gate (pytest + eval + Playwright) on every push.
 - Ran a **27-claim self-audit** into a verified/corrected/out-of-scope ledger; fixed **four classes of gates that could not fail** (eval measured a function the product never called).
 - Cut image payload **82%** (660 KB → 119 KB per screen) with DPR-aware thumbnails; streamed the agent's nodes to remove a 5.4 s silent wait.
 - Designed a same-day **per-attribute merge policy** so a vague follow-up no longer erases earlier readings; memory only strengthens on attributes the user actually mentioned.

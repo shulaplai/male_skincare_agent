@@ -89,7 +89,7 @@ function Bubble({
   /** 逐字期間文字會不停長高 → 要叫 Chat 重新 pin 到底部（同 `onMediaLoad` 一樣理由）。 */
   onGrow?: () => void
 }) {
-  const label = m.role === 'user' ? '你' : '教練 · Agent'
+  const label = m.role === 'user' ? '你' : '顧問 · Agent'
 
   /* 三段式揭示（2026-10-20 用戶要求）：① 標題 → ② 正文 → ③ AI 分析卡，
      一段一段出，唔會三樣嘢同時彈出嚟。五個約束：
@@ -198,7 +198,10 @@ function Bubble({
         )}
         {/* ③ AI 分析卡：等正文打完才出（`shown.card`）。以前佢同正文一齊彈，
             用戶會先讀卡再讀解釋。徽章（睇相／雲端／model 名）已按 2026-10-20 要求收埋。 */}
-        {shown.card && m.role === 'coach' && m.analysis && (
+        {shown.card &&
+          m.role === 'coach' &&
+          m.analysis &&
+          (m.analysis.metrics.length > 0 || m.analysis.advice.length > 0) && (
           <>
             <div className="card">
               <h2>{m.analysis.title}</h2>
@@ -491,13 +494,13 @@ export function Chat({
         {sending && (
           <div className="msg coach">
             <div className="a coach" />
-            {/* `role="status"` + `aria-live="polite"`：screen reader 會讀出「教練諗緊…」，
+            {/* `role="status"` + `aria-live="polite"`：screen reader 會讀出「顧問諗緊…」，
                 但唔會搶焦點（以前係完全冇提示，用戶以為壞咗）。 */}
             <div className="bubble typing" role="status" aria-live="polite">
               <span className="pulse" aria-hidden />
               {/* 後端逐個 node 報返嚟（SSE）之前，照舊老實講要等幾久；報咗之後就
                   改成講「而家做緊咩」，令 5.5 秒唔再係一片空白（audit §7）。 */}
-              {stage ?? '教練諗緊…（睇相＋分析＋建議，約 5–10 秒）'}
+              {stage ?? '顧問諗緊…（睇相＋分析＋建議，約 5–10 秒）'}
             </div>
           </div>
         )}
@@ -541,7 +544,7 @@ export function Chat({
                   <em>上載緊…{clip.pct !== null ? ` ${clip.pct}%` : ''}（唔使等，可以繼續打字）</em>
                 </>
               ) : (
-                <em>已加入，撳「發送」交俾教練分析</em>
+                <em>已加入，撳「發送」交俾顧問分析</em>
               )}
             </span>
             <button
@@ -615,8 +618,8 @@ export function Chat({
           }}
           /* 短 placeholder：長版喺手機（16px 字）會自己 wrap 成兩行，令輸入框一開
              就 72px 高、白白食咗 11% 螢幕。提示已經喺上面個 welcome bubble 講咗。 */
-          placeholder={`問${conversation.bodyPart}教練任何嘢…`}
-          aria-label={`同${conversation.bodyPart}教練對話`}
+          placeholder={`問${conversation.bodyPart}顧問任何嘢…`}
+          aria-label={`同${conversation.bodyPart}顧問對話`}
         />
         {(canSend || sending) && (
           <button className="send" onClick={submit} disabled={busy} aria-label="發送" title="發送（Enter）">

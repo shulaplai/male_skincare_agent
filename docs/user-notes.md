@@ -29,7 +29,7 @@ cd frontend && npm run dev
 ```
 
 開 http://localhost:5173 。**冇本地模式**，同意亦**默認已給**（單一用戶自用；`SKINCOACH_REQUIRE_PHOTO_CONSENT=true` 才會出同意畫面）。
-相片檔案**永遠留喺你部機**；送去雲端嘅只係分析用嘅影像（`deepseek-v4-flash-vision-exp`）。
+相片檔案**永遠留喺你部機**；送去雲端嘅只係分析用嘅影像（`deepseek-flash`）。
 文字訊息兩邊都會送去同一個模型。記錄方法見 app 內「設定 → 指南 → 點樣記錄最準確」。
 
 ## 撞到問題就複製呢格
@@ -50,7 +50,7 @@ cd frontend && npm run dev
 ## 示範（可以刪）
 
 ### 2026-09-30 出咗「🍜 ✅ 記低」chip 之後，reload 就冇咗
-- **我做咗咩**：打「尋晚打邊爐食咗辣底」，等教練回覆，見到 chip，未撳就 reload 頁面
+- **我做咗咩**：打「尋晚打邊爐食咗辣底」，等顧問回覆，見到 chip，未撳就 reload 頁面
 - **預期**：reload 之後仲可以撳「✅ 記低」
 - **實際發生**：chip 完全消失，事件永遠記唔到（timeline 一直冇嗰條）
 - **邊度**：chat layout、1280px、Chrome
@@ -58,7 +58,7 @@ cd frontend && npm run dev
 - **嚴重度（我估）**：好煩（因為「食辣 → 爆瘡」係我買呢個 app 嘅原因）
 - **可重現？**：每次
 
-> 呢條已經係 issue [#22](https://github.com/shulaplai/male_skincare_agent/issues/22)（**已修**：chip 而家會寫入嗰條教練訊息，reload 之後仲喺度）。
+> 呢條已經係 issue [#22](https://github.com/shulaplai/male_skincare_agent/issues/22)（**已修**：chip 而家會寫入嗰條顧問訊息，reload 之後仲喺度）。
 
 ---
 

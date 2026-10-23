@@ -115,7 +115,7 @@ export function ProgressView({ conversation }: { conversation: Conversation }) {
       {loading ? (
         <Skeleton lines={3} />
       ) : entries.length === 0 ? (
-        <EmptyState icon="chart-column">未有數據。去「教練對話」影相／打卡，趨勢會由你嘅真實紀錄畫出嚟。</EmptyState>
+        <EmptyState icon="chart-column">未有數據。去「顧問對話」影相／打卡，趨勢會由你嘅真實紀錄畫出嚟。</EmptyState>
       ) : (
         <div className="attr-list" style={{ maxWidth: 640 }}>
           {ATTRIBUTE_KEYS.map((key) => {

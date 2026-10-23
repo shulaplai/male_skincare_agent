@@ -71,10 +71,10 @@ export const MOBILE_MAX_WIDTH = 760
 export const LAYOUTS: LayoutDef[] = [
   {
     id: 'chat',
-    name: '教練對話',
+    name: '顧問對話',
     icon: 'message-square',
     tagline: '對話主導',
-    blurb: '左欄部位＋中間對話＋右欄實時數據。每日問教練、睇相分析、覆事件最順。',
+    blurb: '左欄部位＋中間對話＋右欄實時數據。每日問顧問、睇相分析、覆事件最順。',
   },
   {
     id: 'journal',
@@ -84,7 +84,7 @@ export const LAYOUTS: LayoutDef[] = [
     blurb: '中間係逐日紀錄 feed（相＋指標＋當日回覆），右欄記憶／時間線。記錄為本、回顧友好。',
     tabs: [
       { key: 'home', label: '皮膚日記', icon: 'notebook-text' },
-      { key: 'chat', label: '教練對話', icon: 'message-square' },
+      { key: 'chat', label: '顧問對話', icon: 'message-square' },
       { key: 'records', label: '完整記錄', icon: 'clipboard-list' },
       { key: 'progress', label: '進度', icon: 'chart-column' },
       { key: 'settings', label: '設定', icon: 'settings' },
@@ -98,7 +98,7 @@ export const LAYOUTS: LayoutDef[] = [
     blurb: '一眼睇晒今日狀態、趨勢、相關性同記憶。快睇「有冇變好」，操作收喺頂部。',
     tabs: [
       { key: 'home', label: '進度儀表板', icon: 'chart-column' },
-      { key: 'chat', label: '教練對話', icon: 'message-square' },
+      { key: 'chat', label: '顧問對話', icon: 'message-square' },
       { key: 'records', label: '完整記錄', icon: 'clipboard-list' },
       { key: 'progress', label: '進度', icon: 'chart-column' },
       { key: 'settings', label: '設定', icon: 'settings' },

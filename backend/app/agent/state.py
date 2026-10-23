@@ -45,6 +45,10 @@ class AgentState(TypedDict, total=False):
     # documented it as working), while the prompt tests passed because they
     # hand-built the key in a dict. Declaring it makes write and reads drift-proof.
     vision_reason: str
+    # 「顧問」人設（2026-10-21）：`persona.Persona` 嘅 dict 版，由 `service` 喺
+    # 建立 state 時由 DB 讀一次。`build_advise_prompt` 用佢 render 語氣／稱呼；
+    # **唔可以**影響 analyze（分析要一致）、亦唔可以蓋過 safety（見 persona.SAFETY_LINE）。
+    persona: dict
     # 用戶上傳嘅係一段短片（唔係相）：`{"duration": 12.4, "frames": 6}`。
     # 前端／主觀上係「一條片」——抽格係內部實作，prompt 要講「條片」而唔好數格。
     clip: dict | None

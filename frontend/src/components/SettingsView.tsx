@@ -4,6 +4,7 @@ import { LayoutPicker } from '../layouts/LayoutPicker'
 import { useTheme } from '../theme'
 import type { Conversation, View } from '../types'
 import { Icon } from '../components/Icon'
+import { useToast } from './ui/Toast'
 
 type Conn = 'checking' | 'ok' | 'fail'
 
@@ -23,6 +24,54 @@ interface Props {
 export function SettingsView(props: Props) {
   const { conversations, activeId, online, onSelectConversation, onAddConversation, onRenameConversation, onDeleteConversation, onNavigate } = props
   const { theme, toggle } = useTheme()
+  const { toast } = useToast()
+  const [persona, setPersona] = useState<api.Persona | null>(null)
+  const [draft, setDraft] = useState<Pick<api.Persona, 'gender' | 'ethnicity' | 'prompt'> | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api
+      .getPersona()
+      .then((p) => {
+        setPersona(p)
+        setDraft({ gender: p.gender, ethnicity: p.ethnicity, prompt: p.prompt })
+      })
+      .catch(() => setPersona(null))
+  }, [])
+
+  const dirty =
+    !!persona &&
+    !!draft &&
+    (draft.gender !== persona.gender ||
+      draft.ethnicity !== persona.ethnicity ||
+      draft.prompt !== persona.prompt)
+
+  const savePersona = () => {
+    if (!draft) return
+    setSaving(true)
+    api
+      .patchPersona(draft)
+      .then((p) => {
+        setPersona(p)
+        setDraft({ gender: p.gender, ethnicity: p.ethnicity, prompt: p.prompt })
+        toast('顧問設定已儲存')
+      })
+      .catch((e: Error) => toast(api.readableError(e), { tone: 'err' }))
+      .finally(() => setSaving(false))
+  }
+
+  const toggleGreet = () => {
+    if (!persona) return
+    const next = !persona.greet_enabled
+    setPersona({ ...persona, greet_enabled: next })
+    api
+      .patchPersona({ greet_enabled: next })
+      .then((p) => setPersona(p))
+      .catch((e: Error) => {
+        setPersona({ ...persona, greet_enabled: !next })
+        toast(api.readableError(e), { tone: 'err' })
+      })
+  }
   const [settings, setSettings] = useState<api.Settings | null>(null)
   const [settingsErr, setSettingsErr] = useState<string | null>(null)
   const [conn, setConn] = useState<Conn>('checking')
@@ -66,6 +115,77 @@ export function SettingsView(props: Props) {
         想喺窄屏固定睇某一套，用 URL 加 <code>?layout=chat|journal|dash|mobile</code>（preview，唔會寫入偏好）。
       </p>
 
+      <h3 className="block-title">顧問</h3>
+      <div className="persona-card">
+        <p className="hint" style={{ marginTop: 0 }}>
+          你嘅專屬顧問。呢啲設定會直接影響佢嘅語氣同稱呼 —— 但唔會影響安全規則（唔診斷、唔開藥、紅旗轉介）。
+        </p>
+        <div className="persona-field">
+          <span className="k" id="persona-gender">性別</span>
+          <div className="seg" role="group" aria-labelledby="persona-gender">
+            {([
+              ['', '不指定'],
+              ['male', '男性'],
+              ['female', '女性'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value || 'none'}
+                type="button"
+                aria-pressed={draft?.gender === value}
+                className={draft?.gender === value ? 'on' : ''}
+                onClick={() => setDraft((d) => (d ? { ...d, gender: value } : d))}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="persona-field">
+          <label className="k" htmlFor="persona-ethnicity">背景（種族／地區）</label>
+          <input
+            id="persona-ethnicity"
+            value={draft?.ethnicity ?? ''}
+            maxLength={40}
+            placeholder="例如：香港人、東南亞"
+            onChange={(e) => setDraft((d) => (d ? { ...d, ethnicity: e.target.value } : d))}
+          />
+        </div>
+        <div className="persona-field block">
+          <label className="k" htmlFor="persona-prompt">人設描述</label>
+          <textarea
+            id="persona-prompt"
+            rows={3}
+            value={draft?.prompt ?? ''}
+            maxLength={persona?.max_prompt_length ?? 400}
+            placeholder={persona?.default_prompt ?? '例如：一位有多年經驗、講嘢直接但溫和嘅皮膚科顧問'}
+            onChange={(e) => setDraft((d) => (d ? { ...d, prompt: e.target.value } : d))}
+          />
+          <span className="hint">留空就用預設：{persona?.default_prompt ?? '—'}</span>
+        </div>
+        <div className="persona-field">
+          <span className="k" id="persona-greet">主動問候</span>
+          <div className="persona-greet">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!persona?.greet_enabled}
+              aria-labelledby="persona-greet"
+              className={`switch${persona?.greet_enabled ? ' on' : ''}`}
+              onClick={toggleGreet}
+            >
+              <span />
+            </button>
+            <span className="hint">朝 09:00 · 晚 21:00（每日最多 2 次；23:00–08:00 唔會發）</span>
+          </div>
+        </div>
+        <div className="persona-actions">
+          <button className="btn" onClick={savePersona} disabled={!dirty || saving}>
+            {saving ? '儲存緊…' : '儲存顧問設定'}
+          </button>
+          {!dirty && <span className="hint">冇改動</span>}
+        </div>
+      </div>
+
       <h3 className="block-title">指南</h3>
       <div className="guide-entry" style={{ maxWidth: 560 }}>
         <button className="guide-entry-btn" onClick={() => onNavigate?.('guide')}>
@@ -83,7 +203,7 @@ export function SettingsView(props: Props) {
       </div>
       <p className="hint">
         「應該用咩產品」嗰節同 app 推薦你嘅成份用同一份資料（backend <code>recommend.RULES</code>），
-        所以指南同教練唔會講兩套。
+        所以指南同顧問唔會講兩套。
       </p>
 
       <h3 className="block-title">Agent 連線</h3>
